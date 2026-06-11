@@ -172,7 +172,7 @@ static void ShotParticleStream(sEnemyShotSet* pEnemyShotSet)
 //    Phase 1 (hp > 200): 波面崩壊（90f）+ 補間波面（30f）
 //    Phase 2 (hp ≤ 200): 波面崩壊（70f）+ 粒子流（18f）+ 背景波面（40f）
 // ============================================================
-void Pattern_WaveParticleBoundary_claude()
+void EnemyPat_Namistubu_Claude()
 {
     static double bossVX;
     static double wobblePhase;

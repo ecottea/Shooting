@@ -232,7 +232,7 @@ static void ShotEpicycloid(sEnemyShotSet* p)
 //    ③万華鏡: 112f ごと（timer=56, 168, …）  timer*0.07 で徐々に回転
 //    ④星形  :  92f ごと（timer=82, 174, …）  プレイヤー正面を尖頭に向ける
 // ════════════════════════════════════════════════════════════════════════════
-void Pattern18_KaleidoscopeBoss()
+void EnemyPat_Beautiful_Claude()
 {
     static int timer;    // 入場後の発射タイマー
     static int roseIdx;  // 薔薇の回転インデックス

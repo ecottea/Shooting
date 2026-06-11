@@ -72,7 +72,7 @@ static void ShotSpiralFlower(sEnemyShotSet* p)
 }
 
 // ====================== 敵本体パターン ======================
-void Pattern_BeautifulSpiral()
+void EnemyPat_Beautiful_Grok()
 {
     if (count == 1)
     {

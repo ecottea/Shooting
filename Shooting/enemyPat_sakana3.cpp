@@ -86,7 +86,7 @@ static void ShotFireworkSpiral(sEnemyShotSet* p)
 }
 
 // 敵本体のパターン
-void Pattern18_FireworkSpiral()
+void EnemyPat_Beautiful_Sakana()
 {
     sEnemyShotSet* p;
     static double baseX = 240.0, baseY = 120.0;

@@ -152,7 +152,7 @@ static void ShotWafuCircle(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 和風弾幕パターン（例：渦巻き＋扇状＋円形を順番に）
-void Pattern_WafuDanmaku()
+void EnemyPat_Japanese_Sakana()
 {
     static int muki;
     if (count == 1) {

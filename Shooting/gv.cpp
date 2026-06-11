@@ -25,6 +25,7 @@ int sound_menuCursor;
 int sound_enemyShot_light;
 int sound_enemyShot_medium;
 int sound_enemyShot_heavy;
+int sound_enemyShot_noize;
 int sound_enemyDestroyed;
 int sound_playerShotHit_default;
 int sound_playerShotHit_bossLowHP;

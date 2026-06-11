@@ -77,7 +77,7 @@ static void ShotLotus(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体の行動パターン
-void Pattern1_Lotus()
+void EnemyPat_Beautiful_Gemini()
 {
     // 初期化処理
     if (count == 1) {

@@ -38,7 +38,7 @@ static void ShotFunToDodge(sEnemyShotSet* p)
     }
 }
 
-void Pattern10_FunToDodge()
+void EnemyPat_Dodge_DeepSeek()
 {
     sEnemyShotSet* p; static double targetX = 240;
     if (count==1) { enemy.maxHp=180; enemy.hp=180; enemy.x=240; enemy.y=70; }

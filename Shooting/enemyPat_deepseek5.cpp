@@ -80,7 +80,7 @@ static void ShotWaterfallStream(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン（滝）
-void Pattern_Waterfall_deepseek()
+void EnemyPat_Waterfall_DeepSeek()
 {
     static int moveDir = 1;   // 左右移動方向
     static int streamTimer = 0;

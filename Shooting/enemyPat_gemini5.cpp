@@ -125,7 +125,7 @@ static void ShotWaterfall(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体の行動パターン（滝となるボス）
-void Pattern_Waterfall_gemini()
+void EnemyPat_Waterfall_Gemini()
 {
     // 初期配置とボスのステータス設定
     if (count == 1) {

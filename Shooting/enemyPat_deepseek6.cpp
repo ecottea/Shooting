@@ -86,7 +86,7 @@ static void ShotParticleRing(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体の制御（紫の配置と発射タイミング）
-void Pattern_WaveParticleBoundary_deepseek()
+void EnemyPat_Namistubu_DeepSeek()
 {
     // 紫は画面上部で固定（文花帖のボスはあまり動かない）
     if (count == 1) {

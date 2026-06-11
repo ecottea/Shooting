@@ -97,7 +97,7 @@ static void ShotBurst(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-void Pattern3_Burst()
+void EnemyPat_Burst()
 {
     static double x, y;
     if (count == 1) {

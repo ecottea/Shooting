@@ -62,7 +62,7 @@ static void ShotNephroid(sEnemyShotSet* p)
     while (shot != p->pEnemyShotHead) { shot->x+=shot->speed*cos(shot->muki); shot->y+=shot->speed*sin(shot->muki); shot=shot->next; }
 }
 
-void Pattern17_GeometricBoss()
+void EnemyPat_Geometry_Claude2()
 {
     sEnemyShotSet* p; static int shotPhase;
     if (count==1) { enemy.x=240; enemy.y=-20; enemy.maxHp=250; enemy.hp=250; shotPhase=0; }

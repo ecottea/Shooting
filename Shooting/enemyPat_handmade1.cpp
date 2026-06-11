@@ -36,7 +36,7 @@ static void ShotAimed3Way(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void Pattern1_Aimed3Way()
+void EnemyPat_3Way()
 {
     if (count == 1) {
         enemy.x = 240.0;

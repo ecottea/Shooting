@@ -63,13 +63,13 @@
     <ClCompile Include="gv.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_chatgpt.cpp">
+    <ClCompile Include="enemyPat_chatgpt1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_chatgpt2.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_claude.cpp">
+    <ClCompile Include="enemyPat_claude1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_claude2.cpp">
@@ -78,25 +78,25 @@
     <ClCompile Include="enemyPat_claude3.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_deepseek.cpp">
+    <ClCompile Include="enemyPat_deepseek1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_deepseek2.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_gemini.cpp">
+    <ClCompile Include="enemyPat_gemini1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_gemini2.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_grok.cpp">
+    <ClCompile Include="enemyPat_grok1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_grok2.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_sakana.cpp">
+    <ClCompile Include="enemyPat_sakana1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_sakana2.cpp">
@@ -135,7 +135,7 @@
     <ClCompile Include="enemyPat_sakana3.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_qwen.cpp">
+    <ClCompile Include="enemyPat_qwen1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_qwen2.cpp">
@@ -208,6 +208,9 @@
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
     <ClCompile Include="enemyPat_sakana6.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_handmade4.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
   </ItemGroup>

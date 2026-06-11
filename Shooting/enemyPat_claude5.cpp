@@ -199,7 +199,7 @@ static void ShotWaterfall_Ripple(sEnemyShotSet* pSet)
 // ================================================================
 // 敵本体パターン: Pattern_Waterfall
 // ================================================================
-void Pattern_Waterfall_claude()
+void EnemyPat_Waterfall_Claude()
 {
     // ── 初期化 ──────────────────────────────────────────────────
     if (count == 1) {

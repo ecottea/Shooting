@@ -16,53 +16,60 @@ struct StageInfo {
 extern std::vector<StageInfo> stageData;
 
 // 各敵パターン関数の宣言（ステージ数分）
-#define EV (); extern void
-extern void Pattern_SampleForAI
-EV Pattern1_Aimed3Way
-EV Pattern2_Round
-EV Pattern3_Burst
-EV Pattern4_GeometryFlower
-EV Pattern5_DynamicRose
-EV Pattern6_LissajousCurtain
-EV Pattern7_GeometryBeauty
-EV Pattern8_LogSpiralPetal
-EV Pattern9_FibonacciSpiral
-EV Pattern10_FunToDodge
-EV Pattern11_TimeLagAmbush
-EV Pattern12_HighDifficultyComplex
-EV Pattern13_Aimed10WayRandom
-EV Pattern14_Aimed7WayCurtain
-EV Pattern15_RandomDirectionMultiSpeed
-EV Pattern16_PendulumTripleAim
-EV Pattern17_GeometricBoss
-EV Pattern18_Aimed10WayRandom
-EV Pattern18_KaleidoscopeBoss
-EV Pattern_Deepseek3
-EV Pattern1_Lotus
-EV Pattern_BeautifulSpiral
-EV Pattern18_FireworkSpiral
-EV Pattern1_GeometricFlower
-EV Pattern2_Fun
-EV Pattern3_Spectacular
-EV Pattern_Wafu
-EV Pattern13_Japanese
-EV Pattern_Wafu_SakuraFan
-EV Pattern_WafuDanmaku
-EV Pattern4_Wafu
-EV Pattern_SakuraFubuki
-EV Pattern_WaFuu
-EV Pattern_Waterfall_deepseek
-EV Pattern_Waterfall_gemini
-EV enemyPattern13
-EV Pattern_WaterfallBoss
-EV Pattern_Fall_sakana
-EV Pattern_Waterfall_claude
-EV Pattern_Fall_Qwen
-EV Pattern_WaveParticleBoundary_deepseek
-EV Pattern_WaveAndParticle_gemini
-EV Pattern_Namitsubu_GPT
-EV Pattern_WaveParticleBoundary_grok
-EV Pattern_WaveParticleBoundary_sakana
-EV Pattern_WaveParticleBoundary_claude
-EV Pattern_NamiTsubuQwen
-EV Pattern_Tmp();
+extern void EnemyPat_SampleForAI();
+extern void EnemyPat_Tmp();
+extern void EnemyPat_3Way();
+extern void EnemyPat_Round();
+extern void EnemyPat_Burst();
+extern void EnemyPat_Namitsubu();
+extern void EnemyPat_Difficulty_Claude();
+extern void EnemyPat_Geometry_Claude2();
+extern void EnemyPat_Geometry_DeepSeek();
+extern void EnemyPat_Geometry_Gemini();
+extern void EnemyPat_Geometry_ChatGPT();
+extern void EnemyPat_Geometry_Grok();
+extern void EnemyPat_Geometry_Sakana();
+extern void EnemyPat_Geometry_Claude();
+extern void EnemyPat_Geometry_Qwen();
+extern void EnemyPat_Dodge_DeepSeek();
+extern void EnemyPat_Dodge_Gemini();
+extern void EnemyPat_Dodge_ChatGPT();
+extern void EnemyPat_Dodge_Grok();
+extern void EnemyPat_Dodge_Sakana();
+extern void EnemyPat_Dodge_Claude();
+extern void EnemyPat_Dodge_Qwen();
+extern void EnemyPat_Beautiful_ChatGPT();
+extern void EnemyPat_Beautiful_Claude();
+extern void EnemyPat_Beautiful_DeepSeek();
+extern void EnemyPat_Beautiful_Gemini();
+extern void EnemyPat_Beautiful_Grok();
+extern void EnemyPat_Beautiful_Sakana();
+extern void EnemyPat_Beautiful_Qwen();
+extern void EnemyPat_Japanese_DeepSeek();
+extern void EnemyPat_Japanese_ChatGPT();
+extern void EnemyPat_Japanese_Grok();
+extern void EnemyPat_Japanese_Sakana();
+extern void EnemyPat_Japanese_Qwen();
+extern void EnemyPat_Japanese_Gemini();
+extern void EnemyPat_Japanese_Claude();
+extern void EnemyPat_Waterfall_DeepSeek();
+extern void EnemyPat_Waterfall_Gemini();
+extern void EnemyPat_Waterfall_ChatGPT();
+extern void EnemyPat_Waterfall_Grok();
+extern void EnemyPat_Waterfall_Sakana();
+extern void EnemyPat_Waterfall_Claude();
+extern void EnemyPat_Waterfall_Qwen();
+extern void EnemyPat_Namistubu_DeepSeek();
+extern void EnemyPat_Namistubu_Gemini();
+extern void EnemyPat_Namistubu_ChatGPT();
+extern void EnemyPat_Namistubu_Grok();
+extern void EnemyPat_Namistubu_Sakana();
+extern void EnemyPat_Namistubu_Claude();
+extern void EnemyPat_Namistubu_Qwen();
+extern void EnemyPat_Comet_DeepSeek();
+extern void EnemyPat_Comet_ChatGPT();
+extern void EnemyPat_Comet_Gemini();
+extern void EnemyPat_Comet_Grok();
+extern void EnemyPat_Comet_Sakana();
+extern void EnemyPat_Comet_Claude();
+extern void EnemyPat_Comet_Qwen();

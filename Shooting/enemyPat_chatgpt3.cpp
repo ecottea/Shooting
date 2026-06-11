@@ -73,7 +73,7 @@ static void ShotRotatingFlower(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-void Pattern18_Aimed10WayRandom()
+void EnemyPat_Beautiful_ChatGPT()
 {
     static int dir;
 

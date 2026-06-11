@@ -76,7 +76,7 @@ static void ShotWaterfall(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 滝弾幕を使う敵パターン例
-void Pattern_WaterfallBoss()
+void EnemyPat_Waterfall_Grok()
 {
     if (count == 1)
     {

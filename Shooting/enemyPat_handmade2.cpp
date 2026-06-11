@@ -38,7 +38,7 @@ static void ShotColorfulRound(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-void Pattern2_Round()
+void EnemyPat_Round()
 {
     static int muki;
     if (count == 1) {

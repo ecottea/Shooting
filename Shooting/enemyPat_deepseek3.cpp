@@ -71,7 +71,7 @@ static void ShotRainbowSpiral(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void Pattern_Deepseek3()
+void EnemyPat_Beautiful_DeepSeek()
 {
     if (count == 1) {
         enemy.x = 240.0;

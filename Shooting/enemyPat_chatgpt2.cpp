@@ -41,7 +41,7 @@ static void ShotRandomScatter(sEnemyShotSet* p)
     while (shot != p->pEnemyShotHead) { shot->x+=shot->speed*cos(shot->muki); shot->y+=shot->speed*sin(shot->muki); shot=shot->next; }
 }
 
-void Pattern13_Aimed10WayRandom()
+void EnemyPat_Dodge_ChatGPT()
 {
     sEnemyShotSet* p;
     if (count==1) { enemy.maxHp=100; enemy.hp=100; enemy.x=240; enemy.y=70; }

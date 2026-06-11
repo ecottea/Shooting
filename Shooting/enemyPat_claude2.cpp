@@ -39,7 +39,7 @@ static void ShotTripleDelayedAim(sEnemyShotSet* p)
     while (shot != p->pEnemyShotHead) { shot->x+=shot->speed*cos(shot->muki); shot->y+=shot->speed*sin(shot->muki); shot=shot->next; }
 }
 
-void Pattern16_PendulumTripleAim()
+void EnemyPat_Dodge_Claude()
 {
     sEnemyShotSet* p;
     if (count==1) { enemy.maxHp=150; enemy.hp=150; }

@@ -44,7 +44,7 @@ static void ShotCrossWaterfall(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-void Pattern_Fall_Qwen()
+void EnemyPat_Waterfall_Qwen()
 {
     if (count == 1) {
         enemy.x = 240.0;

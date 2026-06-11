@@ -68,7 +68,7 @@ static void ShotJapanese(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-void Pattern13_Japanese()
+void EnemyPat_Japanese_ChatGPT()
 {
     static double angle;
 

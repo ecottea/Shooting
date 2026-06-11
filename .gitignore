@@ -361,5 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/Shooting/file_to_text
+/Shooting/AI_work
 /Shooting/Log.txt

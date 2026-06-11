@@ -70,7 +70,7 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void Pattern_SampleForAI()
+void EnemyPat_SampleForAI()
 {
     static int muki;
     if (count == 1) {

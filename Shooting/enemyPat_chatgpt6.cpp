@@ -100,7 +100,7 @@ static void ShotWaveParticleBoundary(sEnemyShotSet* pSet)
 }
 
 
-void Pattern_Namitsubu_GPT()
+void EnemyPat_Namistubu_ChatGPT()
 {
     static int muki;
     if (count == 1) {

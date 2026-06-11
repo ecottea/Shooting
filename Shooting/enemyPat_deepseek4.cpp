@@ -59,7 +59,7 @@ static void ShotWafu(sEnemyShotSet* pEnemyShotSet) {
     }
 }
 
-void Pattern_Wafu() {
+void EnemyPat_Japanese_DeepSeek() {
     static int muki = 1;
     static int frameCount = 0;
 

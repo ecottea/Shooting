@@ -88,7 +88,7 @@ static void ShotWaveParticleBoundary(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン：波と粒の境界（修正版）
-void Pattern_WaveParticleBoundary_sakana()
+void EnemyPat_Namistubu_Sakana()
 {
     static int muki;
     if (count == 1) {

@@ -153,6 +153,7 @@ void imgSoundLoad()
     sound_enemyShot_light = LoadSoundMem("assets/sounds/enemyShot_light.wav");
     sound_enemyShot_medium = LoadSoundMem("assets/sounds/enemyShot_medium.wav");
     sound_enemyShot_heavy = LoadSoundMem("assets/sounds/enemyShot_heavy.wav");
+    sound_enemyShot_noize = LoadSoundMem("assets/sounds/enemyShot_noize.wav");
 
     sound_enemyDestroyed = LoadSoundMem("assets/sounds/enemyDestroyed.wav");
 

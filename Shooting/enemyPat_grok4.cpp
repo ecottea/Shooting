@@ -52,7 +52,7 @@ static void ShotSakuraFan(sEnemyShotSet* pEnemyShotSet)
 // =============================================
 // 敵本体パターン例
 // =============================================
-void Pattern_Wafu_SakuraFan()
+void EnemyPat_Japanese_Grok()
 {
     if (count == 1) {
         enemy.x = 240.0;

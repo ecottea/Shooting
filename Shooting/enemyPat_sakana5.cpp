@@ -83,7 +83,7 @@ static void ShotWaterfallFree(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-void Pattern_Fall_sakana()
+void EnemyPat_Waterfall_Sakana()
 {
     static int muki;
     if (count == 1) {

@@ -54,7 +54,7 @@ static void ShotWaterfall(sEnemyShotSet* pEnemyShotSet)
 	}
 }
 
-void enemyPattern13()
+void EnemyPat_Waterfall_ChatGPT()
 {
 	if (count == 1)
 	{

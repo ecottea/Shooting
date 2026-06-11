@@ -13,7 +13,7 @@
 //           |             | 扇 多             (50f毎 / offset25f)
 // ─────────────────────────────────────────────────────
 // stageData.cpp 側で以下を追加すること:
-//   extern void Pattern_WaFuu();
+//   extern void EnemyPat_Japanese_Claude();
 
 #include "DxLib.h"
 #include "gv.h"
@@ -251,7 +251,7 @@ static void ShotRyuuka(sEnemyShotSet* s)
 // ════════════════════════════════════════════════════════════
 // メインパターン: 幽玄の陣 (Yuugen no Jin)
 // ════════════════════════════════════════════════════════════
-void Pattern_WaFuu()
+void EnemyPat_Japanese_Claude()
 {
     static int    rotIdx;  // 渦潮・桜散りの回転インデックス (累積)
     static int    phase;   // 現在フェーズ (0〜3, 降格しない)

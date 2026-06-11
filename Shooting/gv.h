@@ -149,6 +149,7 @@ extern int sound_menuCursor;
 extern int sound_enemyShot_light;
 extern int sound_enemyShot_medium;
 extern int sound_enemyShot_heavy;
+extern int sound_enemyShot_noize;
 extern int sound_enemyDestroyed;
 extern int sound_playerShotHit_default;
 extern int sound_playerShotHit_bossLowHP;

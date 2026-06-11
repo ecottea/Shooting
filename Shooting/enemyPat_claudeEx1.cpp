@@ -58,7 +58,7 @@ static void ShotComplex(sEnemyShotSet* p)
     }
 }
 
-void Pattern12_HighDifficultyComplex()
+void EnemyPat_Difficulty_Claude()
 {
     sEnemyShotSet* p;
     if (count==1) { enemy.maxHp=120; enemy.hp=120; enemy.x=240; enemy.y=80; }

@@ -59,7 +59,7 @@ static void ShotSakura(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン：桜吹雪
-void Pattern_SakuraFubuki()
+void EnemyPat_Japanese_Gemini()
 {
     // 敵の移動ロジック（中央付近で左右に揺れる）
     if (count == 1) {

@@ -143,7 +143,7 @@ static void ShotDragonScale(sEnemyShotSet* pEnemyShotSet)
 // -----------------------------------------------------------
 // 敵本体のパターン
 // -----------------------------------------------------------
-void Pattern4_Wafu()
+void EnemyPat_Japanese_Qwen()
 {
     if (count == 1) {
         enemy.x = 240.0;

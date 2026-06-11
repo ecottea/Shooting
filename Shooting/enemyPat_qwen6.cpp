@@ -103,7 +103,7 @@ static void ShotBigBall(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void Pattern_NamiTsubuQwen()
+void EnemyPat_Namistubu_Qwen()
 {
     static int muki;
     if (count == 1) {

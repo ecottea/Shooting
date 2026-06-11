@@ -19,7 +19,7 @@ static void ShotWaveParticle(sEnemyShotSet* pSet)
 }
 
 // 敵本体パターン：波と粒の境界
-void Pattern_WaveParticleBoundary_grok()
+void EnemyPat_Namistubu_Grok()
 {
     static int phase = 0;
     static double rotAngle = 0.0;

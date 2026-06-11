@@ -39,7 +39,7 @@ static void ShotTimeLagAmbush(sEnemyShotSet* p)
     }
 }
 
-void Pattern11_TimeLagAmbush()
+void EnemyPat_Dodge_Gemini()
 {
     if (count==1) { enemy.maxHp=180; enemy.hp=180; enemy.x=240; enemy.y=70; }
     if (count%300==30) {

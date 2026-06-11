@@ -80,7 +80,7 @@ static void ShotSpectacular(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void Pattern3_Spectacular()
+void EnemyPat_Beautiful_Qwen()
 {
     static int muki;
     static sEnemyShotSet* pMyShotSet = nullptr;

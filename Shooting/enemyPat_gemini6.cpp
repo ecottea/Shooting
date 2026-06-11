@@ -85,7 +85,7 @@ static void ShotWaveAndParticle(sEnemyShotSet* pEnemyShotSet)
 
 
 // 敵本体のパターン（メインループからこれを呼ぶようにする）
-void Pattern_WaveAndParticle_gemini()
+void EnemyPat_Namistubu_Gemini()
 {
     static int muki;
     if (count == 1) {

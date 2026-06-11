@@ -48,7 +48,7 @@ static void Shot7WayCurtain(sEnemyShotSet* p)
     }
 }
 
-void Pattern14_Aimed7WayCurtain()
+void EnemyPat_Dodge_Grok()
 {
     sEnemyShotSet* p;
     if (count==1) { enemy.maxHp=enemy.hp=150; enemy.x=240; enemy.y=80; }

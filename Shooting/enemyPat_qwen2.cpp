@@ -61,7 +61,7 @@ static void ShotFunPattern(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void Pattern2_Fun()
+void EnemyPat_Dodge_Qwen()
 {
     static int muki;
     static sEnemyShotSet* pMyShotSet = nullptr;

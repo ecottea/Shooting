@@ -28,7 +28,7 @@ static void ShotRandomDirectionMultiSpeed(sEnemyShotSet* p)
     }
 }
 
-void Pattern15_RandomDirectionMultiSpeed()
+void EnemyPat_Dodge_Sakana()
 {
     sEnemyShotSet* p;
     if (count%16==0) {
