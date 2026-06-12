@@ -1,6 +1,7 @@
 ﻿#include "DxLib.h"
 #include "gv.h"
 #include "enemyShot.h"
+#include "imgSoundLoad.h"
 
 void enemyShotControl(){
 	sEnemyShotSet *pEnemyShotSet;

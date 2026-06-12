@@ -2,6 +2,7 @@
 // パターン15：ランダム方向多数発射＋速度変化
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

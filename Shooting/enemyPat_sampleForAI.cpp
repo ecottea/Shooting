@@ -2,6 +2,7 @@
 
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // ’e–‹F‚Î‚çT‚« x 5ŒÂ

@@ -1,6 +1,7 @@
 #include "DxLib.h"
 #include "gv.h"
 #include "player.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double Sqrt2 = 1.41421356237309504880;

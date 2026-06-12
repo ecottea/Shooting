@@ -3,6 +3,7 @@
 
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 彗星の「核」部分（先頭の弾）と「尾」部分（後ろに連なる弾）を表現する

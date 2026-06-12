@@ -2,6 +2,7 @@
 // パターン：避けてて楽しい弾幕（螺旋＋狙い撃ち）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 弾幕：螺旋と狙い撃ち

@@ -2,6 +2,7 @@
 // パターン：レインボースパイラル（多重渦巻き）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

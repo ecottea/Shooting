@@ -1,5 +1,6 @@
 ﻿#include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 弾幕：境界「波と粒の境界」

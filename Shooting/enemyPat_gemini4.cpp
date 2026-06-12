@@ -1,6 +1,7 @@
 ﻿// 必須インクルード
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 円周率（math.hにM_PIがない環境を考慮）

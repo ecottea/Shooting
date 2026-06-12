@@ -2,6 +2,7 @@
 // パターン4：幾何学花模様（5弁バラ曲線＋スパイラル）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

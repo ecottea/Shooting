@@ -2,6 +2,7 @@
 // 和風弾幕：扇のように拡がる花吹雪
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 static void ShotWafu(sEnemyShotSet* pEnemyShotSet) {

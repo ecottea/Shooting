@@ -2,6 +2,7 @@
 // パターン7：幾何学美（多角形＋星形＋螺旋）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

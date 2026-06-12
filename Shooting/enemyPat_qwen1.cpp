@@ -2,6 +2,7 @@
 // パターン：幾何学的に美しい弾幕（回転する花）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 弾幕：幾何学的花

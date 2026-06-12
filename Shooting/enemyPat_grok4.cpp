@@ -2,6 +2,7 @@
 // 和風弾幕パターン集
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // =============================================

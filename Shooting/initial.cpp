@@ -1,6 +1,9 @@
 #include "DxLib.h"
 #include "gv.h"
 #include "initial.h"
+#include "imgSoundLoad.h"
+#include "replay.h"
+#include "backGround.h"
 
 void ini()
 {
@@ -16,7 +19,10 @@ void iniGame()
 	sEnemyShot *pEnemyShot, *pNextEnemyShot;
 
 	count = 0;
-	
+	replayKeyHistory.clear();
+	replayActive = false;
+	resetStars();
+
 	player.x = 240.0;
 	player.y = 400.0;
 	
@@ -54,6 +60,16 @@ void iniGame()
 		
 		pEnemyShotSet = pNextEnemyShotSet;
 	}
+}
+
+void startNewGame()
+{
+	// 現在時刻をシードとして使用
+	gameSeed = GetNowCount();
+	SRand((int)gameSeed);
+
+	iniGame();
+	joutaiFlag = Joutai::Game;
 }
 
 void setColor()

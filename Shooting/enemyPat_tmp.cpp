@@ -1,90 +1,106 @@
-﻿// enemyPat_comet.cpp
-// 彗星をモチーフにした弾幕パターン
-// 敵本体の関数名：EnemyPat_Tmp()
+﻿// enemyPat_sampleForAI.cpp
 
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
-// ------------------------------------------------------------
-// 彗星の尾を表現するショットセット用関数
-// ------------------------------------------------------------
-static void CometTrail(sEnemyShotSet* pEnemyShotSet)
+// 弾幕：ばら撒き x 5個
+static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
 {
-    // 初回フレームで自機方向を記憶し、効果音を鳴らす
+    sEnemyShot* pEnemyShot;
     if (pEnemyShotSet->count == 0) {
-        pEnemyShotSet->muki = atan2(player.y - enemy.y, player.x - enemy.x);
-        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+        // 鳴らせる音全種類を AI に教える
+        int sound_type = GetRand(2);
+        switch (sound_type) {
+        case 0:
+            PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+            break;
+        case 1:
+            PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+            break;
+        case 2:
+            PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+            break;
+        }
+
+        for (int i = 0; i < 5; i++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x + GetRand(480) - 240;
+            pEnemyShot->y = pEnemyShotSet->y + GetRand(40) - 20;
+            pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(120) - 60) / 180.0 * DX_PI;
+            pEnemyShot->speed = (200 + GetRand(200)) / 100.0;
+
+            // 撃てる弾全種類を AI に教える
+            int type = GetRand(5); // 小玉、中玉、大玉、銃弾、鱗弾、菱形弾
+            int color = GetRand(7); // 0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒
+            switch (type) {
+            case 0:
+                pEnemyShot->kind = img_enemyShotSmallBall[color];
+                break;
+            case 1:
+                pEnemyShot->kind = img_enemyShotMediumBall[color];
+                break;
+            case 2:
+                pEnemyShot->kind = img_enemyShotLargeBall[color];
+                break;
+            case 3:
+                pEnemyShot->kind = img_enemyShotBullet[color];
+                break;
+            case 4:
+                pEnemyShot->kind = img_enemyShotScale[color];
+                break;
+            case 5:
+                pEnemyShot->kind = img_enemyShotDiamond[color];
+                break;
+            }
+
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        }
     }
-
-    // 発生源を敵本体の現在位置に追従させる
-    pEnemyShotSet->x = enemy.x;
-    pEnemyShotSet->y = enemy.y;
-
-    // 一定間隔で尾となる小弾を追加（120フレームで打ち止め）
-    if (pEnemyShotSet->count % 4 == 0 && pEnemyShotSet->count < 120) {
-        sEnemyShot* pShot = new sEnemyShot;
-        pShot->x = pEnemyShotSet->x;
-        pShot->y = pEnemyShotSet->y;
-        pShot->muki = pEnemyShotSet->muki;
-        pShot->speed = 2.5;                       // 移動速度
-        pShot->kind = img_enemyShotSmallBall[3];  // シアン（氷の彗星をイメージ）
-
-        // 双方向リストの末尾に挿入
-        pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-        pShot->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pShot;
-    }
-
-    // すべての弾を移動
-    sEnemyShot* pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
+    pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
         pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
         pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
+
         pEnemyShot = pEnemyShot->next;
     }
 }
 
-// ------------------------------------------------------------
-// 敵本体のパターン：彗星のように横移動しながら尾を射出
-// ------------------------------------------------------------
+// 敵本体のパターン
 void EnemyPat_Tmp()
 {
-    static int muki;   // 横移動の向き (1 or -1)
-
-    // 初期化
+    static int muki;
     if (count == 1) {
+        // ゲーム画面は 480x480
         enemy.x = 240.0;
-        enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 200;
+        enemy.y = 40.0;
+        enemy.maxHp = enemy.hp = 10;
         muki = 1;
     }
     else {
-        // 左右にゆっくり移動
-        enemy.x += 1.2 * muki;
-        if (enemy.x < 50.0 || enemy.x > 430.0)
-            muki *= -1;
+        enemy.x += 0.98 * (double)muki;
+        if (count % 120 == 60) muki *= -1;
     }
 
-    // 120カウントごとに彗星の尾を放つショットセットを生成
-    if (count % 120 == 0) {
-        sEnemyShotSet* pSet = new sEnemyShotSet;
-        pSet->count = 0;
-        pSet->patternFunc = CometTrail;
-        pSet->x = enemy.x;
-        pSet->y = enemy.y;
-        pSet->muki = 0.0;   // 実際の方向は CometTrail 内で設定
+    if (count % 10 == 0) {
+        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+        pEnemyShotSet->count = 0;
+        pEnemyShotSet->patternFunc = ShotScatter;
+        pEnemyShotSet->x = enemy.x;
+        pEnemyShotSet->y = enemy.y + 10.0;
+        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
 
-        // 双方向リストのヘッダノードを作成
-        pSet->pEnemyShotHead = new sEnemyShot;
-        pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
-        pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
 
-        // グローバルなショットセットリストに登録
-        pSet->prev = enemyShotSetHead.prev;
-        pSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pSet;
-        enemyShotSetHead.prev = pSet;
+        pEnemyShotSet->prev = enemyShotSetHead.prev;
+        pEnemyShotSet->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pEnemyShotSet;
+        enemyShotSetHead.prev = pEnemyShotSet;
     }
 }

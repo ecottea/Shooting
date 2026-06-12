@@ -1,6 +1,7 @@
 #include "DxLib.h"
 #include "gv.h"
 #include "fps.h"
+#include "imgSoundLoad.h"
 
 void fpsTimeFunction()
 {

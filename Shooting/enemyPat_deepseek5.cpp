@@ -1,6 +1,7 @@
 ﻿// 滝（Waterfall）パターン
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <cmath>
 
 // 水滴が落ちて、画面下部で飛沫になる弾セットの動作

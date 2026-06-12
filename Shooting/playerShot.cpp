@@ -2,6 +2,7 @@
 #include "gv.h"
 #include "playerShot.h"
 #include "stageData.h"
+#include "imgSoundLoad.h"
 
 void playerShotControl()
 {
@@ -77,11 +78,7 @@ void playerShotHit()
 			enemy.hp--;
 			if (enemy.hp == 0) {
 				PlaySoundMem(sound_enemyDestroyed, DX_PLAYTYPE_BACK);
-				if ((unsigned int)count < stageData[stageNum].bestTime) {
-					stageData[stageNum].bestTime = count;
-				}
 				joutaiFlag = Joutai::Win;
-				count--;
 			}
 			pPlayerShot->prev->next = pPlayerShot->next;
 			pPlayerShot->next->prev = pPlayerShot->prev;

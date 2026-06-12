@@ -2,6 +2,7 @@
 
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 滝をモチーフにした弾幕（自由発想版・修正）

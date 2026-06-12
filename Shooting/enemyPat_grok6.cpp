@@ -1,5 +1,6 @@
 ﻿#include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 波と粒の境界 用 弾更新関数

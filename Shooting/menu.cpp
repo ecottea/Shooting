@@ -4,6 +4,9 @@
 #include "gv.h"
 #include "menu.h"
 #include "stageData.h"
+#include "replay.h"
+#include "imgSoundLoad.h"
+#include "initial.h"
 
 #define SCREEN_W 640
 #define SCREEN_H 480
@@ -28,6 +31,9 @@
 #define TEXT_W (FONT_CHAR_W * 2)
 #define TEXT_H FONT_CHAR_H
 
+static bool showReplayError = false;
+static int replayErrorTimer = 0;
+
 extern void iniGame();
 
 void menuDraw()
@@ -40,7 +46,7 @@ void menuDraw()
 
     // タイトル・操作説明
     DrawString(SCREEN_W / 2 - 52, 20, "STAGE SELECT", GetColor(255, 255, 0));
-    DrawString(SCREEN_W / 2 - 158, 46, "選択: テンキー4568  決定: V  終了: Q", GetColor(200, 200, 200));
+    DrawString(SCREEN_W / 2 - 212, 46, "選択:テンキー4568  決定:V  リプレイ再生:R  終了:Q", GetColor(200, 200, 200));
 
     // 選択パネル背景
     DrawBox(PANEL_X, PANEL_Y, PANEL_X + PANEL_W, PANEL_Y + PANEL_H,
@@ -105,11 +111,54 @@ void menuDraw()
             DrawFormatString(SCREEN_W - 180, descAreaTop + 45,
                 GetColor(100, 100, 100), "Best: ---.--");
         }
+
+        if (showReplayError) {
+            if (replayErrorTimer > 0) {
+                DrawString(30, DESC_Y + 80, "リプレイファイルが存在しません", GetColor(255, 100, 100));
+                replayErrorTimer--;
+                if (replayErrorTimer == 0) showReplayError = false;
+            }
+        }
     }
 }
 
 void moveCursor()
 {
+    stageNum = cursor.y * 10 + cursor.x;
+
+    if (key[KEY_INPUT_V] == 1 && stageNum < (int)stageData.size()) {
+        if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
+        currentBGMHandle = stageData[stageNum].bgmHandle;
+        PlaySoundMem(currentBGMHandle, DX_PLAYTYPE_LOOP);
+        joutaiFlag = Joutai::Game;
+        startNewGame();
+        return;
+    }
+
+    // moveCursor() 内の R キー処理
+    if (key[KEY_INPUT_R] == 1 && stageNum < (int)stageData.size()) {
+        key[KEY_INPUT_NUMPAD4] = 0;
+        key[KEY_INPUT_NUMPAD6] = 0;
+        key[KEY_INPUT_NUMPAD8] = 0;
+        key[KEY_INPUT_NUMPAD5] = 0;
+        key[KEY_INPUT_V] = 1;
+        key[KEY_INPUT_C] = 0;
+        if (!startReplay(stageNum)) {
+            showReplayError = true;
+            replayErrorTimer = 120;  // 2秒間表示 (60fps想定)
+        }
+        return;
+    }
+
+    // 他のキー入力があればエラー表示を即座に消す（オプション）
+    if (showReplayError) {
+        if (key[KEY_INPUT_NUMPAD4] == 1 || key[KEY_INPUT_NUMPAD6] == 1 ||
+            key[KEY_INPUT_NUMPAD8] == 1 || key[KEY_INPUT_NUMPAD5] == 1 ||
+            key[KEY_INPUT_V] == 1 || key[KEY_INPUT_Q] == 1) {
+            showReplayError = false;
+        }
+    }
+
     // テンキー6: 右
     if (key[KEY_INPUT_NUMPAD6] == 1 || (key[KEY_INPUT_NUMPAD6] % 4 == 0 && key[KEY_INPUT_NUMPAD6] > 18)) {
         PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
@@ -133,15 +182,5 @@ void moveCursor()
         PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
         if (cursor.y == 0) cursor.y = 9;
         else               cursor.y--;
-    }
-
-    stageNum = cursor.y * 10 + cursor.x;
-
-    if (key[KEY_INPUT_V] == 1 && stageNum < (int)stageData.size()) {
-        if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
-        currentBGMHandle = stageData[stageNum].bgmHandle;
-        PlaySoundMem(currentBGMHandle, DX_PLAYTYPE_LOOP);
-        joutaiFlag = Joutai::Game;
-        iniGame();
-    }
+    }    
 }

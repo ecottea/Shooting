@@ -4,7 +4,9 @@
 #include "gv.h"
 #include "backGround.h"
 #include "stageData.h"
+#include "imgSoundLoad.h"
 #include <math.h>
+#include "replay.h"
 
 #define NUM_STARS 30
 
@@ -80,6 +82,10 @@ static void createSidePanelBG() {
     SetDrawScreen(oldScreen);
 }
 
+void resetStars() {
+    starsInitialized = 0;
+}
+
 void initStars() {
     if (starsInitialized) return;
     for (int i = 0; i < NUM_STARS; i++) {
@@ -109,7 +115,7 @@ void backGround()
 
     // 星の更新と描画（動的）
     for (int i = 0; i < NUM_STARS; i++) {
-        if (joutaiFlag == Joutai::Game) {
+        if (joutaiFlag == Joutai::Game || joutaiFlag == Joutai::Replay) {
             stars[i].y += stars[i].speedY;
             if (stars[i].y > 480.0) {
                 stars[i].y -= 480.0;
@@ -172,10 +178,7 @@ void drawSidePanel()
 void drawGameOverlay()
 {
     int overlayColor;
-    if (joutaiFlag == Joutai::Pause) {
-        overlayColor = GetColor(10, 10, 30);
-    }
-    else if (joutaiFlag == Joutai::Win) {
+    if (joutaiFlag == Joutai::Win) {
         overlayColor = GetColor(30, 20, 10);
     }
     else { // Joutai::Lose
@@ -188,11 +191,7 @@ void drawGameOverlay()
 
     const char* message;
     int msgColor;
-    if (joutaiFlag == Joutai::Pause) {
-        message = "Pause";
-        msgColor = GetColor(255, 255, 100);
-    }
-    else if (joutaiFlag == Joutai::Win) {
+    if (joutaiFlag == Joutai::Win) {
         message = "You Win!!";
         msgColor = GetColor(255, 200, 50);
     }
@@ -205,14 +204,7 @@ void drawGameOverlay()
     DrawBox(140, 200, 340, 202, msgColor, TRUE);
     DrawString(240 - (int)strlen(message) * 8, 205, message, colorWhite);
 
-    // ポーズ時のみ ESC : Resume を表示
-    if (joutaiFlag == Joutai::Pause) {
-        DrawString(155, 230, "ESC : Resume", colorWhite);
-        DrawString(155, 250, "V   : Retry", colorWhite);
-        DrawString(155, 270, "Q   : Stage Select", colorWhite);
-    }
-    else { // Joutai::Win または Joutai::Lose
-        DrawString(155, 230, "V   : Retry", colorWhite);
-        DrawString(155, 250, "Q   : Stage Select", colorWhite);
-    }
+    if (!replayActive) DrawString(155, 230, "V   : Retry",  colorWhite);
+    else               DrawString(155, 230, "V   : Replay", colorWhite);
+    DrawString(155, 250, "Q   : Stage Select", colorWhite);
 }

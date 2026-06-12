@@ -2,6 +2,7 @@
 // パターン8：対数螺旋＋花びら状
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

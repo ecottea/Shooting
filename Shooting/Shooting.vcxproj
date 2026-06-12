@@ -221,6 +221,7 @@
     <ClCompile Include="menu.cpp" />
     <ClCompile Include="player.cpp" />
     <ClCompile Include="playerShot.cpp" />
+    <ClCompile Include="replay.cpp" />
     <ClCompile Include="stageData.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -236,6 +237,7 @@
     <ClInclude Include="menu.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="playerShot.h" />
+    <ClInclude Include="replay.h" />
     <ClInclude Include="stageData.h" />
   </ItemGroup>
   <ItemGroup>

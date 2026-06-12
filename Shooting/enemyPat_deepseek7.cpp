@@ -4,6 +4,7 @@
 
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // ------------------------------------------------------------
@@ -79,7 +80,7 @@ void EnemyPat_Comet_DeepSeek()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 50.0;
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
     }
     else {

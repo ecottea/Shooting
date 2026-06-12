@@ -2,6 +2,7 @@
 // パターン12：高難易度複合（速弾・遅弾・加速・散弾）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

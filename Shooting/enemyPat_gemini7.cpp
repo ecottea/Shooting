@@ -1,6 +1,7 @@
 ﻿// enemyPat_Tmp.cpp
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 弾幕：彗星弾幕（コメットテイル）
@@ -120,7 +121,7 @@ void EnemyPat_Comet_Gemini()
         // 初期位置とHPの設定
         enemy.x = 240.0;
         enemy.y = 80.0;
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
     }
     else {
         // ボスらしく、ゆったりとした美しいサイン波で左右上下に浮遊移動

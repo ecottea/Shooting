@@ -17,6 +17,7 @@
 
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <cmath>
 
 static constexpr double TAU = 6.28318530717958647692; // 2π

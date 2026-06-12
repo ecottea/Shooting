@@ -2,6 +2,7 @@
 // パターン11：時間差包囲（静止→一斉狙い）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

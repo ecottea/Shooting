@@ -2,6 +2,7 @@
 // パターン18：花火状＋渦巻き弾幕（見栄え重視）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

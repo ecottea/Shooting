@@ -2,6 +2,7 @@
 // パターン：見栄えの良い弾幕（レインボー・マルチリング・バースト）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 弾幕：マルチリングバースト

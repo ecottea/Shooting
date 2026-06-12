@@ -2,6 +2,7 @@
 // パターン1：双竜蓮華（回転渦巻き＆交差曲線弾）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

@@ -1,5 +1,6 @@
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 static void Shot5Way(sEnemyShotSet* pEnemyShotSet)
@@ -38,7 +39,7 @@ void EnemyPat_Namitsubu()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 180.0;
-        enemy.maxHp = enemy.hp = 200;
+        enemy.maxHp = enemy.hp = 300;
 
         angle = -DX_PI / 2.0;
         angularVelocity = 0.0;

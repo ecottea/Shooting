@@ -69,7 +69,7 @@ void fileClose()
         ofs << j.dump(4);   // インデント付きで出力
     }
 
-    saveCursorPos();   // ★ ここを追加
+    saveCursorPos();
 }
 
 // 追加する読み込み関数
@@ -104,6 +104,60 @@ void saveCursorPos()
     j["y"] = cursor.y;
 
     std::ofstream ofs("saveData/cursor.json");
+    if (ofs.is_open())
+    {
+        ofs << j.dump(4);
+    }
+}
+
+// ウィンドウ設定の読み込み
+void loadWindowSettings()
+{
+    std::ifstream ifs("saveData/window.json");
+    if (!ifs.is_open())
+        return;
+
+    try
+    {
+        json j;
+        ifs >> j;
+        if (j.is_object())
+        {
+            int x = j.value("x", -1);
+            int y = j.value("y", -1);
+            int w = j.value("w", 0);
+            int h = j.value("h", 0);
+
+            // ある程度の妥当性（最小サイズを確保）
+            if (w >= 200 && h >= 200)
+            {
+                SetWindowSize(w, h);
+            }
+            if (x != -1 && y != -1)
+            {
+                SetWindowPosition(x, y);
+            }
+        }
+    }
+    catch (...) {}
+}
+
+// ウィンドウ設定の保存
+void saveWindowSettings()
+{
+    int x, y, w, h;
+
+    // ウィンドウが生きているかチェック（失敗時は保存しない）
+    GetWindowSize(&w, &h);
+    GetWindowPosition(&x, &y);
+
+    json j;
+    j["x"] = x;
+    j["y"] = y;
+    j["w"] = w;
+    j["h"] = h;
+
+    std::ofstream ofs("saveData/window.json");
     if (ofs.is_open())
     {
         ofs << j.dump(4);

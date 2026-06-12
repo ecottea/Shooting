@@ -2,6 +2,7 @@
 
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // ============================================================
@@ -107,7 +108,7 @@ void EnemyPat_Comet_ChatGPT()
         enemy.x = 240.0;
         enemy.y = 60.0;
 
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
 
         dir = 1;
     }

@@ -2,6 +2,7 @@
 // ƒpƒ^[ƒ“1F’†‰›ã•”Ã~{©‹@‘_‚¢LŠp3WAY˜AË
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // ’e–‹FLŠp3Way’P”­_“™‘¬_’¼i
@@ -41,7 +42,7 @@ void EnemyPat_3Way()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = 100;
+        enemy.maxHp = 200;
         enemy.hp = enemy.maxHp;
     }
     if (count % 5 == 0) {

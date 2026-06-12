@@ -1,6 +1,7 @@
 ﻿// enemyPat_waterfall.cpp
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 // 弾幕：滝（激流と水しぶき、そして川の霧）

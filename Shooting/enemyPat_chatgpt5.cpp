@@ -1,5 +1,6 @@
 ﻿#include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 static void ShotWaterfall(sEnemyShotSet* pEnemyShotSet)

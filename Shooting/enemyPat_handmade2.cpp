@@ -2,6 +2,7 @@
 // パターン2：上部左右往復＋カラフル円形弾
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;
@@ -44,8 +45,7 @@ void EnemyPat_Round()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = 100;
-        enemy.hp = 100;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
     }
     else {

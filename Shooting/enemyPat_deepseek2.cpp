@@ -2,6 +2,7 @@
 // パターン10：避けてて楽しい弾幕（窄角5WAY＋左右制限＋ランダム）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 static void ShotFunToDodge(sEnemyShotSet* p)

@@ -1,6 +1,7 @@
 #include "DxLib.h"
 #include "gv.h"
 #include "enemy.h"
+#include "imgSoundLoad.h"
 
 void enemyDisp() {
     // 表示に使うハンドルを先に決める

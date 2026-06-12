@@ -3,8 +3,39 @@
 #include "imgSoundLoad.h"
 #include "stageData.h"
 
+int colorWhite;
+int colorGray;
+int colorGreenBlue;
+
+// ---------- 画像ID管理 ----------
+std::vector<ImageData> imageData;
+
+// ---------- グローバル変数（IDを保持） ----------
+int img_player;
+int img_playerShot;
+int img_enemy[2];
+int img_enemyShotSmallBall[8];
+int img_enemyShotMediumBall[8];
+int img_enemyShotLargeBall[8];
+int img_enemyShotBullet[8];
+int img_enemyShotScale[8];
+int img_enemyShotDiamond[8];
+
+int sound_menuCursor;
+int sound_enemyShot_light;
+int sound_enemyShot_medium;
+int sound_enemyShot_heavy;
+int sound_enemyShot_noize;
+int sound_enemyDestroyed;
+int sound_playerShotHit_default;
+int sound_playerShotHit_bossLowHP;
+int sound_playerDestroyed;
+
+int bgm_menu;
+int currentBGMHandle;
+
 // ---------- 単一画像読み込み ----------
-int LoadImage(const char* filename, double mag, bool no_rotate, double radius) {
+static int LoadImage(const char* filename, double mag, bool no_rotate, double radius) {
     int h = LoadGraph(filename);
     if (h == -1) return -1;
 
@@ -18,7 +49,7 @@ int LoadImage(const char* filename, double mag, bool no_rotate, double radius) {
 }
 
 // ---------- 分割画像読み込み（idBuf にID配列を返す） ----------
-int LoadDivImages(const char* filename, int allNum, int xNum, int yNum,
+static int LoadDivImages(const char* filename, int allNum, int xNum, int yNum,
     int xSize, int ySize, int* idBuf,
     double mag, bool no_rotate, double radius) {
     // 一時的にハンドル配列を確保
@@ -58,7 +89,7 @@ int LoadDivImages(const char* filename, int allNum, int xNum, int yNum,
 }
 
 // ---------- カラー弾8種読み込み（白→白、黒→色付き） ----------
-bool LoadColoredShotsEx(const char* monoFileName, int width, int height,
+static bool LoadColoredShotsEx(const char* monoFileName, int width, int height,
     int* idBuf, double mag, bool no_rotate, double radius) {
     int srcSoft = LoadSoftImage(monoFileName);
     if (srcSoft == -1) return false;

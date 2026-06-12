@@ -2,6 +2,7 @@
 // パターン4：和風弾幕（桜吹雪・扇の舞・龍の鱗）
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 #define PI 3.14159265358979323846

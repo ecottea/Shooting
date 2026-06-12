@@ -2,6 +2,7 @@
 // ƒpƒ^[ƒ“3Fã•”XÀ•W’Ç”ö{”j—ô’ei‰~Œ`U’ej
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;
@@ -101,8 +102,7 @@ void EnemyPat_Burst()
 {
     static double x, y;
     if (count == 1) {
-        enemy.maxHp = 100;
-        enemy.hp = 100;
+        enemy.maxHp = enemy.hp = 200;
         enemy.x = 240.0;
         enemy.y = 35.0;
         x = y = 0.0;

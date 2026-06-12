@@ -2,6 +2,7 @@
 // パターン16：振り子掃射＋時間差3連自機狙い
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;

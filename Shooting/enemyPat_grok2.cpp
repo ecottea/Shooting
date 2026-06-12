@@ -2,6 +2,7 @@
 // パターン14：自機狙い7WAY＋左右カーテン
 #include "DxLib.h"
 #include "gv.h"
+#include "imgSoundLoad.h"
 #include <math.h>
 
 constexpr double PI = 3.14159265358979323846;
