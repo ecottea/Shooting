@@ -67,8 +67,7 @@ void EnemyPat_Japanese_DeepSeek() {
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = 120;
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
         frameCount = 0;
     } else {

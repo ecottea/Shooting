@@ -93,7 +93,7 @@ void EnemyPat_Namistubu_DeepSeek()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 50.0;          // 少し下げて弾幕の起点に余裕を持たせる
-        enemy.maxHp = enemy.hp = 100;  // 撮影ゲーム想定（無敵）
+        enemy.maxHp = enemy.hp = 200;  // 撮影ゲーム想定（無敵）
     }
 
     // 波スネーク：100フレームごとに新規生成（切れ目なく波を維持）

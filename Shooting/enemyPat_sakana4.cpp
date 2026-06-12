@@ -159,7 +159,7 @@ void EnemyPat_Japanese_Sakana()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = 150;
+        enemy.maxHp = 200;
         enemy.hp = enemy.maxHp;
         muki = 1;
     }

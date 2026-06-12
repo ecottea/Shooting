@@ -107,7 +107,7 @@ void EnemyPat_Namistubu_ChatGPT()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 80;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
     }
     else {

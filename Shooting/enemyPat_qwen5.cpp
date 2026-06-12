@@ -50,7 +50,7 @@ void EnemyPat_Waterfall_Qwen()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
     }
     else {
         enemy.y += sin(count * 0.01) * 0.5; // 上下にゆらゆら

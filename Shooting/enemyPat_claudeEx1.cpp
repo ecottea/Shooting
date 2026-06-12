@@ -62,7 +62,7 @@ static void ShotComplex(sEnemyShotSet* p)
 void EnemyPat_Difficulty_Claude()
 {
     sEnemyShotSet* p;
-    if (count==1) { enemy.maxHp=120; enemy.hp=120; enemy.x=240; enemy.y=80; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; enemy.x=240; enemy.y=80; }
     int phase = (count<=100)?1:(count<=250)?2:3;
     double targetY = (phase<=2)?80.0:120.0;
     enemy.x = 240 + 65*sin(count*0.019); enemy.y += (targetY - enemy.y)*0.008;

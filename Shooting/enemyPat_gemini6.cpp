@@ -92,7 +92,7 @@ void EnemyPat_Namistubu_Gemini()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 80.0;  // 画面上部中央付近に陣取る
-        enemy.maxHp = enemy.hp = 150; // ボス級のHP
+        enemy.maxHp = enemy.hp = 200; // ボス級のHP
         muki = 1;
     }
     else {

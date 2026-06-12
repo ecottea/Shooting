@@ -132,7 +132,7 @@ void EnemyPat_Waterfall_Gemini()
     if (count == 1) {
         enemy.x = 240.0; // 画面中央上部
         enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 150; // 滝らしくタフに
+        enemy.maxHp = enemy.hp = 200; // 滝らしくタフに
     }
     else {
         // 滝自体がダイナミックに左右に少しだけ揺れる（サイン波で滑らかに移動）

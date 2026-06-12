@@ -242,8 +242,7 @@ void EnemyPat_Beautiful_Claude()
     if (count == 1) {
         enemy.x    = 240.0;
         enemy.y    = -30.0;
-        enemy.maxHp = 150;
-        enemy.hp    = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
         timer      = 0;
         roseIdx    = 0;
     }
@@ -251,25 +250,47 @@ void EnemyPat_Beautiful_Claude()
     // ── 敵の移動 ────────────────────────────────────────────────────────
     const int t = count - 1;
 
+    // 目標座標を計算
+    double targetX, targetY;
+
     if (t < 75) {
         // 入場：緩やかな指数的降下
         enemy.y += (62.0 - enemy.y) * 0.07;
+        targetX = enemy.x;
+        targetY = enemy.y;
     }
     else if (t < 380) {
         // フェーズ1：ゆっくり横揺れ
-        enemy.x = 240.0 + 105.0 * sin((t -  75) * 0.023);
-        enemy.y =  62.0 +  14.0 * sin((t -  75) * 0.040);
+        targetX = 240.0 + 105.0 * sin((t -  75) * 0.023);
+        targetY =  62.0 +  14.0 * sin((t -  75) * 0.040);
     }
     else if (t < 720) {
         // フェーズ2：8の字（縦にも揺れ、密度が増す）
-        enemy.x = 240.0 + 118.0 * sin((t - 380) * 0.021);
-        enemy.y =  70.0 +  36.0 * sin((t - 380) * 0.042);
+        targetX = 240.0 + 118.0 * sin((t - 380) * 0.021);
+        targetY =  70.0 +  36.0 * sin((t - 380) * 0.042);
     }
     else {
         // フェーズ3：高速楕円軌道
         double ang = (t - 720) * 0.031;
-        enemy.x = 240.0 + 128.0 * cos(ang);
-        enemy.y =  76.0 +  40.0 * sin(ang);
+        targetX = 240.0 + 128.0 * cos(ang);
+        targetY =  76.0 +  40.0 * sin(ang);
+    }
+
+    // 速度制限つきで目標へ移動
+    const double maxSpeed = 4.0;   // 適切な値に調整（軌道の最大速度より少し大きめ）
+    double dx = targetX - enemy.x;
+    double dy = targetY - enemy.y;
+    double dist = sqrt(dx * dx + dy * dy);
+
+    if (dist <= maxSpeed) {
+        // 近ければ目標に直接到達
+        enemy.x = targetX;
+        enemy.y = targetY;
+    }
+    else {
+        // 遠ければ最大速度で近づく
+        enemy.x += (dx / dist) * maxSpeed;
+        enemy.y += (dy / dist) * maxSpeed;
     }
 
     // ── 弾幕スケジュール（入場完了後のみ発射） ──────────────────────────

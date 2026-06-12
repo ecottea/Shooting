@@ -37,7 +37,7 @@ static void ShotRainbowSpiral(sEnemyShotSet* pEnemyShotSet)
                 switch (kindType) {
                 case 0: pEnemyShot->kind = img_enemyShotSmallBall[color];  break;
                 case 1: pEnemyShot->kind = img_enemyShotMediumBall[color]; break;
-                case 2: pEnemyShot->kind = img_enemyShotBullet[color];    break;
+                case 2: pEnemyShot->kind = img_enemyShotScale[color];      break;
                 }
 
                 // 双方向リストに追加

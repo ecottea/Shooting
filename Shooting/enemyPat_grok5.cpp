@@ -79,15 +79,17 @@ static void ShotWaterfall(sEnemyShotSet* pEnemyShotSet)
 // 滝弾幕を使う敵パターン例
 void EnemyPat_Waterfall_Grok()
 {
+    static double movePhase = 0.0;
+    
     if (count == 1)
     {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
+        movePhase = 0.0;
     }
 
     // ゆったり左右移動
-    static double movePhase = 0.0;
     movePhase += 0.018;
     enemy.x = 240.0 + sin(movePhase) * 110.0;
 

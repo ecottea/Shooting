@@ -89,8 +89,7 @@ void EnemyPat_Beautiful_Qwen()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 80.0;
-        enemy.maxHp = 150; // 見栄えが良いので長生きさせる
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200; // 見栄えが良いので長生きさせる
         muki = 1;
         pMyShotSet = nullptr;
     }

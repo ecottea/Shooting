@@ -21,7 +21,9 @@ static void ShotWaterfallFree(sEnemyShotSet* pEnemyShotSet)
     // === 滝の筋の生成 ===
     if (pEnemyShotSet->count % SPAWN_INTERVAL == 0 && pEnemyShotSet->count < 300) {
         // 軽い発射音
-        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+        if (pEnemyShotSet->count % (2 * SPAWN_INTERVAL)) {
+            PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+        }
 
         for (int i = 0; i < LANE_COUNT; i++) {
             pEnemyShot = new sEnemyShot;
@@ -90,7 +92,7 @@ void EnemyPat_Waterfall_Sakana()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 80;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
     }
     else {

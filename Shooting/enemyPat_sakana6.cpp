@@ -95,7 +95,7 @@ void EnemyPat_Namistubu_Sakana()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 120.0;
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
     }
     else {

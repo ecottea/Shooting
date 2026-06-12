@@ -206,7 +206,7 @@ void EnemyPat_Waterfall_Claude()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 55.0;
-        enemy.maxHp = enemy.hp = 120;
+        enemy.maxHp = enemy.hp = 200;
     }
 
     // フェーズ

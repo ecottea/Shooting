@@ -66,8 +66,7 @@ void EnemyPat_Japanese_Gemini()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 180.0;
-        enemy.maxHp = 100;
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
     } else {
         enemy.x = 240.0 + 80.0 * sin(count * PI / 120.0);
     }

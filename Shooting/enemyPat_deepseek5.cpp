@@ -89,7 +89,7 @@ void EnemyPat_Waterfall_DeepSeek()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
         moveDir = 1;
         streamTimer = 0;
     }

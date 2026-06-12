@@ -58,7 +58,7 @@ void EnemyPat_Japanese_Grok()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = 150;
+        enemy.maxHp = 200;
         enemy.hp = enemy.maxHp;
     }
 

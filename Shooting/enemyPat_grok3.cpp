@@ -79,8 +79,7 @@ void EnemyPat_Beautiful_Grok()
     {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = 100;
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
     }
 
     // 敵のゆらゆら移動
