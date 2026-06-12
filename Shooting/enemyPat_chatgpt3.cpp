@@ -83,8 +83,7 @@ void EnemyPat_Beautiful_ChatGPT()
         enemy.x = 240;
         enemy.y = 70;
 
-        enemy.maxHp = 150;
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
 
         dir = 1;
     }

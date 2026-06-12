@@ -90,7 +90,7 @@ void EnemyPat_Comet_Qwen()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
         muki_x = 1;
     }
     else {
@@ -101,7 +101,7 @@ void EnemyPat_Comet_Qwen()
     }
 
     // 30フレームごとに彗星を発射
-    if (count % 15 == 0) {
+    if (count % 10 == 0) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
         pEnemyShotSet->patternFunc = ShotComet;

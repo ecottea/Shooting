@@ -44,9 +44,10 @@ void EnemyPat_Geometry_Gemini()
 {
     static double baseX = 240.0, baseY = 120.0;
     if (count == 1) {
-        enemy.maxHp = 150; enemy.hp = 150;
+        enemy.maxHp = enemy.hp = 200;
         enemy.x = baseX; enemy.y = baseY;
     }
+
     if (count % 300 == 1) {
         sEnemyShotSet* p = new sEnemyShotSet;
         p->count = 0; p->patternFunc = ShotDynamicRose;

@@ -43,7 +43,7 @@ static void ShotTripleDelayedAim(sEnemyShotSet* p)
 void EnemyPat_Dodge_Claude()
 {
     sEnemyShotSet* p;
-    if (count==1) { enemy.maxHp=150; enemy.hp=150; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; }
     enemy.x = 240 + 160*sin(count*0.022); enemy.y = 42 + 12*sin(count*0.031);
     int interval1 = (enemy.hp<=enemy.maxHp/2)?90:120;
     if (count%interval1==2) {

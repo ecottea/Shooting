@@ -84,8 +84,7 @@ void EnemyPat_Beautiful_Gemini()
     if (count == 1) {
         enemy.x = 240.0; // 画面中央を想定
         enemy.y = 120.0; // 少し上の方
-        enemy.maxHp = 100;
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
     }
     else {
         // 敵の移動：リサージュ図形による滑らかな8の字移動

@@ -42,8 +42,10 @@ static void ShotFunToDodge(sEnemyShotSet* p)
 void EnemyPat_Dodge_DeepSeek()
 {
     sEnemyShotSet* p; static double targetX = 240;
-    if (count==1) { enemy.maxHp=180; enemy.hp=180; enemy.x=240; enemy.y=70; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; enemy.x=240; enemy.y=70; }
+
     targetX += (player.x - targetX)*0.01; enemy.x = targetX; enemy.y = 70 + 25*sin(count*0.04);
+
     if (count%75==0) {
         p = new sEnemyShotSet; p->count=0; p->patternFunc=ShotFunToDodge;
         p->x=enemy.x; p->y=enemy.y; p->muki=atan2(player.y-enemy.y, player.x-enemy.x);

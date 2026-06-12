@@ -45,8 +45,10 @@ static void ShotRandomScatter(sEnemyShotSet* p)
 void EnemyPat_Dodge_ChatGPT()
 {
     sEnemyShotSet* p;
-    if (count==1) { enemy.maxHp=100; enemy.hp=100; enemy.x=240; enemy.y=70; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; enemy.x=240; enemy.y=70; }
+
     enemy.x = 240 + 120*sin(count*0.015);
+
     if (count%21==0) {
         p = new sEnemyShotSet; p->count=0; p->patternFunc=ShotAimed10Way;
         p->x=enemy.x; p->y=enemy.y; p->muki=atan2(player.y-enemy.y, player.x-enemy.x); p->kind=0;

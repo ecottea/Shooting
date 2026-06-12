@@ -25,8 +25,6 @@ uint8_t packReplayKey(const int key[256]) {
 }
 
 void unpackReplayKey(uint8_t data, int key[256]) {
-    key[KEY_INPUT_R] = 0;
-    key[KEY_INPUT_Q] = 0;
     if (data & REPLAY_KEY_LEFT)  key[KEY_INPUT_NUMPAD4]++; else key[KEY_INPUT_NUMPAD4] = 0;
     if (data & REPLAY_KEY_RIGHT) key[KEY_INPUT_NUMPAD6]++; else key[KEY_INPUT_NUMPAD6] = 0;
     if (data & REPLAY_KEY_UP)    key[KEY_INPUT_NUMPAD8]++; else key[KEY_INPUT_NUMPAD8] = 0;

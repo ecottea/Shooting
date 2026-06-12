@@ -71,7 +71,7 @@ void EnemyPat_Comet_Grok()
         // 初期位置（画面上部中央）
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 100;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
         shotPhase = 0;
     }

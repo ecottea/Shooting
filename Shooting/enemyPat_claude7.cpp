@@ -214,7 +214,7 @@ static void ShotMeteorShower(sEnemyShotSet* pEnemyShotSet)
 void EnemyPat_Comet_Claude()
 {
     if (count == 1) {
-        enemy.maxHp = enemy.hp = 120;
+        enemy.maxHp = enemy.hp = 200;
     }
 
     // ── 楕円軌道 ─────────────────────────────────────────────────

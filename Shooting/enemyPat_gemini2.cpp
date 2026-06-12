@@ -42,7 +42,8 @@ static void ShotTimeLagAmbush(sEnemyShotSet* p)
 
 void EnemyPat_Dodge_Gemini()
 {
-    if (count==1) { enemy.maxHp=180; enemy.hp=180; enemy.x=240; enemy.y=70; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; enemy.x=240; enemy.y=70; }
+
     if (count%300==30) {
         sEnemyShotSet* p = new sEnemyShotSet; p->count=0; p->patternFunc=ShotTimeLagAmbush;
         p->x=enemy.x; p->y=enemy.y; p->kind=0; p->muki=0;

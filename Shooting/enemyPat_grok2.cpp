@@ -52,8 +52,10 @@ static void Shot7WayCurtain(sEnemyShotSet* p)
 void EnemyPat_Dodge_Grok()
 {
     sEnemyShotSet* p;
-    if (count==1) { enemy.maxHp=enemy.hp=150; enemy.x=240; enemy.y=80; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; enemy.x=240; enemy.y=80; }
+
     enemy.x = 240 + 95*sin(count*0.023); enemy.y = 95 + 30*cos(count*0.019);
+
     if (count%45==0) {
         p = new sEnemyShotSet; p->count=0; p->patternFunc=Shot7WayCurtain;
         p->x=enemy.x; p->y=enemy.y; p->muki=atan2(player.y-enemy.y, player.x-enemy.x); p->kind=0;

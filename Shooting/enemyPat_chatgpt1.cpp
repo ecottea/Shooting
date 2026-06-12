@@ -42,10 +42,12 @@ void EnemyPat_Geometry_ChatGPT()
 {
     sEnemyShotSet* p;
     if (count == 1) {
-        enemy.maxHp = 100; enemy.hp = 100;
+        enemy.maxHp = enemy.hp = 200;
         enemy.x = 240; enemy.y = 200;
     }
+
     enemy.x = 240 + 50*sin(count*0.01); enemy.y = 200;
+
     if (count % 300 == 60) {
         p = new sEnemyShotSet;
         p->count = 0; p->patternFunc = ShotLissajousCurtain;

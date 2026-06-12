@@ -46,10 +46,12 @@ void EnemyPat_Geometry_DeepSeek()
     sEnemyShotSet* p;
     static double phase = 0, baseX = 240.0, baseY = 160.0;
     if (count == 1) {
-        enemy.maxHp = 80; enemy.hp = 80;
+        enemy.maxHp = enemy.hp = 200;
         enemy.x = baseX; enemy.y = baseY;
     }
+
     enemy.x = baseX + 30.0 * sin(count * 0.02); enemy.y = baseY;
+
     if (count % 120 == 30) {
         for (int dir = 0; dir < 2; ++dir) {
             p = new sEnemyShotSet;

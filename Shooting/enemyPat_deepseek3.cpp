@@ -77,15 +77,14 @@ void EnemyPat_Beautiful_DeepSeek()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = 300;
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
     }
 
     // ゆるやかな横移動（コサインカーブ）
     enemy.x += 0.4 * cos(count * 0.05);
 
     // 40フレームごとに弾幕セットを生成
-    if (count % 40 == 0) {
+    if (count % 20 == 0) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
         pEnemyShotSet->patternFunc = ShotRainbowSpiral;

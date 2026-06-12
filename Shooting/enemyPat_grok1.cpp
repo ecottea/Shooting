@@ -47,8 +47,10 @@ static void ShotGeometryMulti(sEnemyShotSet* p)
 void EnemyPat_Geometry_Grok()
 {
     sEnemyShotSet* p;
-    if (count == 1) { enemy.maxHp=150; enemy.hp=150; enemy.x=240; enemy.y=120; }
+    if (count == 1) { enemy.maxHp=enemy.hp=200; enemy.x=240; enemy.y=120; }
+
     enemy.x = 240 + 48*sin(count*0.016); enemy.y = 125 + 38*cos(count*0.013);
+
     if (count % 85 == 0) {
         for (int type=0; type<3; type++) {
             p = new sEnemyShotSet; p->count=0; p->patternFunc=ShotGeometryMulti;

@@ -71,8 +71,7 @@ void EnemyPat_Geometry_Qwen()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 80.0;
-        enemy.maxHp = 150;
-        enemy.hp = enemy.maxHp;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
         pMyShotSet = nullptr;
     }

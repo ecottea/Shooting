@@ -37,8 +37,10 @@ static void ShotLogSpiralPetal(sEnemyShotSet* p)
 void EnemyPat_Geometry_Sakana()
 {
     sEnemyShotSet* p; static double baseX=240, baseY=120;
-    if (count==1) { enemy.maxHp=150; enemy.hp=150; enemy.x=baseX; enemy.y=baseY; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; enemy.x=baseX; enemy.y=baseY; }
+
     enemy.x = baseX + 40*sin(count*0.015); enemy.y = baseY + 30*cos(count*0.012);
+
     if (count%90==0) {
         const int P = 5;
         for (int i=0; i<P; i++) {

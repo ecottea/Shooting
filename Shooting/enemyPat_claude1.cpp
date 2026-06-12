@@ -9,6 +9,7 @@ constexpr double PI = 3.14159265358979323846;
 
 static void ShotSunflower(sEnemyShotSet* p)
 {
+    const int colorTable[] = { 0, 1, 2, 4 };
     sEnemyShot *shot, *next;
     p->count++;
     if (p->count == 1) {
@@ -18,7 +19,7 @@ static void ShotSunflower(sEnemyShotSet* p)
             double angle = p->muki + i*PHI, r = SCALE*sqrt(i+1.0);
             shot = new sEnemyShot;
             shot->x = p->x + r*cos(angle); shot->y = p->y + r*sin(angle);
-            shot->muki = angle; shot->speed = 0; shot->kind = img_enemyShotSmallBall[i%4];
+            shot->muki = angle; shot->speed = 0; shot->kind = img_enemyShotSmallBall[colorTable[i%4]];
             shot->prev = p->pEnemyShotHead->prev; shot->next = p->pEnemyShotHead;
             p->pEnemyShotHead->prev->next = shot; p->pEnemyShotHead->prev = shot;
         }
@@ -31,7 +32,7 @@ static void ShotSunflower(sEnemyShotSet* p)
     while (shot != p->pEnemyShotHead) {
         next = shot->next;
         if (p->count >= 35) {
-            double target = (shot->kind%2==0)?3.6:2.4;
+            double target = (shot->kind== img_enemyShotSmallBall[0] || shot->kind == img_enemyShotSmallBall[2])?3.6:2.4;
             if (shot->speed < target) shot->speed += 0.11;
             shot->x += shot->speed * cos(shot->muki); shot->y += shot->speed * sin(shot->muki);
         }
@@ -50,8 +51,10 @@ static void ShotSunflower(sEnemyShotSet* p)
 void EnemyPat_Geometry_Claude()
 {
     sEnemyShotSet* p;
-    if (count==1) { enemy.maxHp=160; enemy.hp=160; enemy.x=240; enemy.y=90; }
+    if (count==1) { enemy.maxHp=enemy.hp=200; enemy.x=240; enemy.y=90; }
+
     enemy.x = 240 + 55*sin(count*0.016); enemy.y = 90 + 20*cos(count*0.011);
+
     if (count%180==60) {
         p = new sEnemyShotSet; p->count=0; p->patternFunc=ShotSunflower;
         p->x=enemy.x; p->y=enemy.y; p->muki=count*0.04; p->kind=0;

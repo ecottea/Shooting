@@ -37,5 +37,5 @@ void EnemyPat_Dodge_Sakana()
         p->x=enemy.x; p->y=enemy.y+10;
         p->pEnemyShotHead=new sEnemyShot; p->pEnemyShotHead->prev=p->pEnemyShotHead->next=p->pEnemyShotHead;
         p->prev=enemyShotSetHead.prev; p->next=&enemyShotSetHead; enemyShotSetHead.prev->next=p; enemyShotSetHead.prev=p;
-    } else if (count==1) { enemy.x=240; enemy.y=40; enemy.maxHp=150; enemy.hp=150; }
+    } else if (count==1) { enemy.x=240; enemy.y=40; enemy.maxHp=enemy.hp=200; }
 }

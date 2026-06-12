@@ -168,9 +168,13 @@ void drawSidePanel()
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     DrawFormatString(490, 148, colorWhite, "HP: %d / %d", enemy.hp, enemy.maxHp);
 
+    if (joutaiFlag == Joutai::Replay) {
+        DrawString(495, 300, "<Replay Mode>", colorWhite);
+    }
+
     // ゲーム中の操作ヒント
     if (joutaiFlag == Joutai::Game) {
-        DrawString(495, 340, "ESC: Pause", colorWhite);
+        DrawString(495, 340, "Q: Stage Select", colorWhite);
     }
 }
 
