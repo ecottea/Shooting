@@ -85,6 +85,7 @@ struct sEnemy {
 
 struct sEnemyShot : PoolAllocator<sEnemyShot, 4096> {
     double      x = 0.0, y = 0.0, muki = 0.0, speed = 0.0;
+    int         count = 0;
     int         kind = 0;
     sEnemyShot* prev = nullptr;
     sEnemyShot* next = nullptr;  // PoolAllocator のフリーリストと兼用

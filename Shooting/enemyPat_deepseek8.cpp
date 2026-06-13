@@ -19,7 +19,7 @@ static void LightningStrike(sEnemyShotSet* pSet)
         pMain->x = pSet->x;
         pMain->y = pSet->y;
         pMain->muki = pSet->muki;              // プレイヤー方向
-        pMain->speed = 8.0;
+        pMain->speed = 6.0;
         pMain->kind = img_enemyShotLargeBall[6]; // 白・大玉
 
         pMain->prev = pSet->pEnemyShotHead->prev;
@@ -43,7 +43,7 @@ static void LightningStrike(sEnemyShotSet* pSet)
             // 大玉（白）＝メイン雷弾だけ処理
             if (pShot->kind == img_enemyShotLargeBall[6]) {
                 // -70°～+70° の急な方向転換
-                pShot->muki += (GetRand(140) - 70) / 180.0 * DX_PI;
+                if (pShot->y <= 300) pShot->muki += (GetRand(140) - 70) / 180.0 * DX_PI;
             }
             pShot = pShot->next;
         }
@@ -92,7 +92,7 @@ static void LightningStrike(sEnemyShotSet* pSet)
 // ------------------------------------------------------------
 //  敵本体のパターン (雷モチーフ)
 // ------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_Thunder_DeepSeek()
 {
     static int muki;
     if (count == 1) {
@@ -108,8 +108,8 @@ void EnemyPat_Tmp()
             muki = (GetRand(1) == 0) ? 1 : -1;  // ランダムに方向転換
         }
 
-        if (enemy.x <= 10) muki = 1;
-        if (enemy.x >= 480 - 10) muki = -1;
+        if (enemy.x <= 30) muki = 1;
+        if (enemy.x >= 480 - 30) muki = -1;
     }
 
     // 稲妻弾幕を一定間隔で発射
