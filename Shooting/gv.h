@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// gv.h
+
+#pragma once
 #include <vector>
 #include <cassert>
 #include <cstddef>

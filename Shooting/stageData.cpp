@@ -59,5 +59,6 @@ std::vector<StageInfo> stageData = {
     { "qwen7", "彗星をモチーフにした弾幕", "Nebula_Pulse_Loop", EnemyPat_Comet_Qwen },
     { "claudeEX1", "高難易度の弾幕", "Torpedo_Hymn", EnemyPat_Difficulty_Claude },
     { "claudeEX2", "幾何学的に美しい弾幕 アナザー", "Torpedo_Hymn", EnemyPat_Geometry_Claude2 },
+    { "grokEX1", "彗星をモチーフにした弾幕 アナザー", "Torpedo_Hymn", EnemyPat_Comet_Grok2 },
     { "tmp", "tmp", "Torpedo_Hymn", EnemyPat_Tmp },
 };

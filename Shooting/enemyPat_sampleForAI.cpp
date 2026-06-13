@@ -10,20 +10,10 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
 {
     sEnemyShot* pEnemyShot;
     if (pEnemyShotSet->count == 0) {
-        // 鳴らせる音全種類を AI に教える
-        int sound_type = GetRand(2);
-        switch (sound_type) {
-        case 0:
-            PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-            break;
-        case 1:
-            PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
-            break;
-        case 2:
-            PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-            break;
-        }
-
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+        // PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+        // PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+        
         for (int i = 0; i < 5; i++) {
             pEnemyShot = new sEnemyShot;
             pEnemyShot->x = pEnemyShotSet->x + GetRand(480) - 240;
@@ -31,9 +21,8 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
             pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(120) - 60) / 180.0 * DX_PI;
             pEnemyShot->speed = (200 + GetRand(200)) / 100.0;
 
-            // 撃てる弾全種類を AI に教える
-            int type = GetRand(5); // 小玉、中玉、大玉、銃弾、鱗弾、菱形弾
-            int color = GetRand(7); // 0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒
+            int type = GetRand(5); // [0..5] 小玉、中玉、大玉、銃弾、鱗弾、菱形弾
+            int color = GetRand(7); // [0..7] 0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒
             switch (type) {
             case 0:
                 pEnemyShot->kind = img_enemyShotSmallBall[color];

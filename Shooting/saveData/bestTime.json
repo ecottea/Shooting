@@ -13,14 +13,14 @@
     "claude5": 3986,
     "claude6": 1412,
     "claude7": 1403,
-    "claudeEX1": 59999,
+    "claudeEX1": 1220,
     "claudeEX2": 1583,
     "deepseek": 3736,
     "deepseek2": 1210,
     "deepseek3": 1217,
     "deepseek4": 1231,
     "deepseek5": 1202,
-    "deepseek6": 59999,
+    "deepseek6": 2234,
     "deepseek7": 1500,
     "gemini": 1206,
     "gemini2": 1223,
@@ -36,6 +36,7 @@
     "grok5": 1342,
     "grok6": 1353,
     "grok7": 2471,
+    "grokEX1": 1232,
     "handmade1": 1201,
     "handmade2": 1220,
     "handmade3": 1215,
@@ -54,6 +55,6 @@
     "sakana5": 5624,
     "sakana6": 1999,
     "sakana7": 2716,
-    "sample": 1281,
-    "tmp": 72
+    "sample": 1219,
+    "tmp": 1369
 }

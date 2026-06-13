@@ -24,6 +24,7 @@ extern void EnemyPat_Burst();
 extern void EnemyPat_Namitsubu();
 extern void EnemyPat_Difficulty_Claude();
 extern void EnemyPat_Geometry_Claude2();
+extern void EnemyPat_Comet_Grok2();
 extern void EnemyPat_Geometry_DeepSeek();
 extern void EnemyPat_Geometry_Gemini();
 extern void EnemyPat_Geometry_ChatGPT();

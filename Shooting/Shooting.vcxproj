@@ -178,6 +178,7 @@
     <ClCompile Include="enemyPat_chatgpt7.cpp" />
     <ClCompile Include="enemyPat_gemini7.cpp" />
     <ClCompile Include="enemyPat_grok7.cpp" />
+    <ClCompile Include="enemyPat_grokEX1.cpp" />
     <ClCompile Include="enemyPat_sakana7.cpp" />
     <ClCompile Include="enemyPat_claude7.cpp" />
     <ClCompile Include="enemyPat_qwen7.cpp" />

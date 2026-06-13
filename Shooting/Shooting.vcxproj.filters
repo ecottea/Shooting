@@ -237,6 +237,9 @@
     <ClCompile Include="enemyPat_sakana7.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
+    <ClCompile Include="enemyPat_grokEX1.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stageData.h">

@@ -18,9 +18,14 @@ void enemyDisp() {
 }
 
 void enemyHit() {
+    // Bキーが押されている間は無敵（当たり判定をしない）
+    if (CheckHitKey(KEY_INPUT_B) == 1) {
+        return;
+    }
+
     double dx = player.x - enemy.x;
     double dy = player.y - enemy.y;
-    if (dx*dx + dy*dy < 1600.0) {
+    if (dx * dx + dy * dy < 1600.0) {
         PlaySoundMem(sound_playerDestroyed, DX_PLAYTYPE_BACK);
         joutaiFlag = Joutai::Lose;
     }

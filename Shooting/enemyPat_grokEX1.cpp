@@ -104,7 +104,7 @@ static void ShotComet(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_Comet_Grok2()
 {   
     if (count == 1) {
         // ゲーム画面は 480x480
