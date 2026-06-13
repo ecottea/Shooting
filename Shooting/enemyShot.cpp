@@ -27,6 +27,8 @@ void enemyShotCalc()
 		
 		pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
 		while(pEnemyShot != pEnemyShotSet->pEnemyShotHead){
+			pEnemyShot->count++; //処理
+			
 			pNextEnemyShot = pEnemyShot->next; //避難
 			
 			if(pEnemyShot->x < -20.0 || pEnemyShot->x > 500.0 //画面外の弾は削除

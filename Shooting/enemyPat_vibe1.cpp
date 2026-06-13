@@ -15,7 +15,7 @@ static void ShotSpiral(sEnemyShotSet* pEnemyShotSet)
         // 24個の弾を螺旋状に展開
         for (int i = 0; i < 24; i++) {
             pEnemyShot = new sEnemyShot;
-            double baseAngle = (i * 15.0 + pEnemyShotSet->kind * 5.0) / 180.0 * DX_PI; // 15度間隔
+            double baseAngle = (i * 15.0 + pEnemyShotSet->kind * 3.0) / 180.0 * DX_PI; // 15度間隔
             double offset = (pEnemyShotSet->count * 5.0) / 180.0 * DX_PI; // 時間経過で回転
             double angle = baseAngle + offset;
             double radius = 40.0 + (i % 3) * 20.0; // 半径に変化を付ける
@@ -26,8 +26,7 @@ static void ShotSpiral(sEnemyShotSet* pEnemyShotSet)
             pEnemyShot->speed = 1.5 + (i % 4) * 0.3; // 速度に変化を付ける
 
             // 弾の種類と色をランダムに選択
-            int type = GetRand(1); // 小玉、中玉、大玉
-            int color = GetRand(6); // 7色
+            int color = i % 6; // 7色
             pEnemyShot->kind = img_enemyShotLargeBall[color];
            
             // リンクリストに追加
@@ -98,7 +97,7 @@ static void ShotConcentricCircles(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_Geometry_Vibe()
 {
     static int muki;
     static int phase = 0; // 弾幕のフェーズ管理
@@ -107,7 +106,7 @@ void EnemyPat_Tmp()
         // 初期化
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 400;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
         phase = 0;
     }

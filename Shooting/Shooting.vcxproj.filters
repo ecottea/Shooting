@@ -261,6 +261,30 @@
     <ClCompile Include="enemyPat_grokEX1.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
+    <ClCompile Include="enemyPat_vibe8.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_vibe7.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_vibe6.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_vibe5.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_vibe4.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_vibe3.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_vibe2.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_vibe1.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stageData.h">
@@ -310,5 +334,72 @@
     <None Include="saveData\bestTime.json">
       <Filter>リソース ファイル\saveData</Filter>
     </None>
+    <None Include="saveData\cursor.json" />
+    <None Include="saveData\replay_chatgpt.dat" />
+    <None Include="saveData\replay_chatgpt2.dat" />
+    <None Include="saveData\replay_chatgpt3.dat" />
+    <None Include="saveData\replay_chatgpt4.dat" />
+    <None Include="saveData\replay_chatgpt5.dat" />
+    <None Include="saveData\replay_chatgpt6.dat" />
+    <None Include="saveData\replay_chatgpt7.dat" />
+    <None Include="saveData\replay_chatgpt8.dat" />
+    <None Include="saveData\replay_claude.dat" />
+    <None Include="saveData\replay_claude2.dat" />
+    <None Include="saveData\replay_claude3.dat" />
+    <None Include="saveData\replay_claude4.dat" />
+    <None Include="saveData\replay_claude5.dat" />
+    <None Include="saveData\replay_claude6.dat" />
+    <None Include="saveData\replay_claude7.dat" />
+    <None Include="saveData\replay_claude8.dat" />
+    <None Include="saveData\replay_claudeEX1.dat" />
+    <None Include="saveData\replay_claudeEX2.dat" />
+    <None Include="saveData\replay_deepseek.dat" />
+    <None Include="saveData\replay_deepseek2.dat" />
+    <None Include="saveData\replay_deepseek3.dat" />
+    <None Include="saveData\replay_deepseek4.dat" />
+    <None Include="saveData\replay_deepseek5.dat" />
+    <None Include="saveData\replay_deepseek6.dat" />
+    <None Include="saveData\replay_deepseek7.dat" />
+    <None Include="saveData\replay_deepseek8.dat" />
+    <None Include="saveData\replay_gemini.dat" />
+    <None Include="saveData\replay_gemini2.dat" />
+    <None Include="saveData\replay_gemini3.dat" />
+    <None Include="saveData\replay_gemini4.dat" />
+    <None Include="saveData\replay_gemini5.dat" />
+    <None Include="saveData\replay_gemini6.dat" />
+    <None Include="saveData\replay_gemini7.dat" />
+    <None Include="saveData\replay_gemini8.dat" />
+    <None Include="saveData\replay_grok.dat" />
+    <None Include="saveData\replay_grok2.dat" />
+    <None Include="saveData\replay_grok3.dat" />
+    <None Include="saveData\replay_grok4.dat" />
+    <None Include="saveData\replay_grok5.dat" />
+    <None Include="saveData\replay_grok6.dat" />
+    <None Include="saveData\replay_grok7.dat" />
+    <None Include="saveData\replay_grok8.dat" />
+    <None Include="saveData\replay_grokEX1.dat" />
+    <None Include="saveData\replay_handmade1.dat" />
+    <None Include="saveData\replay_handmade2.dat" />
+    <None Include="saveData\replay_handmade3.dat" />
+    <None Include="saveData\replay_handmade4.dat" />
+    <None Include="saveData\replay_qwen.dat" />
+    <None Include="saveData\replay_qwen2.dat" />
+    <None Include="saveData\replay_qwen3.dat" />
+    <None Include="saveData\replay_qwen4.dat" />
+    <None Include="saveData\replay_qwen5.dat" />
+    <None Include="saveData\replay_qwen6.dat" />
+    <None Include="saveData\replay_qwen7.dat" />
+    <None Include="saveData\replay_qwen8.dat" />
+    <None Include="saveData\replay_sakana.dat" />
+    <None Include="saveData\replay_sakana2.dat" />
+    <None Include="saveData\replay_sakana3.dat" />
+    <None Include="saveData\replay_sakana4.dat" />
+    <None Include="saveData\replay_sakana5.dat" />
+    <None Include="saveData\replay_sakana6.dat" />
+    <None Include="saveData\replay_sakana7.dat" />
+    <None Include="saveData\replay_sakana8.dat" />
+    <None Include="saveData\replay_sample.dat" />
+    <None Include="saveData\replay_tmp.dat" />
+    <None Include="saveData\window.json" />
   </ItemGroup>
 </Project>

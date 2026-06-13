@@ -71,7 +71,7 @@ static void ShotZigzagThunder(sEnemyShotSet* pEnemyShotSet)
         pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
         pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
 
-        pEnemyShot->count++;
+        //pEnemyShot->count++;
         if (pEnemyShot->count >= 300) {
             pEnemyShot->x = 9999;
             pEnemyShot->y = 9999;
