@@ -1,30 +1,32 @@
-﻿// enemyPat_Tmp.cpp
+﻿// enemyPat_blizzard.cpp
 
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// 弾幕：竜巻状の螺旋弾幕
-static void ShotDragonSpiral(sEnemyShotSet* pEnemyShotSet)
+// 弾幕：吹雪（雪片を模した弾を放射状に発射）
+static void ShotBlizzard(sEnemyShotSet* pEnemyShotSet)
 {
     sEnemyShot* pEnemyShot;
     if (pEnemyShotSet->count == 0) {
-        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
 
-        // 12個の弾を螺旋状に配置
-        const int N = 220;
-        for (int i = 0; i < N; i++) {
+        // 吹雪を表現：雪片を模した弾を放射状に発射
+        for (int i = 0; i < 100; i++) {
             pEnemyShot = new sEnemyShot;
-            double angle = 2 * DX_PI * i / N + pEnemyShotSet->count / 30.0; // 螺旋の角度
-            pEnemyShot->x = pEnemyShotSet->x + 30 * cos(angle);
-            pEnemyShot->y = pEnemyShotSet->y + 30 * sin(angle);
-            pEnemyShot->muki = angle + DX_PI / 2; // 進行方向（接線方向）
-            pEnemyShot->speed = 1.5 + GetRand(100) / 100.0; // 速度にばらつき
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            // 方向をランダムにばらつかせる（吹雪の広がりを表現）
+            pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(360) - 180) / 180.0 * DX_PI;
+            // 速度をランダムに設定（雪片の速度差を表現）
+            pEnemyShot->speed = (50 + GetRand(250)) / 100.0;
 
-            // 弾の種類と色をランダムに設定（竜をイメージして赤や金を多めに）
-            int type = GetRand(2) == 0 ? 4 : GetRand(5); // 鱗弾を多めに
-            int color = GetRand(10) < 7 ? 0 : 6; // 赤、白、その他
+            // 弾の種類：小玉、中玉、大玉をランダムに選択（雪片のサイズ差を表現）
+            int type = GetRand(2); // 0:小玉, 1:中玉, 2:大玉
+            // 弾の色：白、シアン、青をランダムに選択（雪片の冷たいイメージ）
+            int color = GetRand(1) + 6; // 6:白, 7:黒
+
             switch (type) {
             case 0:
                 pEnemyShot->kind = img_enemyShotSmallBall[color];
@@ -34,15 +36,6 @@ static void ShotDragonSpiral(sEnemyShotSet* pEnemyShotSet)
                 break;
             case 2:
                 pEnemyShot->kind = img_enemyShotLargeBall[color];
-                break;
-            case 3:
-                pEnemyShot->kind = img_enemyShotBullet[color];
-                break;
-            case 4:
-                pEnemyShot->kind = img_enemyShotScale[color];
-                break;
-            case 5:
-                pEnemyShot->kind = img_enemyShotDiamond[color];
                 break;
             }
 
@@ -63,29 +56,31 @@ static void ShotDragonSpiral(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-// 敵本体のパターン
-void EnemyPat_Tmp()
+// 敵本体のパターン：吹雪
+void EnemyPat_Blizzard_Vibe()
 {
-    static int moveDirection = 1;
+    static int muki = 1;
     if (count == 1) {
         enemy.x = 240.0;
-        enemy.y = 60.0;
+        enemy.y = 40.0;
         enemy.maxHp = enemy.hp = 200;
+        muki = 1;
     }
     else {
-        // 敵を左右に移動
-        enemy.x += 1.5 * moveDirection;
-        if (enemy.x < 80 || enemy.x > 400) moveDirection *= -1;
+        // 敵を左右にゆっくり移動させる
+        enemy.x += 0.5 * (double)muki;
+        if (count % 240 == 120) muki *= -1;
     }
 
-    // 60フレームごとに竜巻弾幕を発射
-    if (count % 60 == 0) {
+    // 吹雪弾幕を定期的に発射
+    if (count % 45 == 0) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotDragonSpiral;
+        pEnemyShotSet->patternFunc = ShotBlizzard;
         pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 20.0;
-        pEnemyShotSet->muki = 0.0;
+        pEnemyShotSet->y = enemy.y + 10.0;
+        // プレーヤー方向を基準に弾幕を発射
+        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
 
         pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
         pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
