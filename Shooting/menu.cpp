@@ -28,7 +28,7 @@
 // デフォルトフォントサイズ
 #define FONT_CHAR_W 8
 #define FONT_CHAR_H 16
-#define TEXT_W (FONT_CHAR_W * 2)
+#define TEXT_W (FONT_CHAR_W * 3)
 #define TEXT_H FONT_CHAR_H
 
 static bool showReplayError = false;
@@ -46,7 +46,9 @@ void menuDraw()
 
     // タイトル・操作説明
     DrawString(SCREEN_W / 2 - 52, 20, "STAGE SELECT", GetColor(255, 255, 0));
+    DrawString(20, 46, "<7", GetColor(200, 200, 200));
     DrawString(SCREEN_W / 2 - 212, 46, "選択:テンキー4568  決定:V  リプレイ再生:R  終了:Q", GetColor(200, 200, 200));
+    DrawString(SCREEN_W - 40, 46, "9>", GetColor(200, 200, 200));
 
     // 選択パネル背景
     DrawBox(PANEL_X, PANEL_Y, PANEL_X + PANEL_W, PANEL_Y + PANEL_H,
@@ -63,19 +65,16 @@ void menuDraw()
     }
 
     // ステージ番号
-    for (i = 0; i < (int)stageData.size(); i++) {
+    for (i = 0; i < GRID_COLS * GRID_ROWS; i++) {
+        int idx = cursor.page * 100 + i;          // 実際のステージ番号
         int col = i % GRID_COLS;
         int row = i / GRID_COLS;
         x = GRID_LEFT + col * CELL_W + (CELL_W - TEXT_W) / 2;
         y = GRID_TOP + row * CELL_H + (CELL_H - TEXT_H) / 2 - 30;
-        DrawFormatString(x, y, colorWhite, "%2d", i);
-    }
-    for (i = (int)stageData.size(); i < GRID_COLS * GRID_ROWS; i++) {
-        int col = i % GRID_COLS;
-        int row = i / GRID_COLS;
-        x = GRID_LEFT + col * CELL_W + (CELL_W - TEXT_W) / 2;
-        y = GRID_TOP + row * CELL_H + (CELL_H - TEXT_H) / 2 - 30;
-        DrawFormatString(x, y, colorGray, "%2d", i);
+
+        // 有効ステージは白、範囲外は灰色
+        unsigned int color = (idx < (int)stageData.size()) ? colorWhite : colorGray;
+        DrawFormatString(x, y, color, "%3d", idx);   // 3桁右詰め表示
     }
 
     // ---------- 説明文エリア ----------
@@ -124,7 +123,8 @@ void menuDraw()
 
 void moveCursor()
 {
-    stageNum = cursor.y * 10 + cursor.x;
+    // V/R判定用のステージ番号を先に計算（移動前のカーソル位置）
+    stageNum = cursor.page * 100 + cursor.y * 10 + cursor.x;
 
     if (key[KEY_INPUT_V] == 1 && stageNum < (int)stageData.size()) {
         if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
@@ -182,5 +182,18 @@ void moveCursor()
         PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
         if (cursor.y == 0) cursor.y = 9;
         else               cursor.y--;
-    }    
+    }
+
+    // ===== ページ切り替え（テンキー7/9） =====
+    if (key[KEY_INPUT_NUMPAD7] == 1) {
+        cursor.page = (cursor.page == 0) ? 9 : cursor.page - 1;
+        PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
+    }
+    if (key[KEY_INPUT_NUMPAD9] == 1) {
+        cursor.page = (cursor.page == 9) ? 0 : cursor.page + 1;
+        PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
+    }
+
+    // 最後に、移動後のカーソル位置でステージ番号を更新（表示用）
+    stageNum = cursor.page * 100 + cursor.y * 10 + cursor.x;
 }

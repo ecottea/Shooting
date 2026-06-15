@@ -25,7 +25,9 @@ int sound_menuCursor;
 int sound_enemyShot_light;
 int sound_enemyShot_medium;
 int sound_enemyShot_heavy;
+int sound_enemyShot_extreme;
 int sound_enemyShot_noize;
+int sound_enemyCharge;
 int sound_enemyDestroyed;
 int sound_playerShotHit_default;
 int sound_playerShotHit_bossLowHP;
@@ -175,19 +177,16 @@ void imgSoundLoad()
 
     // å¯â âπì«Ç›çûÇ›
     sound_menuCursor = LoadSoundMem("assets/sounds/menuCursor.wav");
-
     sound_playerShotHit_default = LoadSoundMem("assets/sounds/playerShotHit_default.wav");
     sound_playerShotHit_bossLowHP = LoadSoundMem("assets/sounds/playerShotHit_bossLowHP.wav");
-
     sound_playerDestroyed = LoadSoundMem("assets/sounds/playerDestroyed.wav");
-
     sound_enemyShot_light = LoadSoundMem("assets/sounds/enemyShot_light.wav");
     sound_enemyShot_medium = LoadSoundMem("assets/sounds/enemyShot_medium.wav");
     sound_enemyShot_heavy = LoadSoundMem("assets/sounds/enemyShot_heavy.wav");
+    sound_enemyShot_extreme = LoadSoundMem("assets/sounds/enemyShot_extreme.wav");
     sound_enemyShot_noize = LoadSoundMem("assets/sounds/enemyShot_noize.wav");
-
+    sound_enemyCharge = LoadSoundMem("assets/sounds/enemyCharge.wav");
     sound_enemyDestroyed = LoadSoundMem("assets/sounds/enemyDestroyed.wav");
-
 
     // BGM ì«Ç›çûÇ›
     bgm_menu = LoadSoundMem("assets/bgm/Caramel_CPU.ogg");

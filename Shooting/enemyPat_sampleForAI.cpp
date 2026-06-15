@@ -10,10 +10,12 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
 {
     sEnemyShot* pEnemyShot;
     if (pEnemyShotSet->count == 0) {
+        // Žg‚¦‚éŒø‰Ê‰¹ˆê——
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
         // PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
         // PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-        
+        // PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
+
         for (int i = 0; i < 5; i++) {
             pEnemyShot = new sEnemyShot;
             pEnemyShot->x = pEnemyShotSet->x + GetRand(480) - 240;

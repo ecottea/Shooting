@@ -168,7 +168,7 @@ void drawSidePanel()
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     DrawFormatString(490, 148, colorWhite, "HP: %d / %d", enemy.hp, enemy.maxHp);
 
-    if (joutaiFlag == Joutai::Replay) {
+    if (replayActive) {
         DrawString(495, 300, "<Replay Mode>", colorWhite);
     }
 
@@ -209,6 +209,6 @@ void drawGameOverlay()
     DrawString(240 - (int)strlen(message) * 8, 205, message, colorWhite);
 
     if (!replayActive) DrawString(155, 230, "V   : Retry",  colorWhite);
-    else               DrawString(155, 230, "V   : Replay", colorWhite);
+    else               DrawString(155, 230, "R   : Replay", colorWhite);
     DrawString(155, 250, "Q   : Stage Select", colorWhite);
 }

@@ -25,11 +25,11 @@ static void ShotWafu(sEnemyShotSet* pEnemyShotSet) {
 
             double angle = baseAngle + (pEnemyShotSet->kind ? 1 : -1) * (2.0 * 3.14159265 * i / n);
             pEnemyShot->muki = angle;
-            pEnemyShot->speed = 2.0 + (rand() % 100) / 200.0; // 2.0～2.5
+            pEnemyShot->speed = 2.0 + GetRand(100) / 200.0; // 2.0～2.5
 
             // 紅（赤：0）と桃（マゼンタ：4）を交互に、時々入れ替え
             int color = (i % 2 == 0) ? 0 : 5;
-            if (rand() % 3 == 0) color = (color == 0) ? 5 : 0;
+            if (GetRand(2) == 0) color = (color == 0) ? 5 : 0;
 
             // 偶数番：鱗弾（花びら風）  奇数番：菱形弾（鋭い風情）
             if (i % 2 == 0) {

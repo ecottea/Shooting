@@ -88,6 +88,7 @@ void loadCursorPos()
         {
             if (j.contains("x")) cursor.x = j["x"];
             if (j.contains("y")) cursor.y = j["y"];
+            if (j.contains("page")) cursor.page = j["page"];
         }
     }
     catch (...)
@@ -102,6 +103,7 @@ void saveCursorPos()
     json j;
     j["x"] = cursor.x;
     j["y"] = cursor.y;
+    j["page"] = cursor.page;
 
     std::ofstream ofs("saveData/cursor.json");
     if (ofs.is_open())

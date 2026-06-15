@@ -1,5 +1,4 @@
-﻿// EnemyPat_Tmp3.cpp
-// 破壊光線モチーフ：伸びるレーザー
+﻿// 破壊光線モチーフ：伸びるレーザー
 // レーザーが発射点から照準方向へ徐々に伸び、しばらく残留した後に消える
 
 #include "DxLib.h"
@@ -92,7 +91,7 @@ static void GrowingLaser(sEnemyShotSet* pEnemyShotSet)
 //------------------------------------------------------------------------------
 // 敵本体パターン：破壊光線（伸びるレーザー）
 //------------------------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_Hakaikousen_DeepSeek()
 {
     static double moveDir = 1.0;
     static int    shotInterval = 0;

@@ -52,6 +52,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		// キー入力取得（リプレイ再生中はリプレイデータを使う）
 		if (joutaiFlag == Joutai::Replay) {
+			// リプレイ中でもQキーを取得する（物理キーボード）
+			if (CheckHitKey(KEY_INPUT_Q)) key[KEY_INPUT_Q] = 1;
+
 			if (!updateReplayInput()) {
 				// リプレイデータ終了 → メニューへ
 				replayActive = false;
@@ -133,12 +136,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				PlaySoundMem(bgm_menu, DX_PLAYTYPE_LOOP);
 			}
 			else if (key[KEY_INPUT_V] == 1) {
+				if (!replayActive) {					
+					startNewGame();
+				}
+			}
+			else if (key[KEY_INPUT_R] == 1) {
 				if (replayActive) {
 					// リプレイを先頭から再生
 					startReplay(stageNum);
-				}
-				else {
-					startNewGame();
 				}
 			}
 		}

@@ -64,6 +64,7 @@ public:
 // ============================================================
 struct sCursor {
     int x = 0, y = 0;
+    int page = 0;
 };
 
 struct sPlayer {

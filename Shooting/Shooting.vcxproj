@@ -173,7 +173,16 @@
     <ClCompile Include="enemyPat_deepseek4.cpp" />
     <ClCompile Include="enemyPat_deepseek5.cpp" />
     <ClCompile Include="enemyPat_deepseek6.cpp" />
+    <ClCompile Include="enemyPat_deepseekEx1.cpp" />
     <ClCompile Include="enemyPat_gemini5.cpp" />
+    <ClCompile Include="enemyPat_deepseek11.cpp" />
+    <ClCompile Include="enemyPat_chatgpt11.cpp" />
+    <ClCompile Include="enemyPat_gemini11.cpp" />
+    <ClCompile Include="enemyPat_grok11.cpp" />
+    <ClCompile Include="enemyPat_sakana11.cpp" />
+    <ClCompile Include="enemyPat_claude11.cpp" />
+    <ClCompile Include="enemyPat_qwen11.cpp" />
+    <ClCompile Include="enemyPat_vibe11.cpp" />
     <ClCompile Include="enemyPat_deepseek10.cpp" />
     <ClCompile Include="enemyPat_chatgpt10.cpp" />
     <ClCompile Include="enemyPat_gemini10.cpp" />
@@ -339,7 +348,6 @@
     <None Include="saveData\replay_sakana7.dat" />
     <None Include="saveData\replay_sakana8.dat" />
     <None Include="saveData\replay_sample.dat" />
-    <None Include="saveData\replay_tmp.dat" />
     <None Include="saveData\window.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
