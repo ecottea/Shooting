@@ -7,6 +7,7 @@
 #include "replay.h"
 #include "imgSoundLoad.h"
 #include "initial.h"
+#include <string> 
 
 #define SCREEN_W 640
 #define SCREEN_H 480
@@ -22,7 +23,7 @@
 #define GRID_ROWS 10
 #define GRID_LEFT (PANEL_X + (PANEL_W - CELL_W * GRID_COLS) / 2)
 #define GRID_TOP  (PANEL_Y + 30)
-// 説明エリアのY座標（従来より上に移動）
+// 説明エリアの開始Y座標
 #define DESC_Y 335
 
 // デフォルトフォントサイズ
@@ -31,10 +32,67 @@
 #define TEXT_W (FONT_CHAR_W * 3)
 #define TEXT_H FONT_CHAR_H
 
+// 説明文の最大横幅
+#define DESC_AREA_WIDTH  (SCREEN_W - 60)   // 左右マージン30pxずつ
+
 static bool showReplayError = false;
 static int replayErrorTimer = 0;
 
 extern void iniGame();
+
+// 文字列を指定幅で改行した行のリストを返す (ピクセル単位)
+std::vector<std::string> WrapText(const char* text, int maxWidth)
+{
+    std::vector<std::string> lines;
+    if (!text || !*text) {
+        lines.push_back("");
+        return lines;
+    }
+
+    // 1文字ずつ読みながら幅を計算していく (マルチバイト対応のためDxLibのGetDrawStringWidthを使用)
+    const char* p = text;
+    std::string currentLine;
+
+    while (*p) {
+        // 改行文字が来たらその行で確定
+        if (*p == '\n') {
+            lines.push_back(currentLine);
+            currentLine.clear();
+            p++;
+            continue;
+        }
+
+        // 次の1文字のバイト長を取得（全角は2バイト、半角は1バイト）
+        int charBytes = 1;
+        if (((unsigned char)*p >= 0x81 && (unsigned char)*p <= 0x9F) ||
+            ((unsigned char)*p >= 0xE0 && (unsigned char)*p <= 0xFC)) {
+            charBytes = 2;  // Shift_JIS全角の先頭バイト
+        }
+
+        // 現在の行に1文字追加した場合の幅を試算
+        std::string testLine = currentLine + std::string(p, charBytes);
+        int testWidth = GetDrawStringWidth(testLine.c_str(), -1);
+
+        if (testWidth > maxWidth && !currentLine.empty()) {
+            // 幅を超えるので、現在の行を確定し、次の行へ
+            lines.push_back(currentLine);
+            currentLine.clear();
+            // この文字は次の行の先頭に置くため、ループ先頭へ戻る（pは進めない）
+            continue;
+        }
+        else {
+            // 現在の行に追加可能
+            currentLine.append(p, charBytes);
+            p += charBytes;
+        }
+    }
+
+    // 最後の行を追加
+    if (!currentLine.empty() || lines.empty())
+        lines.push_back(currentLine);
+
+    return lines;
+}
 
 void menuDraw()
 {
@@ -77,43 +135,64 @@ void menuDraw()
         DrawFormatString(x, y, color, "%3d", idx);   // 3桁右詰め表示
     }
 
-    // ---------- 説明文エリア ----------
+    // ---------- 説明文エリア（自動改行＆高さ可変） ----------
     if (stageNum >= 0 && stageNum < (int)stageData.size()) {
-        int descAreaTop = DESC_Y;            // 335
-        int descAreaBottom = DESC_Y + 70;    // 405
+        const int descAreaLeft = 30;
+        const int descAreaWidth = DESC_AREA_WIDTH - 10;   // 570
+        const int descAreaRight = descAreaLeft + descAreaWidth; // 610
+        const int lineHeight = FONT_CHAR_H;       // 16
 
-        // 背景枠
-        DrawBox(20, descAreaTop, SCREEN_W - 20, descAreaBottom,
+        // 説明文を指定幅で折り返し
+        std::vector<std::string> descLines = WrapText(stageData[stageNum].description, descAreaWidth);
+
+        // 説明エリアの縦幅を計算
+        // タイトル行(1行) + 区切り線 + 説明行数分
+        int titleHeight = lineHeight + 7;     // 適宜余白
+        int sepHeight = 10;                 // 線の下マージン
+        int descHeight = (int)descLines.size() * lineHeight;
+        int bestTimeH = lineHeight + 5;     // ベストタイム行
+        int areaInnerH = titleHeight + sepHeight + descHeight + bestTimeH;
+        int descAreaTop = DESC_Y;
+        int descAreaBottom = descAreaTop + areaInnerH;
+
+        // 背景枠（高さを動的に）
+        DrawBox(descAreaLeft, descAreaTop, descAreaRight, descAreaBottom,
             GetColor(0, 64, 128), TRUE);
-        DrawBox(20, descAreaTop, SCREEN_W - 20, descAreaBottom,
+        DrawBox(descAreaLeft, descAreaTop, descAreaRight, descAreaBottom,
             GetColor(128, 255, 255), FALSE);
 
-        // ステージ見出し（強調：黄色＋★）
-        DrawFormatString(30, descAreaTop + 7, GetColor(255, 255, 100),
+        // ステージ見出し
+        DrawFormatString(descAreaLeft + 5, descAreaTop + 5, GetColor(255, 255, 100),
             "★ %s", stageData[stageNum].stageId);
 
         // 区切り線
-        DrawLine(30, descAreaTop + 25, SCREEN_W - 30, descAreaTop + 25,
-            GetColor(100, 100, 150));
+        int sepY = descAreaTop + titleHeight;
+        DrawLine(descAreaLeft + 5, sepY, descAreaRight - 5, sepY, GetColor(100, 100, 150));
 
-        // 詳細説明（控えめな水色）
-        DrawFormatString(30, descAreaTop + 32, GetColor(180, 200, 220),
-            "%s", stageData[stageNum].description);
+        // 詳細説明（複数行）
+        int textY = sepY + 8;
+        for (const auto& line : descLines) {
+            DrawFormatString(descAreaLeft + 5, textY, GetColor(180, 200, 220), "%s", line.c_str());
+            textY += lineHeight;
+        }
 
-        // 最短クリアタイム（右寄せで表示）
+        // 最短クリアタイム（説明の最終行の下に表示）
+        int bestY = descAreaBottom - bestTimeH;
         if (stageData[stageNum].bestTime > 0) {
-            DrawFormatString(SCREEN_W - 180, descAreaTop + 45,
+            DrawFormatString(descAreaRight - 180, bestY,
                 GetColor(255, 200, 100), "Best: %6.2f",
                 (double)stageData[stageNum].bestTime / 60.0);
         }
         else {
-            DrawFormatString(SCREEN_W - 180, descAreaTop + 45,
+            DrawFormatString(descAreaRight - 180, bestY,
                 GetColor(100, 100, 100), "Best: ---.--");
         }
 
+        // リプレイエラーメッセージ（説明エリアのすぐ下に表示）
         if (showReplayError) {
             if (replayErrorTimer > 0) {
-                DrawString(30, DESC_Y + 80, "リプレイファイルが存在しません", GetColor(255, 100, 100));
+                DrawString(descAreaLeft + 5, descAreaBottom + 5,
+                    "リプレイファイルが存在しません", GetColor(255, 100, 100));
                 replayErrorTimer--;
                 if (replayErrorTimer == 0) showReplayError = false;
             }
@@ -123,6 +202,7 @@ void menuDraw()
 
 void moveCursor()
 {
+    // 変更なしのため省略（同じ内容）
     // V/R判定用のステージ番号を先に計算（移動前のカーソル位置）
     stageNum = cursor.page * 100 + cursor.y * 10 + cursor.x;
 
@@ -186,11 +266,11 @@ void moveCursor()
 
     // ===== ページ切り替え（テンキー7/9） =====
     if (key[KEY_INPUT_NUMPAD7] == 1) {
-        cursor.page = (cursor.page == 0) ? 9 : cursor.page - 1;
+        cursor.page = (cursor.page == 0) ? (int)stageData.size() / 100 : cursor.page - 1;
         PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
     }
     if (key[KEY_INPUT_NUMPAD9] == 1) {
-        cursor.page = (cursor.page == 9) ? 0 : cursor.page + 1;
+        cursor.page = (cursor.page == (int)stageData.size() / 100) ? 0 : cursor.page + 1;
         PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
     }
 

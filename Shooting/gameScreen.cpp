@@ -2,11 +2,14 @@
 
 #include "DxLib.h"
 #include "gv.h"
-#include "backGround.h"
+#include "gameScreen.h"
 #include "stageData.h"
 #include "imgSoundLoad.h"
 #include <math.h>
+#include "menu.h"
 #include "replay.h"
+#include <string> 
+#include <vector> 
 
 #define NUM_STARS 30
 
@@ -138,47 +141,73 @@ void backGround()
 
 void drawSidePanel()
 {
-    // サイドパネル画像を初回のみ生成
     if (sidePanelBG == -1) createSidePanelBG();
-
-    // 静的背景（事前描画）を描画（描画先は (480,0)）
     DrawGraph(480, 0, sidePanelBG, FALSE);
 
-    // ---------- 動的な要素を上書き描画 ----------
+    const int panelLeft = 490;
+    const int panelRight = 630;
+    const int descMaxWidth = 120;
+    const int lineHeight = 16;
+    const int halfLine = lineHeight / 2;   // 8px
 
-    // 現在のステージタイトル（毎フレーム stageNum を反映）
-    // タイトル背景で古い文字を隠す（createSidePanelBG で描かれた部分を塗りつぶし）
-    DrawBox(490, 0, 620, 30, GetColor(0, 50, 100), TRUE);
-    DrawFormatString(492, 3, colorWhite, "■ STAGE %d", stageNum);
+    // タイトル
+    DrawBox(panelLeft - 1, 0, panelRight, 30, GetColor(0, 50, 100), TRUE);
+    DrawFormatString(panelLeft + 2, 3, colorWhite, "■ STAGE %d", stageNum);
 
-    // ステージ情報領域のタイトル・詳細を毎フレーム更新
-    // 古い情報を背景色で塗りつぶしてから描画
-    DrawBox(485, 36, 635, 115, GetColor(30, 30, 50), TRUE); // タイトル下の余白を含めて消去
-    if (stageNum >= 0 && stageNum < (int)stageData.size()) {
-        DrawFormatString(490, 40, GetColor(200, 200, 255), "%s", stageData[stageNum].stageId);
-        DrawFormatString(490, 65, colorWhite, "Best: %6.2f", (double)stageData[stageNum].bestTime / 60);
+    // 動的情報の背景をクリア
+    DrawBox(485, 36, 635, 480, GetColor(30, 30, 50), TRUE);
+
+    // stageId
+    int currentY = 40;
+    DrawFormatString(panelLeft, currentY, GetColor(200, 200, 255), "%s", stageData[stageNum].stageId);
+    currentY += lineHeight + halfLine;
+
+    // 説明文
+    std::vector<std::string> descLines = WrapText(stageData[stageNum].description, descMaxWidth);
+    int linesToShow = (int)descLines.size();
+    for (int i = 0; i < linesToShow; i++) {
+        DrawFormatString(panelLeft, currentY, GetColor(180, 200, 220), "%s", descLines[i].c_str());
+        currentY += lineHeight;
     }
 
-    // 経過時間
-    DrawFormatString(490, 85, colorWhite, "Time: %6.2f", (double)count / 60);
+    // BestTime (1行あける)
+    currentY += lineHeight;
+    DrawFormatString(panelLeft, currentY, colorWhite, "Best: %6.2f", (double)stageData[stageNum].bestTime / 60);
+    currentY += lineHeight;
 
-    // ボス HP バーの塗り（半透明）
+    // Time
+    DrawFormatString(panelLeft, currentY, colorWhite, "Time: %6.2f", (double)count / 60);
+    currentY += lineHeight;
+
+    // ---- BOSS 区切り線（上下に0.5行のスペース） ----
+    currentY += halfLine;                                       // 線の上のスペース
+    DrawLine(panelLeft, currentY, panelLeft + 140, currentY, GetColor(100, 100, 150));
+    currentY += 1 + halfLine;                                   // 線の下のスペース
+
+    // BOSS ラベル
+    DrawFormatString(panelLeft, currentY, colorWhite, "BOSS");
+    currentY += 18;
+
+    // HP バー
+    DrawBox(panelLeft, currentY, panelLeft + 140, currentY + 5, colorGreenBlue, FALSE);
     SetDrawBlendMode(DX_BLENDMODE_ALPHA, 128);
-    DrawBox(490, 140, 490 + 140 * enemy.hp / enemy.maxHp, 145, colorGreenBlue, TRUE);
+    DrawBox(panelLeft, currentY, panelLeft + 140 * enemy.hp / enemy.maxHp, currentY + 5, colorGreenBlue, TRUE);
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-    DrawFormatString(490, 148, colorWhite, "HP: %d / %d", enemy.hp, enemy.maxHp);
+    currentY += 10;
+    DrawFormatString(panelLeft, currentY, colorWhite, "HP: %d / %d", enemy.hp, enemy.maxHp);
+    currentY += lineHeight * 2;    // HP表示の下は1行分のスペース
 
+    // Q: Stage Select (常に表示、上に1行分のスペースを確保済み)
+    DrawString(panelLeft + 5, currentY, "Q: Stage Select", colorWhite);
+    currentY += lineHeight * 2;
+
+    // リプレイ中はさらに2行下に表示
     if (replayActive) {
-        DrawString(495, 300, "<Replay Mode>", colorWhite);
-    }
-
-    // ゲーム中の操作ヒント
-    if (joutaiFlag == Joutai::Game) {
-        DrawString(495, 340, "Q: Stage Select", colorWhite);
+        DrawString(panelLeft + 5, currentY, "<Replay Mode>", GetColor(255, 255, 128));
     }
 }
 
-// 新規追加：ポーズ・勝利・敗北時の半透明オーバーレイとメッセージ
+// ポーズ・勝利・敗北時の半透明オーバーレイとメッセージ
 void drawGameOverlay()
 {
     int overlayColor;
@@ -204,11 +233,12 @@ void drawGameOverlay()
         msgColor = GetColor(255, 100, 100);
     }
 
-    DrawBox(140, 200, 340, 280, GetColor(20, 20, 40), TRUE);
+    DrawBox(140, 200, 340, 300, GetColor(20, 20, 40), TRUE);
     DrawBox(140, 200, 340, 202, msgColor, TRUE);
     DrawString(240 - (int)strlen(message) * 8, 205, message, colorWhite);
 
     if (!replayActive) DrawString(155, 230, "V   : Retry",  colorWhite);
     else               DrawString(155, 230, "R   : Replay", colorWhite);
-    DrawString(155, 250, "Q   : Stage Select", colorWhite);
+    DrawString(155, 250, "N   : Next Stage", colorWhite);
+    DrawString(155, 270, "Q   : Stage Select", colorWhite);
 }

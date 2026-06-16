@@ -3,17 +3,18 @@
 
 std::vector<StageInfo> stageData = {
     // stageId, description, bgmFileName, patternFunc
-    { "sample", "AIに渡すためのサンプル\n全種類の素材を使用", "field", EnemyPat_SampleForAI },
+    { "sample", "AIに渡すためのサンプル。使える素材の一覧を教える", "field", EnemyPat_SampleForAI },
     { "handmade1", "3WAY自機狙い", "Torpedo_Hymn2", EnemyPat_3Way },
     { "handmade2", "全方位", "Torpedo_Hymn2", EnemyPat_Round },
     { "handmade3", "破裂弾", "Torpedo_Hymn2", EnemyPat_Burst },
     { "handmade4", "波と粒の境界（目コピ）", "Torpedo_Hymn2", EnemyPat_Namitsubu },
-    { "handmade5", "ドーブル\n黒い眼差し→キノコの胞子→ロックオン→角ドリル", "Torpedo_Hymn2",EnemyPat_Smeargle },
+    { "handmade5", "ドーブルをモチーフにした弾幕。くろいまなざし→キノコのほうし→ロックオン→つのドリル", "Torpedo_Hymn2",EnemyPat_Smeargle },
     { "claudeEX1", "高難易度の弾幕", "Torpedo_Hymn", EnemyPat_Difficulty_Claude },
     { "claudeEX2", "幾何学的に美しい弾幕 アナザー", "Torpedo_Hymn", EnemyPat_Geometry_Claude2 },
     { "grokEX1", "彗星をモチーフにした弾幕 アナザー", "Torpedo_Hymn", EnemyPat_Comet_Grok2 },
     { "deepseekEx1", "はかいこうせんをモチーフにした弾幕 アナザー", "Torpedo_Hymn", EnemyPat_Hakaikousen_DeepSeek2 },
     { "geminiEx1", "達人王みたいな弾幕", "Torpedo_Hymn", EnemyPat_Tatsujinou_Gemini },
+    { "deepseekEx2", "はっぱカッターをモチーフにした弾幕 アナザー", "Torpedo_Hymn", EnemyPat_RazorLeaf_DeepSeek2 },
     { "deepseek", "幾何学的に美しい弾幕", "Chrome_Synapse", EnemyPat_Geometry_DeepSeek },
     { "gemini", "幾何学的に美しい弾幕", "Chrome_Synapse", EnemyPat_Geometry_Gemini },
     { "chatgpt", "幾何学的に美しい弾幕", "Chrome_Synapse", EnemyPat_Geometry_ChatGPT },
@@ -110,5 +111,5 @@ std::vector<StageInfo> stageData = {
     { "claude12", "太陽をモチーフにした弾幕", "Scorching_Danmaku", EnemyPat_Sun_Claude },
     { "qwen12", "太陽をモチーフにした弾幕", "Scorching_Danmaku", EnemyPat_Sun_Qwen },
     { "vibe12", "太陽をモチーフにした弾幕", "Scorching_Danmaku", EnemyPat_Sun_Vibe },
-    { "tmp", "tmp", "Torpedo_Hymn", EnemyPat_Tmp },
+    { "tmp", "お試し用スペース", "Torpedo_Hymn", EnemyPat_Tmp },
 };

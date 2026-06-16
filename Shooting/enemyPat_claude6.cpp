@@ -182,7 +182,7 @@ void EnemyPat_Namistubu_Claude()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 210;
+        enemy.maxHp = enemy.hp = 300;
         bossVX = 1.2;
         wobblePhase = 0.0;
     }

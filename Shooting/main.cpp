@@ -4,7 +4,7 @@
 #include "gv.h"
 #include "initial.h"
 #include "fps.h"
-#include "backGround.h"
+#include "gameScreen.h"
 #include "stageData.h"
 #include "menu.h"
 #include "imgSoundLoad.h"
@@ -102,7 +102,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			// Qキーで即メニューに戻る
 			if (key[KEY_INPUT_Q] == 1) {
 				replayActive = false;
-				joutaiFlag = Joutai::Menu;
+				joutaiFlag = Joutai::Menu;				
 				if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
 				currentBGMHandle = bgm_menu;
 				PlaySoundMem(bgm_menu, DX_PLAYTYPE_LOOP);
@@ -144,6 +144,47 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				if (replayActive) {
 					// リプレイを先頭から再生
 					startReplay(stageNum);
+				}
+			}
+			else if (key[KEY_INPUT_N] == 1) {
+				int nextStage = stageNum + 1;
+				if (nextStage < (int)stageData.size()) {
+					// BGM制御：次のステージのBGMハンドルを取得
+					int nextBgmHandle = stageData[nextStage].bgmHandle;
+					if (currentBGMHandle != nextBgmHandle) {
+						if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
+						currentBGMHandle = nextBgmHandle;
+						PlaySoundMem(currentBGMHandle, DX_PLAYTYPE_LOOP);
+					}
+					// ステージ番号とカーソル位置を更新
+					stageNum = nextStage;
+					cursor.page = stageNum / 100;
+					cursor.y = (stageNum % 100) / 10;
+					cursor.x = stageNum % 10;
+
+					if (!replayActive) {
+						// 通常ゲーム時：次のステージを新規ゲーム開始
+						iniGame();  // ゲーム状態初期化
+						joutaiFlag = Joutai::Game;
+						startNewGame();
+					}
+					else {
+						key[KEY_INPUT_NUMPAD4] = 0;
+						key[KEY_INPUT_NUMPAD6] = 0;
+						key[KEY_INPUT_NUMPAD8] = 0;
+						key[KEY_INPUT_NUMPAD5] = 0;
+						key[KEY_INPUT_V] = 1;
+						key[KEY_INPUT_C] = 0;
+						// リプレイ再生時：次のステージのリプレイを再生
+						if (!startReplay(stageNum)) {
+							// リプレイファイルがない場合はメニューへ戻す
+							replayActive = false;
+							joutaiFlag = Joutai::Menu;
+							if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
+							currentBGMHandle = bgm_menu;
+							PlaySoundMem(bgm_menu, DX_PLAYTYPE_LOOP);
+						}
+					}
 				}
 			}
 		}

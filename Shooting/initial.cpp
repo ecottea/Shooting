@@ -3,7 +3,7 @@
 #include "initial.h"
 #include "imgSoundLoad.h"
 #include "replay.h"
-#include "backGround.h"
+#include "gameScreen.h"
 
 void ini()
 {

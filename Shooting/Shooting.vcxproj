@@ -151,7 +151,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="backGround.cpp" />
+    <ClCompile Include="enemyPat_deepseekEx2.cpp" />
+    <ClCompile Include="gameScreen.cpp" />
     <ClCompile Include="enemy.cpp" />
     <ClCompile Include="enemyPat_chatgpt1.cpp" />
     <ClCompile Include="enemyPat_chatgpt2.cpp" />
@@ -276,7 +277,7 @@
     <ClCompile Include="stageData.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="backGround.h" />
+    <ClInclude Include="gameScreen.h" />
     <ClInclude Include="enemy.h" />
     <ClInclude Include="enemyShot.h" />
     <ClInclude Include="fileOpenClose.h" />

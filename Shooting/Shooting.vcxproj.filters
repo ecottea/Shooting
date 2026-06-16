@@ -24,7 +24,7 @@
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="backGround.cpp">
+    <ClCompile Include="gameScreen.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="enemy.cpp">
@@ -381,10 +381,16 @@
     <ClCompile Include="enemyPat_vibe8.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
-    <ClCompile Include="enemyPat_deepseekEx1.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="enemyPat_geminiEx1.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_handmade5.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_deepseekEx1.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_deepseekEx2.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
   </ItemGroup>
@@ -392,7 +398,7 @@
     <ClInclude Include="stageData.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="backGround.h">
+    <ClInclude Include="gameScreen.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="enemy.h">
