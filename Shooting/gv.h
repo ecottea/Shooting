@@ -86,8 +86,9 @@ struct sEnemy {
 
 struct sEnemyShot : PoolAllocator<sEnemyShot, 4096> {
     double      x = 0.0, y = 0.0, muki = 0.0, speed = 0.0;
-    int         count = 0;
+    int         count = 0; // 毎フレーム自動で+1
     int         kind = 0;
+    double      margin = 20.0;   // 画面外へどれだけ出たら弾を自動で消すか
     sEnemyShot* prev = nullptr;
     sEnemyShot* next = nullptr;  // PoolAllocator のフリーリストと兼用
 };
@@ -98,7 +99,7 @@ struct sEnemyShotSet : PoolAllocator<sEnemyShotSet, 1024> {
 
     double         x = 0.0, y = 0.0, muki = 0.0;
     PatternFunc    patternFunc = nullptr;
-    int            count = 0;
+    int            count = 0; // 毎フレーム自動で+1
     int            kind = 0;
     sEnemyShot*    pEnemyShotHead = nullptr;
     sEnemyShotSet* prev = nullptr;
@@ -107,9 +108,6 @@ struct sEnemyShotSet : PoolAllocator<sEnemyShotSet, 1024> {
 
 // ============================================================
 //  列挙型  (enum class でスコープ付き・型安全に)
-//
-//  変更前: if (joutaiFlag == Joutai::Game)
-//  変更後: if (joutaiFlag == Joutai::Game)
 // ============================================================
 enum class Joutai {
     Menu,
@@ -122,7 +120,7 @@ enum class Joutai {
 // ============================================================
 //  グローバル変数（extern 宣言のみ）
 // ============================================================
-extern int count;
+extern int count; // 毎フレーム自動で+1
 extern int key[256];
 
 extern Joutai joutaiFlag;

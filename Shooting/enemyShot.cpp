@@ -10,7 +10,7 @@ void enemyShotControl(){
 	while(pEnemyShotSet != &enemyShotSetHead){
 		sEnemyShotSet* pNext = pEnemyShotSet->next;
 
-		pEnemyShotSet->patternFunc(pEnemyShotSet);  // ★直接呼び出し
+		pEnemyShotSet->patternFunc(pEnemyShotSet);
 
 		pEnemyShotSet = pNext; //次へ
 	}
@@ -30,9 +30,9 @@ void enemyShotCalc()
 			pEnemyShot->count++; //処理
 			
 			pNextEnemyShot = pEnemyShot->next; //避難
-			
-			if(pEnemyShot->x < -20.0 || pEnemyShot->x > 500.0 //画面外の弾は削除
-			|| pEnemyShot->y < -20.0 || pEnemyShot->y > 500.0){
+
+			if (pEnemyShot->x < -pEnemyShot->margin || pEnemyShot->x > 480.0 + pEnemyShot->margin //画面外の弾は削除
+				|| pEnemyShot->y < -pEnemyShot->margin || pEnemyShot->y > 480.0 + pEnemyShot->margin) {
 				pEnemyShot->prev->next = pEnemyShot->next;
 				pEnemyShot->next->prev = pEnemyShot->prev;
 				delete pEnemyShot;
