@@ -121,10 +121,10 @@ static void ShotHappaKutter(sEnemyShotSet* pEnemyShotSet)
 }
 
 // ------------------------------------------------------------
-// EnemyPat_Tmp
+// EnemyPat_RazorLeaf_Claude
 // 画面上部をリサージュ的に左右移動し、はっぱカッターを放つ
 // ------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_RazorLeaf_Claude()
 {
     static double moveAngle;
 
