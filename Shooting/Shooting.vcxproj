@@ -283,6 +283,7 @@
     <ClCompile Include="playerShot.cpp" />
     <ClCompile Include="replay.cpp" />
     <ClCompile Include="stageData.cpp" />
+    <ClCompile Include="stateManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gameScreen.h" />
@@ -299,6 +300,7 @@
     <ClInclude Include="playerShot.h" />
     <ClInclude Include="replay.h" />
     <ClInclude Include="stageData.h" />
+    <ClInclude Include="stateManager.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="saveData\bestTime.json" />

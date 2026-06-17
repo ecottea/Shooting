@@ -63,12 +63,18 @@ bool loadReplay(int stageNum, std::vector<uint8_t>& outData, unsigned int& outSe
 }
 
 bool startReplay(int stageNum) {
+    key[KEY_INPUT_NUMPAD4] = 0;
+    key[KEY_INPUT_NUMPAD6] = 0;
+    key[KEY_INPUT_NUMPAD8] = 0;
+    key[KEY_INPUT_NUMPAD5] = 0;
+    key[KEY_INPUT_V] = 1; // ゲーム開始時に V を押すのをクリアするのを忘れていたので辻褄合わせ
+    key[KEY_INPUT_C] = 0;
+    
     unsigned int seed = 0;
     std::vector<uint8_t> loadedData;
     if (!loadReplay(stageNum, loadedData, seed))
         return false;
 
-    // リプレイ時の乱数状態を復元
     gameSeed = seed;
     SRand((int)gameSeed);
 
@@ -78,14 +84,8 @@ bool startReplay(int stageNum) {
     replayFrameIndex = 0;
     replayKeyHistory.clear();
 
-    if (currentBGMHandle != stageData[stageNum].bgmHandle) {
-        if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
-        currentBGMHandle = stageData[stageNum].bgmHandle;
-        PlaySoundMem(currentBGMHandle, DX_PLAYTYPE_LOOP);
-    }
-
     replayActive = true;
-    joutaiFlag = Joutai::Replay;
+    // BGM制御と joutaiFlag 代入は削除
     return true;
 }
 

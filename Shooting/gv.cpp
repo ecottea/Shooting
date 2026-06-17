@@ -3,11 +3,6 @@
 int count = 0;
 int key[256] = {0};
 
-Joutai joutaiFlag = Joutai::Menu;
-
-int stageNum = 0;
-
-sCursor cursor = {0, 0};
 sPlayer player = {240.0, 400.0};
 sPlayerShot playerShotHead{};
 sEnemy enemy = {240.0, 100.0, 100, 100};

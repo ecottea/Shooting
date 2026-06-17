@@ -61,7 +61,7 @@ static void ShotLeafCutter(sEnemyShotSet* pEnemyShotSet)
         // 後半：カッター化して一直線
         else if (pEnemyShotSet->count == 50)
         {
-            pEnemyShot->speed = 6.5;
+            pEnemyShot->speed = 5.0;
             pEnemyShot->kind = img_enemyShotBullet[2];
 
             PlaySoundMem(
@@ -110,7 +110,7 @@ void EnemyPat_RazorLeaf_ChatGPT()
         moveDir = 1;
 
     // はっぱカッター発射
-    if (count % 45 == 0)
+    if (count % 60 == 0)
     {
         sEnemyShotSet* pEnemyShotSet =
             new sEnemyShotSet;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 extern int colorWhite;
 extern int colorGray;
 extern int colorGreenBlue;

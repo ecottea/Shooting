@@ -62,11 +62,6 @@ public:
 // ============================================================
 //  共有構造体
 // ============================================================
-struct sCursor {
-    int x = 0, y = 0;
-    int page = 0;
-};
-
 struct sPlayer {
     double x = 0.0, y = 0.0;
 };
@@ -107,27 +102,11 @@ struct sEnemyShotSet : PoolAllocator<sEnemyShotSet, 1024> {
 };
 
 // ============================================================
-//  列挙型  (enum class でスコープ付き・型安全に)
-// ============================================================
-enum class Joutai {
-    Menu,
-    Win,
-    Lose,
-    Game,
-    Replay,
-};
-
-// ============================================================
 //  グローバル変数（extern 宣言のみ）
 // ============================================================
 extern int count; // 毎フレーム自動で+1
 extern int key[256];
 
-extern Joutai joutaiFlag;
-
-extern int stageNum;
-
-extern sCursor       cursor;
 extern sPlayer       player;
 extern sPlayerShot   playerShotHead;
 extern sEnemy        enemy;

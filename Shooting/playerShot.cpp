@@ -3,6 +3,7 @@
 #include "playerShot.h"
 #include "stageData.h"
 #include "imgSoundLoad.h"
+#include "stateManager.h"
 
 void playerShotControl()
 {
@@ -78,7 +79,7 @@ void playerShotHit()
 			enemy.hp--;
 			if (enemy.hp == 0) {
 				PlaySoundMem(sound_enemyDestroyed, DX_PLAYTYPE_BACK);
-				joutaiFlag = Joutai::Win;
+				StateManager::ChangeState(Joutai::Win);
 			}
 			pPlayerShot->prev->next = pPlayerShot->next;
 			pPlayerShot->next->prev = pPlayerShot->prev;

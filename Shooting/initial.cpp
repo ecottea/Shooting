@@ -4,13 +4,7 @@
 #include "imgSoundLoad.h"
 #include "replay.h"
 #include "gameScreen.h"
-
-void ini()
-{
-	joutaiFlag = Joutai::Menu;
-	cursor.x = 0;
-	cursor.y = 0;
-}
+#include "stateManager.h"
 
 void iniGame()
 {
@@ -69,7 +63,6 @@ void startNewGame()
 	SRand((int)gameSeed);
 
 	iniGame();
-	joutaiFlag = Joutai::Game;
 }
 
 void setColor()

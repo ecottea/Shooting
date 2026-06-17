@@ -2,6 +2,7 @@
 #include "gv.h"
 #include "enemyShot.h"
 #include "imgSoundLoad.h"
+#include "stateManager.h"
 
 void enemyShotControl(){
 	sEnemyShotSet *pEnemyShotSet;
@@ -97,11 +98,8 @@ void enemyShotHit()
 			y = player.y - pEnemyShot->y;
 			r = imageData[pEnemyShot->kind].radius + 2.3;
 			if(x*x + y*y < r*r){
-				if(CheckSoundMem(sound_playerDestroyed) == 1){
-					StopSoundMem(sound_playerDestroyed);
-				}
 				PlaySoundMem(sound_playerDestroyed, DX_PLAYTYPE_BACK);
-				joutaiFlag = Joutai::Lose;
+				StateManager::ChangeState(Joutai::Lose);
 			}
 			 
 			pEnemyShot = pEnemyShot->next; //次へ

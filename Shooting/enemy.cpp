@@ -2,10 +2,11 @@
 #include "gv.h"
 #include "enemy.h"
 #include "imgSoundLoad.h"
+#include "stateManager.h"
 
 void enemyDisp() {
     // 表示に使うハンドルを先に決める
-    int handle = (joutaiFlag != Joutai::Win)
+    int handle = (StateManager::GetState() != Joutai::Win)
         ? imageData[img_enemy[0]].handle
         : imageData[img_enemy[1]].handle;
 
@@ -27,6 +28,6 @@ void enemyHit() {
     double dy = player.y - enemy.y;
     if (dx * dx + dy * dy < 1600.0) {
         PlaySoundMem(sound_playerDestroyed, DX_PLAYTYPE_BACK);
-        joutaiFlag = Joutai::Lose;
+        StateManager::ChangeState(Joutai::Lose);
     }
 }

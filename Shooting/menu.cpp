@@ -2,6 +2,7 @@
 
 #include "DxLib.h"
 #include "gv.h"
+#include "stateManager.h"
 #include "menu.h"
 #include "stageData.h"
 #include "replay.h"
@@ -207,25 +208,15 @@ void moveCursor()
     stageNum = cursor.page * 100 + cursor.y * 10 + cursor.x;
 
     if (key[KEY_INPUT_V] == 1 && stageNum < (int)stageData.size()) {
-        if (currentBGMHandle != -1) StopSoundMem(currentBGMHandle);
-        currentBGMHandle = stageData[stageNum].bgmHandle;
-        PlaySoundMem(currentBGMHandle, DX_PLAYTYPE_LOOP);
-        joutaiFlag = Joutai::Game;
-        startNewGame();
+        StateManager::ChangeState(Joutai::Game);  // BGM制御・初期化は内部で実施
         return;
     }
 
     // moveCursor() 内の R キー処理
     if (key[KEY_INPUT_R] == 1 && stageNum < (int)stageData.size()) {
-        key[KEY_INPUT_NUMPAD4] = 0;
-        key[KEY_INPUT_NUMPAD6] = 0;
-        key[KEY_INPUT_NUMPAD8] = 0;
-        key[KEY_INPUT_NUMPAD5] = 0;
-        key[KEY_INPUT_V] = 1;
-        key[KEY_INPUT_C] = 0;
-        if (!startReplay(stageNum)) {
+        if (!StateManager::ChangeState(Joutai::Replay)) {
             showReplayError = true;
-            replayErrorTimer = 120;  // 2秒間表示 (60fps想定)
+            replayErrorTimer = 120;
         }
         return;
     }

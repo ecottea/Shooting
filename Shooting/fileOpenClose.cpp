@@ -4,6 +4,7 @@
 #include "gv.h"
 #include "fileOpenClose.h"
 #include "stageData.h"
+#include "stateManager.h"
 #include <fstream>
 #include <string>
 #include "json.hpp"

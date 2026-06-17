@@ -1,8 +1,9 @@
 ﻿// backGround.cpp
 
 #include "DxLib.h"
-#include "gv.h"
+#include "stateManager.h"
 #include "gameScreen.h"
+#include "gv.h"
 #include "stageData.h"
 #include "imgSoundLoad.h"
 #include <math.h>
@@ -118,7 +119,7 @@ void backGround()
 
     // 星の更新と描画（動的）
     for (int i = 0; i < NUM_STARS; i++) {
-        if (joutaiFlag == Joutai::Game || joutaiFlag == Joutai::Replay) {
+        if (StateManager::GetState() == Joutai::Game || StateManager::GetState() == Joutai::Replay) {
             stars[i].y += stars[i].speedY;
             if (stars[i].y > 480.0) {
                 stars[i].y -= 480.0;
@@ -211,7 +212,7 @@ void drawSidePanel()
 void drawGameOverlay()
 {
     int overlayColor;
-    if (joutaiFlag == Joutai::Win) {
+    if (StateManager::GetState() == Joutai::Win) {
         overlayColor = GetColor(30, 20, 10);
     }
     else { // Joutai::Lose
@@ -224,7 +225,7 @@ void drawGameOverlay()
 
     const char* message;
     int msgColor;
-    if (joutaiFlag == Joutai::Win) {
+    if (StateManager::GetState() == Joutai::Win) {
         message = "You Win!!";
         msgColor = GetColor(255, 200, 50);
     }
