@@ -143,7 +143,7 @@ void EnemyPat_RazorLeaf_Claude()
     }
 
     // 通常：90フレームごとに葉7枚
-    if (count % 30 == 0) {
+    if (count % 40 == 0) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
         pEnemyShotSet->patternFunc = ShotHappaKutter;
@@ -164,7 +164,7 @@ void EnemyPat_RazorLeaf_Claude()
     }
 
     // 強化：270フレームごとに（90フレームずれた位相で）葉13枚
-    if (count % 90 == 75) {
+    if (count % 120 == 100) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
         pEnemyShotSet->patternFunc = ShotHappaKutter;

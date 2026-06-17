@@ -15,14 +15,14 @@ static void ShotRazorLeaf(sEnemyShotSet* pEnemyShotSet)
         PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
 
         // 1波につき扇状に9枚の葉っぱを発射
-        for (int i = -16; i <= 16; i++) {
+        for (int i = -4*3; i <= 4*3; i++) {
             sEnemyShot* pEnemyShot = new sEnemyShot;
             pEnemyShot->x = pEnemyShotSet->x;
             pEnemyShot->y = pEnemyShotSet->y;
 
             // プレイヤーを狙った基準角（muki）から、左右に少しずつズラして扇状に配置
             // 15度(15.0 / 180.0 * DX_PI)ずつ角度を開く
-            pEnemyShot->muki = pEnemyShotSet->muki + (i * 15.0 / 4) / 180.0 * DX_PI;
+            pEnemyShot->muki = pEnemyShotSet->muki + (i * 15.0 / 3) / 180.0 * DX_PI;
 
             // 初期速度は少しランダム性を持たせる（1.0 〜 1.5）
             pEnemyShot->speed = 1.0 + GetRand(50) / 100.0;
@@ -71,7 +71,7 @@ void EnemyPat_RazorLeaf_Gemini()
         // 画面上部の中央付近からスタート
         enemy.x = 240.0;
         enemy.y = 80.0;
-        enemy.maxHp = enemy.hp = 500;
+        enemy.maxHp = enemy.hp = 200;
     }
     else {
         // 敵本体の移動：sin波を使って画面上部を滑らかに8の字（無限軌道）を描くように飛ぶ
@@ -81,7 +81,7 @@ void EnemyPat_RazorLeaf_Gemini()
     }
 
     // 120フレーム（約2秒）ごとに「はっぱカッター」をセット
-    if (count % 120 == 60) {
+    if (count % 120 == 30) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
         pEnemyShotSet->patternFunc = ShotRazorLeaf; // 作成した弾幕関数をセット

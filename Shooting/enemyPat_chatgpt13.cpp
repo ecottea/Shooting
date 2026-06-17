@@ -110,7 +110,7 @@ void EnemyPat_RazorLeaf_ChatGPT()
         moveDir = 1;
 
     // はっぱカッター発射
-    if (count % 60 == 0)
+    if (count % 90 == 30)
     {
         sEnemyShotSet* pEnemyShotSet =
             new sEnemyShotSet;

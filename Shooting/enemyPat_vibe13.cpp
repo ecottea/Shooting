@@ -22,7 +22,7 @@ static void ShotLeafCutter(sEnemyShotSet* pEnemyShotSet)
 
         // 1枚の刃から3発を扇状に発射
         for (int i = 0; i < 3; i++) {
-            if (pEnemyShotSet->count % 10 == 0) { // 5フレームごとに1発ずつ
+            if (pEnemyShotSet->count % 12 == 0) { // 5フレームごとに1発ずつ
                 pEnemyShot = new sEnemyShot;
                 pEnemyShot->x = pEnemyShotSet->x + 30.0 * cos(bladeAngle);
                 pEnemyShot->y = pEnemyShotSet->y + 30.0 * sin(bladeAngle);
