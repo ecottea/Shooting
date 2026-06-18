@@ -2,6 +2,9 @@
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include "stageData.h"
+#include <unordered_map>
+#include <string>
+
 
 int colorWhite;
 int colorGray;
@@ -35,6 +38,10 @@ int sound_playerDestroyed;
 
 int bgm_menu;
 int currentBGMHandle;
+
+// ファイル名（例："Torpedo_Hymn2"）→ BGMハンドル のキャッシュ
+static std::unordered_map<std::string, int> bgmCache;
+
 
 // ---------- 単一画像読み込み ----------
 static int LoadImage(const char* filename, double mag, bool no_rotate, double radius) {
@@ -190,37 +197,35 @@ void imgSoundLoad()
 
     // BGM 読み込み
     bgm_menu = LoadSoundMem("assets/bgm/Caramel_CPU.ogg");
+}
 
-    // ステージBGMを読み込む（パス補完＋キャッシュ）
-    const int MAX_BGM_CACHE = 16;
-    const char* cachedPaths[MAX_BGM_CACHE];
-    int         cachedHandles[MAX_BGM_CACHE];
-    int         cacheCount = 0;
+// 遅延ロード用の関数
+void loadStageBGM(int stageIndex)
+{
+    if (stageIndex < 0 || stageIndex >= (int)stageData.size()) return;
 
-    for (int i = 0; i < (int)stageData.size(); i++) {
-        // フルパスを生成
-        char fullPath[256];
-        sprintf_s(fullPath, sizeof(fullPath), "assets/bgm/%s.ogg", stageData[i].bgmFileName);
+    // すでにロード済みなら何もしない
+    if (stageData[stageIndex].bgmHandle != -1) return;
 
-        // キャッシュ検索（同じファイルを複数ステージで使う場合の重複ロード防止）
-        int handle = -1;
-        for (int j = 0; j < cacheCount; j++) {
-            if (strcmp(cachedPaths[j], fullPath) == 0) {
-                handle = cachedHandles[j];
-                break;
-            }
-        }
+    const char* fileName = stageData[stageIndex].bgmFileName;
+    std::string key(fileName);
 
-        // 未ロードなら新規ロードしてキャッシュに追加
-        if (handle == -1) {
-            handle = LoadSoundMem(fullPath);
-            if (handle != -1 && cacheCount < MAX_BGM_CACHE) {
-                cachedPaths[cacheCount] = _strdup(fullPath);  // メモリ確保（簡易例）
-                cachedHandles[cacheCount] = handle;
-                cacheCount++;
-            }
-        }
+    // キャッシュを検索
+    auto it = bgmCache.find(key);
+    if (it != bgmCache.end()) {
+        // キャッシュにヒット → ハンドルをコピーするだけでロード不要
+        stageData[stageIndex].bgmHandle = it->second;
+        return;
+    }
 
-        stageData[i].bgmHandle = handle;
+    // 未キャッシュ → 新規ロード
+    char fullPath[256];
+    sprintf_s(fullPath, sizeof(fullPath), "assets/bgm/%s.ogg", fileName);
+
+    int handle = LoadSoundMem(fullPath);
+    if (handle != -1) {
+        // キャッシュに登録
+        bgmCache[key] = handle;
+        stageData[stageIndex].bgmHandle = handle;
     }
 }

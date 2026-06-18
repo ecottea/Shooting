@@ -1,7 +1,7 @@
 // stateManager.cpp
 #include "stateManager.h"
 #include "DxLib.h"
-#include "imgSoundLoad.h" // currentBGMHandle, bgm_menu
+#include "imgSoundLoad.h" // currentBGMHandle, bgm_menu, loadStageBGM()
 #include "initial.h"      // ini(), startNewGame()
 #include "replay.h"       // startReplay(), replayActive
 #include "stageData.h"    // stageData
@@ -35,35 +35,41 @@ bool StateManager::ChangeState(Joutai newState)
 		break;
 
 	case Joutai::Game:
+		// 遅延ロード: ゲーム開始前にBGMを必要に応じてロード
+		loadStageBGM(stageNum);
 		// BGM 制御：現在のステージ用に切り替え
-	{
-		int bgmHandle = stageData[stageNum].bgmHandle;
-		if (currentBGMHandle != bgmHandle)
 		{
-			if (currentBGMHandle != -1)
-				StopSoundMem(currentBGMHandle);
-			currentBGMHandle = bgmHandle;
-			PlaySoundMem(bgmHandle, DX_PLAYTYPE_LOOP);
+			int bgmHandle = stageData[stageNum].bgmHandle;
+			if (currentBGMHandle != bgmHandle)
+			{
+				if (currentBGMHandle != -1)
+					StopSoundMem(currentBGMHandle);
+				currentBGMHandle = bgmHandle;
+				if (bgmHandle != -1)
+					PlaySoundMem(bgmHandle, DX_PLAYTYPE_LOOP);
+			}
 		}
-	}
-	startNewGame(); // iniGame + 乱数シード（joutaiFlag 代入は削除済み）
-	break;
+		startNewGame(); // iniGame + 乱数シード（joutaiFlag 代入は削除済み）
+		break;
 
 	case Joutai::Replay:
 		// BGM 制御：ステージ BGM に切り替え
-	if (!startReplay(stageNum))
-		return false;  // リプレイファイル不存在など
-	{
-		int bgmHandle = stageData[stageNum].bgmHandle;
-		if (currentBGMHandle != bgmHandle)
+		if (!startReplay(stageNum))
+			return false;  // リプレイファイル不存在など
+		// 遅延ロード
+		loadStageBGM(stageNum);
 		{
-			if (currentBGMHandle != -1)
-				StopSoundMem(currentBGMHandle);
-			currentBGMHandle = bgmHandle;
-			PlaySoundMem(bgmHandle, DX_PLAYTYPE_LOOP);
+			int bgmHandle = stageData[stageNum].bgmHandle;
+			if (currentBGMHandle != bgmHandle)
+			{
+				if (currentBGMHandle != -1)
+					StopSoundMem(currentBGMHandle);
+				currentBGMHandle = bgmHandle;
+				if (bgmHandle != -1)
+					PlaySoundMem(bgmHandle, DX_PLAYTYPE_LOOP);
+			}
 		}
-	}
-	break;
+		break;
 
 	case Joutai::Win:
 	case Joutai::Lose:

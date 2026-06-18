@@ -43,3 +43,4 @@ extern int currentBGMHandle;
 
 
 void imgSoundLoad();
+void loadStageBGM(int stageIndex);

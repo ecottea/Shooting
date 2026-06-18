@@ -35,13 +35,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     int gameScreen = MakeScreen(GAME_W, GAME_H, TRUE);
     SetDrawScreen(gameScreen);
 
+    // スプラッシュ画像の表示
+    //int splashHandle = LoadGraph("assets/images/splash.png");
+    //if (splashHandle != -1) {
+    //    // 描画先を実際の画面（バックバッファ）に切り替え
+    //    SetDrawScreen(DX_SCREEN_BACK);
+    //    DrawGraph(0, 0, splashHandle, TRUE);   // または DrawExtendGraph
+    //    ScreenFlip();                           // 画面に反映
+    //    Sleep(1000); // これがないと一瞬しか映らない。もはやスプラッシュ画像は必要ない。
+    //    // 描画先を仮想画面に戻す
+    //    SetDrawScreen(gameScreen);
+    //}
+    //else {
+    //    MessageBox(NULL, "splash.png が見つかりません", "エラー", MB_OK);
+    //}
+
     fileOpen();
     imgSoundLoad();
     setColor();
     currentBGMHandle = bgm_menu;
     PlaySoundMem(bgm_menu, DX_PLAYTYPE_LOOP);
     loadCursorPos();
-
+    
     playerShotHead.prev = &playerShotHead;
     playerShotHead.next = &playerShotHead;
     enemyShotSetHead.prev = &enemyShotSetHead;
