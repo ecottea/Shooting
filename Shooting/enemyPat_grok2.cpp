@@ -28,11 +28,13 @@ static void Shot7WayCurtain(sEnemyShotSet* p)
             }
         } else {
             double baseAngle = (p->muki>0)?0.3:PI-0.3; n=9;
-            for (i=0; i<n; i++) {
-                rad = baseAngle + (i-4)*0.22; shot = new sEnemyShot;
-                shot->x=p->x; shot->y=p->y; shot->muki=rad; shot->speed=4.2; shot->kind= img_enemyShotLargeBall[0];
-                shot->prev=p->pEnemyShotHead->prev; shot->next=p->pEnemyShotHead;
-                p->pEnemyShotHead->prev->next=shot; p->pEnemyShotHead->prev=shot;
+            for (int j = 0; j <= 10; j++) {
+                for (i = 0; i < n; i++) {
+                    rad = baseAngle + (i - 4) * 0.22; shot = new sEnemyShot;
+                    shot->x = p->x; shot->y = p->y; shot->muki = rad; shot->speed = 4.2 + j * 0.3; shot->kind = img_enemyShotBullet[0];
+                    shot->prev = p->pEnemyShotHead->prev; shot->next = p->pEnemyShotHead;
+                    p->pEnemyShotHead->prev->next = shot; p->pEnemyShotHead->prev = shot;
+                }
             }
         }
     }

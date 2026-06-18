@@ -51,6 +51,8 @@ bool StateManager::ChangeState(Joutai newState)
 
 	case Joutai::Replay:
 		// BGM 制御：ステージ BGM に切り替え
+	if (!startReplay(stageNum))
+		return false;  // リプレイファイル不存在など
 	{
 		int bgmHandle = stageData[stageNum].bgmHandle;
 		if (currentBGMHandle != bgmHandle)
@@ -61,8 +63,6 @@ bool StateManager::ChangeState(Joutai newState)
 			PlaySoundMem(bgmHandle, DX_PLAYTYPE_LOOP);
 		}
 	}
-	if (!startReplay(stageNum))
-		return false;  // リプレイファイル不存在など
 	break;
 
 	case Joutai::Win:

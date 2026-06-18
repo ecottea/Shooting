@@ -23,10 +23,15 @@ static Star stars[NUM_STARS];
 static int starsInitialized = 0;
 static int fieldBG = -1;
 static int sidePanelBG = -1;
+static int lastStageForSidePanel = -1;      // 生成時の stageNum
+static int descLineCount = 0;               // 説明文の行数（静的）
+
+// 情報領域の背景色
+static const int INFO_BG_COLOR = GetColor(30, 30, 50);
 
 // 戦闘フィールド背景を一枚の画像として生成
 static void createFieldBG() {
-    fieldBG = MakeScreen(480, 480, FALSE);   // 透過不要
+    fieldBG = MakeScreen(480, 480, FALSE);
     int oldScreen = GetDrawScreen();
     SetDrawScreen(fieldBG);
 
@@ -53,37 +58,77 @@ static void createFieldBG() {
 
 // サイドパネル背景を一枚の画像として生成（動的要素を除く）
 static void createSidePanelBG() {
+    // 以前の画像を破棄
+    if (sidePanelBG != -1) DeleteGraph(sidePanelBG);
+
     sidePanelBG = MakeScreen(160, 480, FALSE);
     int oldScreen = GetDrawScreen();
     SetDrawScreen(sidePanelBG);
 
-    // パネル背景グラデーション（x=480～640 → 画像内では0～160）
+    // パネル背景グラデーション（x=480～640 → 画像内 0～160）
     for (int i = 0; i < 160; i++) {
         int shade = (int)(60.0 * (double)(160 - i) / 160.0);
         int col = GetColor(shade, shade, shade);
         DrawLine(i, 0, i, 480, col);
     }
-    // 左端の境界線
+    // 左端の境界線（画面左端 x=480）
     DrawBox(0, 0, 1, 480, GetColor(100, 100, 100), TRUE);
 
-    // タイトル
-    DrawBox(10, 0, 140, 30, GetColor(0, 50, 100), TRUE);
-    DrawFormatString(12, 3, colorWhite, "■ STAGE %d", stageNum);
+    const int panelLeft = 10;   // 画像内での座標（画面座標480+10=490）
+    const int panelRight = 150; // 画像内（480+150=630）
+    const int descMaxWidth = 140;
+    const int lineHeight = 16;
+    const int halfLine = lineHeight / 2;
 
-    // ステージ情報ボックス
-    DrawBox(5, 35, 155, 130, GetColor(30, 30, 50), TRUE);
-    DrawBox(5, 35, 155, 36, GetColor(0, 80, 160), TRUE);
-    if (stageNum >= 0 && stageNum < (int)stageData.size()) {
-        DrawFormatString(10, 40, GetColor(200, 200, 255), "%s", stageData[stageNum].stageId);
-        DrawFormatString(10, 65, colorWhite, "Best: %6.2f", (double)stageData[stageNum].bestTime / 60);
+    // タイトル背景と文字（画面座標 490,0 相当）
+    DrawBox(panelLeft - 1, 0, panelRight, 30, GetColor(0, 50, 100), TRUE);
+    DrawFormatString(panelLeft + 2, 3, colorWhite, "■ STAGE %d", stageNum);
+
+    // 情報エリアの背景（クリア）
+    DrawBox(5, 36, 155, 480, INFO_BG_COLOR, TRUE);  // 画像内 5～155 = 画面 485～635
+
+    // stageId
+    int currentY = 40;
+    DrawFormatString(panelLeft, currentY, GetColor(200, 200, 255), "%s", stageData[stageNum].stageId);
+    currentY += lineHeight + halfLine;
+
+    // 説明文（折り返しあり・重い処理はここだけ）
+    std::vector<std::string> descLines = WrapText(stageData[stageNum].description, descMaxWidth);
+    descLineCount = (int)descLines.size();   // 後で使うために保存
+    for (int i = 0; i < descLineCount; i++) {
+        DrawFormatString(panelLeft, currentY, GetColor(180, 200, 220), "%s", descLines[i].c_str());
+        currentY += lineHeight;
     }
 
-    // BOSS ラベルと HP バー枠
-    DrawLine(10, 115, 150, 115, GetColor(100, 100, 150));
-    DrawFormatString(10, 118, colorWhite, "BOSS");
-    DrawBox(10, 140, 150, 145, colorGreenBlue, FALSE);   // HPバー枠のみ（塗りは動的）
+    // BestTime（1行あける）
+    currentY += lineHeight;
+    currentY += lineHeight;
+
+    // Time は動的なのでここでは描かない（currentY だけ進めておく）
+    currentY += lineHeight;
+
+    // ---- BOSS 区切り線（上下に0.5行のスペース） ----
+    currentY += halfLine;
+    DrawLine(panelLeft, currentY, panelLeft + 140, currentY, GetColor(100, 100, 150));
+    currentY += 1 + halfLine;
+
+    // BOSS ラベル
+    DrawFormatString(panelLeft, currentY, colorWhite, "BOSS");
+    currentY += 18;
+
+    // HP バー枠（塗りは動的）
+    DrawBox(panelLeft, currentY, panelLeft + 140, currentY + 5, colorGreenBlue, FALSE);
+    currentY += 10;
+    // HP数値テキストは動的なので枠だけ
+
+    currentY += lineHeight * 2;   // HP表示の下のスペース
+
+    // Q: Quit（常に表示）
+    DrawString(panelLeft + 5, currentY, "Q: Quit", colorWhite);
+    // リプレイモード表示は動的なのでここでは描かない
 
     SetDrawScreen(oldScreen);
+    lastStageForSidePanel = stageNum;
 }
 
 void resetStars() {
@@ -111,13 +156,9 @@ void backGround()
 {
     initStars();
 
-    // 背景画像を初回のみ生成
     if (fieldBG == -1) createFieldBG();
-
-    // 戦闘フィールド背景（一枚画像）を描画
     DrawGraph(0, 0, fieldBG, FALSE);
 
-    // 星の更新と描画（動的）
     for (int i = 0; i < NUM_STARS; i++) {
         if (StateManager::GetState() == Joutai::Game || StateManager::GetState() == Joutai::Replay) {
             stars[i].y += stars[i].speedY;
@@ -142,80 +183,76 @@ void backGround()
 
 void drawSidePanel()
 {
-    if (sidePanelBG == -1) createSidePanelBG();
+    // ステージが変わったら背景画像を作り直す
+    if (sidePanelBG == -1 || stageNum != lastStageForSidePanel) {
+        createSidePanelBG();
+    }
     DrawGraph(480, 0, sidePanelBG, FALSE);
 
     const int panelLeft = 490;
-    const int panelRight = 630;
-    const int descMaxWidth = 120;
     const int lineHeight = 16;
-    const int halfLine = lineHeight / 2;   // 8px
+    const int halfLine = lineHeight / 2;
 
-    // タイトル
-    DrawBox(panelLeft - 1, 0, panelRight, 30, GetColor(0, 50, 100), TRUE);
-    DrawFormatString(panelLeft + 2, 3, colorWhite, "■ STAGE %d", stageNum);
-
-    // 動的情報の背景をクリア
-    DrawBox(485, 36, 635, 480, GetColor(30, 30, 50), TRUE);
-
-    // stageId
-    int currentY = 40;
-    DrawFormatString(panelLeft, currentY, GetColor(200, 200, 255), "%s", stageData[stageNum].stageId);
-    currentY += lineHeight + halfLine;
-
-    // 説明文
-    std::vector<std::string> descLines = WrapText(stageData[stageNum].description, descMaxWidth);
-    int linesToShow = (int)descLines.size();
-    for (int i = 0; i < linesToShow; i++) {
-        DrawFormatString(panelLeft, currentY, GetColor(180, 200, 220), "%s", descLines[i].c_str());
-        currentY += lineHeight;
-    }
-
-    // BestTime (1行あける)
-    currentY += lineHeight;
-    DrawFormatString(panelLeft, currentY, colorWhite, "Best: %6.2f", (double)stageData[stageNum].bestTime / 60);
+    // 動的要素の描画位置を計算（静的要素と同じ順序で currentY を進める）
+    int currentY = 40;                                  // stageId の始点
+    currentY += lineHeight + halfLine;                  // stageId の高さ
+    currentY += descLineCount * lineHeight;             // 説明文の行数分（WrapTextしない）
+    currentY += lineHeight;                             // BestTime の上の空行
+    int bestTimeY = currentY;                           // BestTime の行
+    currentY += lineHeight;                             // BestTime の行の高さ分
+    int timeY = currentY;                               // Time の行
     currentY += lineHeight;
 
-    // Time
-    DrawFormatString(panelLeft, currentY, colorWhite, "Time: %6.2f", (double)count / 60);
-    currentY += lineHeight;
-
-    // ---- BOSS 区切り線（上下に0.5行のスペース） ----
-    currentY += halfLine;                                       // 線の上のスペース
-    DrawLine(panelLeft, currentY, panelLeft + 140, currentY, GetColor(100, 100, 150));
-    currentY += 1 + halfLine;                                   // 線の下のスペース
+    // BOSS 区切り線の位置
+    currentY += halfLine;                               // 線の上スペース
+    int bossSeparatorY = currentY;
+    currentY += 1 + halfLine;                           // 線の下スペース
 
     // BOSS ラベル
-    DrawFormatString(panelLeft, currentY, colorWhite, "BOSS");
     currentY += 18;
 
-    // HP バー
-    DrawBox(panelLeft, currentY, panelLeft + 140, currentY + 5, colorGreenBlue, FALSE);
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 128);
-    DrawBox(panelLeft, currentY, panelLeft + 140 * enemy.hp / enemy.maxHp, currentY + 5, colorGreenBlue, TRUE);
-    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    // HP バーと数値の位置
+    int hpBarY = currentY;
     currentY += 10;
-    DrawFormatString(panelLeft, currentY, colorWhite, "HP: %d / %d", enemy.hp, enemy.maxHp);
-    currentY += lineHeight * 2;    // HP表示の下は1行分のスペース
+    int hpTextY = currentY;
 
-    // Q: Stage Select (常に表示、上に1行分のスペースを確保済み)
-    DrawString(panelLeft + 5, currentY, "Q: Stage Select", colorWhite);
-    currentY += lineHeight * 2;
+    // リプレイモード表示位置は Q: Quit の下
+    int replayY = currentY + lineHeight * 2 + lineHeight * 2;  // HP下1行空け + Q行 + 1行空け
 
-    // リプレイ中はさらに2行下に表示
+    // ---- 動的描画 ----
+    // BestTime（更新される可能性があるため動的描画）
+    DrawBox(panelLeft, bestTimeY, 630, bestTimeY + lineHeight, INFO_BG_COLOR, TRUE);
+    DrawFormatString(panelLeft, bestTimeY, colorWhite, "Best: %6.2f", (double)stageData[stageNum].bestTime / 60);
+
+    // Time（背景を塗りつぶしてから描画）
+    DrawBox(panelLeft, timeY, 630, timeY + lineHeight, INFO_BG_COLOR, TRUE);
+    DrawFormatString(panelLeft, timeY, colorWhite, "Time: %6.2f", (double)count / 60);
+
+    // HP バー（塗りのみ、枠は静的）
+    DrawBox(panelLeft, hpBarY, panelLeft + 140, hpBarY + 5, INFO_BG_COLOR, TRUE); // 前フレームの塗りを消す
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 128);
+    DrawBox(panelLeft, hpBarY, panelLeft + 140 * enemy.hp / enemy.maxHp, hpBarY + 5, colorGreenBlue, TRUE);
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
+    // HP 数値
+    DrawBox(panelLeft, hpTextY, 630, hpTextY + lineHeight, INFO_BG_COLOR, TRUE);
+    DrawFormatString(panelLeft, hpTextY, colorWhite, "HP: %d / %d", enemy.hp, enemy.maxHp);
+
+    // リプレイモード
     if (replayActive) {
-        DrawString(panelLeft + 5, currentY, "<Replay Mode>", GetColor(255, 255, 128));
+        DrawBox(panelLeft, replayY, 630, replayY + lineHeight, INFO_BG_COLOR, TRUE);
+        DrawString(panelLeft + 5, replayY, "<Replay Mode>", GetColor(255, 255, 128));
     }
 }
 
-// ポーズ・勝利・敗北時の半透明オーバーレイとメッセージ
+// ポーズ・勝利・敗北時の半透明オーバーレイとメッセージ（変更なし）
 void drawGameOverlay()
 {
     int overlayColor;
     if (StateManager::GetState() == Joutai::Win) {
         overlayColor = GetColor(30, 20, 10);
     }
-    else { // Joutai::Lose
+    else {
         overlayColor = GetColor(30, 10, 10);
     }
 
@@ -238,8 +275,8 @@ void drawGameOverlay()
     DrawBox(140, 200, 340, 202, msgColor, TRUE);
     DrawString(240 - (int)strlen(message) * 8, 205, message, colorWhite);
 
-    if (!replayActive) DrawString(155, 230, "V   : Retry",  colorWhite);
+    if (!replayActive) DrawString(155, 230, "V   : Retry", colorWhite);
     else               DrawString(155, 230, "R   : Replay", colorWhite);
     DrawString(155, 250, "N   : Next Stage", colorWhite);
-    DrawString(155, 270, "Q   : Stage Select", colorWhite);
+    DrawString(155, 270, "Q   : Quit", colorWhite);
 }

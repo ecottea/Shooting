@@ -1,157 +1,181 @@
-﻿// enemyPat_tmp.cpp
-// ============================================================
-// はっぱカッター弾幕
-// ============================================================
-// 【弾幕の特徴】
-//   img_enemyShotScale（鱗弾）を葉っぱに見立て、扇状に放つ。
-//   発射直後は直進するが、30フレーム後から各葉がヒラヒラ揺れ始め、
-//   120フレームで最大振れ幅に達する。各葉の揺れは初期方向を位相シード
-//   にすることで扇全体がバラバラのタイミングで揺れる。
-//   また25%の確率で「急所」の葉が混じり、やや速く飛ぶ。
+﻿// enemyPat_poison.cpp
+// モチーフ: 毒
 //
-// 【攻撃パターン】
-//   通常（count % 90 == 0）    : 葉7枚  / 緑  / sound_medium
-//   強化（count % 270 == 135） : 葉13枚 / 黄  / sound_heavy
-//   ※ 90k と 270m+135 は重ならない（証明：90k≡135(mod 270)
-//     → 2k≡3(mod 6) → 左辺偶数・右辺奇数で不成立）
-//
-// 【使用素材】
-//   弾: img_enemyShotScale[2]（緑）, img_enemyShotScale[1]（黄）
-//   SE: sound_enemyShot_medium, sound_enemyShot_heavy
-// ============================================================
+// ┌──────────────────────────────────────────────────────┐
+// │ パターン1  ShotPoisonFang  ── 毒の牙                 │
+// │   プレイヤー方向を中心に ±18° で2本の"牙"を放つ。   │
+// │   左牙=緑の鱗弾7発、右牙=マゼンタの鱗弾7発。        │
+// │   各牙は速さが異なる(i=0:2.0 〜 i=6:4.4)ため、      │
+// │   縦に伸びた牙の形になって飛来する。                 │
+// │   30フレーム後から減速するため、広がりながら迫る。   │
+// │                                                      │
+// │ パターン2  ShotPoisonMist  ── 毒霧の輪               │
+// │   15フレーム間隔で12発×5輪のリングを順次展開         │
+// │   (合計60発)。各リングはDX_PI/12ずつ回転しており、  │
+// │   重なって"毒の花"のような見た目になる。             │
+// │   弾はサイン波でうねる軌道を描くため回避しにくい。   │
+// │                                                      │
+// │ 敵本体  EnemyPat_Tmp                                 │
+// │   x:360フレーム周期、y:180フレーム周期の             │
+// │   リサジュー曲線(2:1)で画面上部を揺れる。           │
+// │   毒霧の輪 : 120フレームごと                         │
+// │   毒の牙   :  60フレームごと (offset 35)             │
+// └──────────────────────────────────────────────────────┘
 
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// ------------------------------------------------------------
-// ShotHappaKutter
-// 扇状に葉を放ち、一定フレーム後からヒラヒラ揺れる
+
+// ----------------------------------------------------------------
+//  パターン1: 毒の牙 (Venom Fang)
 //
-// pEnemyShotSet->kind : 葉の枚数
-//    7  = 通常はっぱカッター
-//   13  = 強化はっぱカッター
-// ------------------------------------------------------------
-static void ShotHappaKutter(sEnemyShotSet* pEnemyShotSet)
+//  count == 0 のみ: 2本の牙(緑/マゼンタ)を各7発生成
+//  毎フレーム    : 30フレーム超過後に速い弾ほど減速させ、
+//                  牙の形を保ちながら扇が広がるように見せる
+// ----------------------------------------------------------------
+static void ShotPoisonFang(sEnemyShotSet* pEnemyShotSet)
 {
     sEnemyShot* pEnemyShot;
 
-    // ---- 初回フレーム：葉を生成 --------------------------------
     if (pEnemyShotSet->count == 0) {
-        if (pEnemyShotSet->kind >= 13) {
-            PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-        }
-        else {
-            PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
-        }
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
 
-        const int    numLeaves = pEnemyShotSet->kind;
-        const double spreadAngle = 110.0 / 180.0 * DX_PI; // 扇の開き角 110°
-        const double baseAngle = pEnemyShotSet->muki;
+        for (int fang = 0; fang < 2; fang++) {
+            // fang=0 : 左牙(緑)  /-18°  fang=1 : 右牙(マゼンタ)  /+18°
+            double offset = (fang == 0) ? -DX_PI / 10.0 : DX_PI / 10.0;
+            int    color = (fang == 0) ? 2 : 5;   // 2=緑, 5=マゼンタ
 
-        for (int i = 0; i < numLeaves; i++) {
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = pEnemyShotSet->x;
-            pEnemyShot->y = pEnemyShotSet->y;
+            const int N = 7;
+            for (int i = 0; i < N; i++) {
+                pEnemyShot = new sEnemyShot;
+                pEnemyShot->x = pEnemyShotSet->x;
+                pEnemyShot->y = pEnemyShotSet->y;
+                // 牙の中心軸から ±0.12 rad の範囲に均等に並べる
+                pEnemyShot->muki = pEnemyShotSet->muki + offset + (i - N / 2) * 0.04;
+                // 速さを変えることで牙が縦に伸びた形になる
+                pEnemyShot->speed = 2.0 + i * 0.4;  // i=0: 2.0, i=6: 4.4
+                pEnemyShot->kind = img_enemyShotScale[color];
 
-            // 扇の中に等間隔配置
-            const double ratio = (numLeaves > 1) ? (double)i / (numLeaves - 1) : 0.5;
-            pEnemyShot->muki = baseAngle - spreadAngle * 0.5 + spreadAngle * ratio;
-
-            // GetRand(3)==0 は 1/4（25%）の確率 → 急所の葉はやや速い
-            if (GetRand(3) == 0) {
-                pEnemyShot->speed = 3.5 + GetRand(5) * 0.1; // 3.5〜4.0
+                pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+                pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+                pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+                pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
             }
-            else {
-                pEnemyShot->speed = 2.2 + GetRand(6) * 0.1; // 2.2〜2.8
-            }
-
-            // 色：通常=緑、強化=黄（黄緑に見立てる）
-            pEnemyShot->kind = (numLeaves >= 13) ? img_enemyShotScale[1]
-                : img_enemyShotScale[2];
-
-            // 循環リストへ追加
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
         }
     }
 
-    // ---- 毎フレーム：各葉を移動 --------------------------------
-    // ct <  30 : 直進（揺れなし）
-    // ct < 120 : 揺れが徐々に大きくなる（線形ランプ）
-    // ct >= 120: 最大振れ幅で揺れ続ける
-    const double ct = (double)pEnemyShotSet->count;
-    const double maxAmp = 1.5;  // 最大横速度 [px/frame]
-    const double freq = 0.12; // 角周波数 [rad/frame]（約52フレームで1周期）
-
-    double amp; double mul;
-    if (ct < 30.0) {
-        amp = 0.0;
-        mul = 1.5;
-    }
-    else if (ct < 120.0) {
-        amp = maxAmp * (ct - 30.0) / 90.0;
-        mul = 1.5 - (ct - 30.0) / 90.0 / 2.0;
-    }
-    else {
-        amp = maxAmp;
-        mul = 1.0;
-    }
-
+    // 毎フレーム: 移動 + 減速
     pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
-        // 葉ごとに異なる位相を与える（初期方向 muki をシードに使用）
-        // 隣接する葉の位相差は約 2.2 rad（≒128°）になり、
-        // 扇全体がバラバラのタイミングで揺れるように見える
-        const double phase = pEnemyShot->muki * 7.0;
-        const double wobble = amp * sin(ct * freq + phase);
-
-        // wobble を進行方向と垂直な成分として加算
-        const double perp_x = -sin(pEnemyShot->muki);
-        const double perp_y = cos(pEnemyShot->muki);
-
-        pEnemyShot->x += mul * pEnemyShot->speed * cos(pEnemyShot->muki) + wobble * perp_x;
-        pEnemyShot->y += mul * pEnemyShot->speed * sin(pEnemyShot->muki) + wobble * perp_y;
-
+        // 30フレーム後から緩やかに減速 → 牙形状を保ちつつ扇が広がる
+        if (pEnemyShot->count > 30 && pEnemyShot->speed > 1.5) {
+            pEnemyShot->speed -= 0.03;
+        }
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
         pEnemyShot = pEnemyShot->next;
     }
 }
 
-// ------------------------------------------------------------
-// EnemyPat_Tmp
-// 画面上部をリサージュ的に左右移動し、はっぱカッターを放つ
-// ------------------------------------------------------------
+
+// ----------------------------------------------------------------
+//  パターン2: 毒霧の輪 (Poison Mist Ring)
+//
+//  count  0/ 15/ 30/ 45/ 60 のとき1リングずつ展開(計5輪)
+//  各リングは DX_PI/12 ずつ回転しており「毒の花」に見える
+//  毎フレーム: サイン波で向きをうねらせ回避しにくくする
+// ----------------------------------------------------------------
+static void ShotPoisonMist(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
+
+    const int RINGS = 5;
+    const int BULLETS_PER_RING = 12 * 2;
+    const int RING_INTERVAL = 15;   // リング展開のフレーム間隔
+
+    // 15フレームごとに1リング展開 (ring 0〜4 まで)
+    if (pEnemyShotSet->count % RING_INTERVAL == 0) {
+        int ring = pEnemyShotSet->count / RING_INTERVAL;
+        if (ring < RINGS) {
+            PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+
+            for (int i = 0; i < BULLETS_PER_RING; i++) {
+                pEnemyShot = new sEnemyShot;
+
+                // リングごとに DX_PI/12 (=15°) ずつ回転して花びら状に重ねる
+                double angle = (2.0 * DX_PI * i / BULLETS_PER_RING)
+                    + ring * (DX_PI / BULLETS_PER_RING);
+
+                pEnemyShot->x = pEnemyShotSet->x;
+                pEnemyShot->y = pEnemyShotSet->y;
+                pEnemyShot->muki = angle;
+                // 外側のリングほど速く → 展開後も等間隔に近い距離を保つ
+                pEnemyShot->speed = 0.8 + ring * 0.15;  // ring0: 0.80 〜 ring4: 1.40
+
+                // 緑大玉・マゼンタ中玉・緑小玉を3連パターンで配置
+                switch (i % 3) {
+                case 0: pEnemyShot->kind = img_enemyShotLargeBall[2];  break;  // 緑大玉
+                case 1: pEnemyShot->kind = img_enemyShotMediumBall[5]; break;  // マゼンタ中玉
+                case 2: pEnemyShot->kind = img_enemyShotSmallBall[2];  break;  // 緑小玉
+                }
+
+                pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+                pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+                pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+                pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+            }
+        }
+    }
+
+    // 毎フレーム: サイン波で向きをうねらせながら移動
+    pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
+        // 周期 ≈ 79フレームのうねり、最大偏角 ≈ ±0.25 rad (≈14°)
+        pEnemyShot->muki += sin(pEnemyShot->count * 0.08) * 0.02;
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
+        pEnemyShot = pEnemyShot->next;
+    }
+}
+
+
+// ----------------------------------------------------------------
+//  敵本体: EnemyPat_Tmp
+//
+//  動き   : x=360F・y=180F の 2:1 リサジュー曲線で上部を揺れる
+//            x: 80〜400、y: 40〜80 の範囲に収まる
+//  攻撃   : 毒霧の輪 … 120フレームごと (count%120==10)
+//            毒の牙   …  60フレームごと (count%60 ==35)
+//  ワープ防止: ローカル時間変数 t を用いて sin の位相を 0 から始める
+// ----------------------------------------------------------------
 void EnemyPat_Tmp()
 {
-    static double moveAngle;
+    static double t;   // 動き用ローカル時間 (count を直接 sin に渡すとワープする)
 
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 60.0;
         enemy.maxHp = enemy.hp = 200;
-        moveAngle = 0.0;
+        t = 0.0;
     }
     else {
-        // 横：約240フレーム（4秒@60fps）で1往復、可動域 x=[60, 420]
-        moveAngle += DX_PI / 120.0;
-        enemy.x = 240.0 + 180.0 * sin(moveAngle);
-        // 縦：横の2倍速で小さく揺れる → 8の字に近いリサージュ軌跡
-        enemy.y = 60.0 + 18.0 * sin(moveAngle * 2.0);
+        t += 1.0;
+        // x: 360フレームで1往復 (80〜400)
+        // y: 180フレームで1往復 (40〜80)  ← 2:1 比率でリサジュー軌跡
+        enemy.x = 240.0 + 160.0 * sin(t * DX_PI / 180.0);
+        enemy.y = 60.0 + 20.0 * sin(t * DX_PI / 90.0);
     }
 
-    // 通常：90フレームごとに葉7枚
-    if (count % 30 == 0) {
+    // 毒霧の輪: 120フレームごと発射
+    if (count % 120 == 10) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotHappaKutter;
+        pEnemyShotSet->patternFunc = ShotPoisonMist;
         pEnemyShotSet->x = enemy.x;
         pEnemyShotSet->y = enemy.y + 15.0;
-        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y,
-            player.x - pEnemyShotSet->x);
-        pEnemyShotSet->kind = 7; // 葉7枚
+        pEnemyShotSet->muki = 0.0;   // 全方位展開のため実質未使用
 
         pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
         pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
@@ -163,16 +187,15 @@ void EnemyPat_Tmp()
         enemyShotSetHead.prev = pEnemyShotSet;
     }
 
-    // 強化：270フレームごとに（90フレームずれた位相で）葉13枚
-    if (count % 90 == 75) {
+    // 毒の牙: 60フレームごと発射 (霧の合間に2連射のリズム)
+    if (count % 60 == 35) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotHappaKutter;
+        pEnemyShotSet->patternFunc = ShotPoisonFang;
         pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 15.0;
-        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y,
-            player.x - pEnemyShotSet->x);
-        pEnemyShotSet->kind = 13; // 葉13枚
+        pEnemyShotSet->y = enemy.y + 10.0;
+        pEnemyShotSet->muki = atan2(player.y - (enemy.y + 10.0),
+            player.x - enemy.x);
 
         pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
         pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
