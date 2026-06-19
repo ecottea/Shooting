@@ -25,37 +25,61 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // ウィンドウモードの初期設定
     SetGraphMode(GAME_W, GAME_H, 32);
     ChangeWindowMode(TRUE);
-    SetWindowSize(GAME_W, GAME_H);              // 初期サイズ
-    loadWindowSettings();                       // 前回の設定で上書き
+    SetWindowSize(GAME_W, GAME_H);              // デフォルトサイズ
     SetWindowSizeChangeEnableFlag(TRUE, TRUE);  // 第2引数TRUEでバックバッファもリサイズに追従
+
+    // ウィンドウを非表示で初期化（黒画面を隠す）
+    SetWindowVisibleFlag(FALSE);
 
     if (DxLib_Init() == -1) return -1;
 
-    // 仮想画面を作成（この画面に全ゲーム描画を行う）
+    // スプラッシュ画像を読み込んで表示
+    int splashHandle = LoadGraph("assets/images/splash.jpg");
+    if (splashHandle != -1) {
+        SetDrawScreen(DX_SCREEN_BACK);   // 実画面のバックバッファに描画
+        DrawGraph(0, 0, splashHandle, TRUE);
+        ScreenFlip();
+    }
+    loadWindowSettings();                // ウィンドウ位置・サイズを復元
+
+    // ここでウィンドウを表示する（これまでは非表示だったので一瞬でスプラッシュが現れる）
+    HWND hwnd = (HWND)GetMainWindowHandle();
+    if (!hwnd || !IsWindowVisible(hwnd)) SetWindowVisibleFlag(TRUE);
+    
+    // 起動時刻を記録（スプラッシュ最低表示時間のため）
+    int startTime = GetNowCount();
+
+    // 通常のロード処理（画像・効果音・メニューBGMなど）
+    fileOpen();
+    loadCursorPos();                     // カーソル位置を復元（先に読み込む）        
+    imgSoundLoad();                      // 画像/効果音/メニューBGM 読込
+    stageNum = cursor.page * 100 + cursor.y * 10 + cursor.x;
+    loadStageBGM(stageNum);
+    setColor();
+
+    // ---------- 最低1秒間スプラッシュを維持 ----------
+    int elapsed = GetNowCount() - startTime;
+    if (elapsed < 1000 && splashHandle != -1) {
+        int waitEnd = startTime + 1000;
+        while (GetNowCount() < waitEnd) {
+            if (ProcessMessage() == -1) break;   // ウィンドウが閉じられたら抜ける
+            SetDrawScreen(DX_SCREEN_BACK);
+            DrawGraph(0, 0, splashHandle, TRUE);
+            ScreenFlip();
+            WaitTimer(17);   // CPU負荷軽減
+        }
+    }
+
+    // スプラッシュ画像を破棄
+    if (splashHandle != -1) DeleteGraph(splashHandle);
+
+    // ---------- ゲーム画面の準備 ----------
     int gameScreen = MakeScreen(GAME_W, GAME_H, TRUE);
     SetDrawScreen(gameScreen);
-
-    // スプラッシュ画像の表示
-    //int splashHandle = LoadGraph("assets/images/splash.png");
-    //if (splashHandle != -1) {
-    //    // 描画先を実際の画面（バックバッファ）に切り替え
-    //    SetDrawScreen(DX_SCREEN_BACK);
-    //    DrawGraph(0, 0, splashHandle, TRUE);   // または DrawExtendGraph
-    //    ScreenFlip();                           // 画面に反映
-    //    Sleep(1000); // これがないと一瞬しか映らない。もはやスプラッシュ画像は必要ない。
-    //    // 描画先を仮想画面に戻す
-    //    SetDrawScreen(gameScreen);
-    //}
-    //else {
-    //    MessageBox(NULL, "splash.png が見つかりません", "エラー", MB_OK);
-    //}
-
-    fileOpen();
-    imgSoundLoad();
-    setColor();
+        
+    // メニューBGMを再生（スプラッシュ終了後）
     currentBGMHandle = bgm_menu;
     PlaySoundMem(bgm_menu, DX_PLAYTYPE_LOOP);
-    loadCursorPos();
     
     playerShotHead.prev = &playerShotHead;
     playerShotHead.next = &playerShotHead;

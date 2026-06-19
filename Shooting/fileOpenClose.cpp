@@ -1,3 +1,5 @@
+// fileOpenClose.cpp
+
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "DxLib.h"
@@ -136,9 +138,17 @@ void loadWindowSettings()
             {
                 SetWindowSize(w, h);
             }
+
             if (x != -1 && y != -1)
             {
-                SetWindowPosition(x, y);
+                // DXLib SetWindowPosition does not work on hidden windows.
+                // Use Win32 SetWindowPos directly via GetMainWindowHandle().
+                HWND hwnd = (HWND)GetMainWindowHandle();
+                if (hwnd)
+                {
+                    ::SetWindowPos(hwnd, NULL, x, y, 0, 0,
+                        SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+                }
             }
         }
     }

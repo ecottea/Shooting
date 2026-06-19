@@ -185,7 +185,7 @@ static void ShotWashingMachine(sEnemyShotSet* pEnemyShotSet)
 //     ゆらゆらと不規則に動きつつ、一定間隔で
 //     上記の弾幕セットを生成し続ける。
 // --------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_WashingMachine_DeepSeek()
 {
     // 敵の揺れ方を制御するための静的変数
     static double phaseX = 0.0;
@@ -195,7 +195,7 @@ void EnemyPat_Tmp()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 120.0;
-        enemy.maxHp = enemy.hp = 280;
+        enemy.maxHp = enemy.hp = 200;
         phaseX = 0.0;
         phaseY = 1.2;
     }

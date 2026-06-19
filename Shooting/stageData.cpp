@@ -128,5 +128,13 @@ std::vector<StageInfo> stageData = {
     { "claude14", "毒をモチーフにした弾幕", "Toxic_Clockwork", EnemyPat_Poison_Claude },
     { "qwen14", "毒をモチーフにした弾幕", "Toxic_Clockwork", EnemyPat_Poison_Qwen },
     { "vibe14", "毒をモチーフにした弾幕", "Toxic_Clockwork", EnemyPat_Poison_Vibe },
+    { "deepseek15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_DeepSeek },
+    { "chatgpt15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_ChatGPT },
+    { "gemini15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Gemini },
+    { "grok15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Grok },
+    { "sakana15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Sakana },
+    { "claude15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Claude },
+    { "qwen15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Qwen },
+    { "vibe15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Vibe },
     { "tmp", "ここに貼ってお試し", "Torpedo_Hymn", EnemyPat_Tmp },
 };
