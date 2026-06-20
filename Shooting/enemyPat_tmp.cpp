@@ -1,61 +1,48 @@
-﻿// enemyPat_Tmp.cpp
-// 洗濯機（脱水～泡すすぎ）をイメージした複合弾幕
-//   - 敵は画面内をゆらゆらと複雑に動く（ドラムの振動）
-//   - 一定間隔で「脱水回転＋飛沫＋泡」を重ねて放つ
-//   - 弾幕セット内でタイミングをずらしながら複数種類の弾を生成し、
-//     見た目にも変化に富んだ攻撃になる
+﻿// enemyPat_Tmp_Goban.cpp
+// 囲碁モチーフ弾幕パターン「碁盤の劫（Goban no Ko）」
 
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// --------------------------------------------------
-//  弾幕パターン：脱水スピン＋泡飛沫
-//     敵の位置を中心に、フェーズごとに異なる弾を生成する。
-//     カウント（フレーム経過）によって以下の攻撃を追加する：
-//       0   : 強めの効果音を再生
-//       0   : 回転しながら広がる水のリング（小玉・青） 16発
-//       12  : ドラムの飛沫（中玉・シアン）ランダム方向 8発
-//       24  : 高速の脱水リング（小玉・白） 32発
-//       36  : 大きな泡（大玉・マゼンタ）ゆっくり 6発
-//       48  : 接線方向へ飛ぶ回転水滴（小玉・青） 12発
-//       60  : プレイヤーを狙う泡弾（中玉・黄） 4発（やや誘導）
-// --------------------------------------------------
-static void ShotWashingMachine(sEnemyShotSet* pEnemyShotSet)
+// ========================
+// 囲碁モチーフ弾幕：黒白の石を交互に配置し、囲むような動き
+// ========================
+static void ShotGoban(sEnemyShotSet* pEnemyShotSet)
 {
-    sEnemyShot* pEnemyShot = nullptr;
+    sEnemyShot* pEnemyShot;
+    const int phase = pEnemyShotSet->count;
 
-    const double cx = pEnemyShotSet->x;
-    const double cy = pEnemyShotSet->y;
-    const int    cnt = pEnemyShotSet->count;   // このセットが生成されてからのフレーム数
+    // 発射タイミング
+    if (phase == 0) {
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
 
-    // --- 効果音（初回のみ） ---
-    if (cnt == 0) {
-        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-    }
-
-    // ---------- 各フェーズで弾を生成 ----------
-    if (cnt == 0) {
-        // 【リング１：回転しながら広がる水】
-        const int    num = 16;
-        const double baseAngle = cnt * 0.1; // 少し位相をずらす（cnt==0では0）
-        const double outward = 2.2;
-        const double tangent = 1.8;
-        for (int i = 0; i < num; ++i) {
-            double theta = 2.0 * DX_PI * i / num + baseAngle;
-            // 方向：放射方向 + 接線方向を合成
-            double vx = outward * cos(theta) - tangent * sin(theta);
-            double vy = outward * sin(theta) + tangent * cos(theta);
-            double spd = sqrt(vx * vx + vy * vy);
-            double ang = atan2(vy, vx);
-
+        // 碁盤をイメージした19方向（角度）＋中心
+        for (int i = -9; i <= 9; i++) {
             pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = cx + cos(theta) * 14.0;
-            pEnemyShot->y = cy + sin(theta) * 14.0;
-            pEnemyShot->muki = ang;
-            pEnemyShot->speed = spd;
-            pEnemyShot->kind = img_enemyShotSmallBall[4]; // 青（水）
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+
+            double baseAngle = pEnemyShotSet->muki + (i * 12.0) / 180.0 * DX_PI;
+            pEnemyShot->muki = baseAngle;
+            pEnemyShot->speed = 1.8 + (abs(i) % 3) * 0.3;
+
+            // 黒石・白石を交互に（囲碁らしい色分け）
+            bool isBlack = (i % 2 == 0);
+            int color = isBlack ? 7 : 6; // 7:黒, 6:白
+
+            // 大玉で「石」感を強調
+            if (abs(i) % 4 == 0) {
+                pEnemyShot->kind = img_enemyShotLargeBall[color];
+            }
+            else {
+                pEnemyShot->kind = img_enemyShotMediumBall[color];
+            }
+
+            // 少しランダム性を持たせて自然に
+            pEnemyShot->muki += (GetRand(20) - 10) / 180.0 * DX_PI * 0.5;
+
             // 双方向リストに追加
             pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
             pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
@@ -63,19 +50,21 @@ static void ShotWashingMachine(sEnemyShotSet* pEnemyShotSet)
             pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
         }
     }
+    else if (phase == 25 || phase == 55) {
+        // 2回目の波：少し遅れて「眼」を作るような追加弾
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
 
-    if (cnt == 12) {
-        // 【飛沫：ランダム方向に中玉（シアン）】
-        const int num = 8;
-        for (int i = 0; i < num; ++i) {
-            double theta = GetRand(360) / 180.0 * DX_PI; // 0～2π ランダム
-            double spd = (180.0 + GetRand(120)) / 100.0; // 1.8～3.0
+        for (int i = 0; i < 8; i++) {
             pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = cx;
-            pEnemyShot->y = cy;
-            pEnemyShot->muki = theta;
-            pEnemyShot->speed = spd;
-            pEnemyShot->kind = img_enemyShotMediumBall[3]; // シアン
+            pEnemyShot->x = pEnemyShotSet->x + cos(i * DX_PI / 4) * 25;
+            pEnemyShot->y = pEnemyShotSet->y + sin(i * DX_PI / 4) * 25;
+
+            pEnemyShot->muki = pEnemyShotSet->muki + (i % 2 == 0 ? 0.8 : -0.8);
+            pEnemyShot->speed = 2.2;
+
+            int color = (phase == 25) ? 7 : 6; // 黒白交互
+            pEnemyShot->kind = img_enemyShotMediumBall[color];
+
             pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
             pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
             pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
@@ -83,153 +72,66 @@ static void ShotWashingMachine(sEnemyShotSet* pEnemyShotSet)
         }
     }
 
-    if (cnt == 24) {
-        // 【高速リング２：白い小玉・多数】
-        const int num = 32;
-        const double outward = 3.2;
-        const double tangent = 0.6; // 弱い接線成分
-        for (int i = 0; i < num; ++i) {
-            double theta = 2.0 * DX_PI * i / num;
-            double vx = outward * cos(theta) - tangent * sin(theta);
-            double vy = outward * sin(theta) + tangent * cos(theta);
-            double spd = sqrt(vx * vx + vy * vy);
-            double ang = atan2(vy, vx);
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = cx + cos(theta) * 10.0;
-            pEnemyShot->y = cy + sin(theta) * 10.0;
-            pEnemyShot->muki = ang;
-            pEnemyShot->speed = spd;
-            pEnemyShot->kind = img_enemyShotSmallBall[6]; // 白
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-        }
-    }
-
-    if (cnt == 36) {
-        // 【大きな泡：マゼンタの大玉、ゆっくり広がる】
-        const int num = 6;
-        for (int i = 0; i < num; ++i) {
-            double theta = 2.0 * DX_PI * i / num + 0.3; // 位相ずらし
-            double spd = 1.2;
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = cx;
-            pEnemyShot->y = cy;
-            pEnemyShot->muki = theta;
-            pEnemyShot->speed = spd;
-            pEnemyShot->kind = img_enemyShotLargeBall[5]; // マゼンタ
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-        }
-    }
-
-    if (cnt == 48) {
-        // 【接線方向の水滴：外側へ勢いよく飛ぶ】
-        const int num = 12;
-        const double outward = 0.5;  // わずかな外向き
-        const double tangent = 2.8;
-        for (int i = 0; i < num; ++i) {
-            double theta = 2.0 * DX_PI * i / num + DX_PI / num; // 少しずらす
-            double vx = outward * cos(theta) - tangent * sin(theta);
-            double vy = outward * sin(theta) + tangent * cos(theta);
-            double spd = sqrt(vx * vx + vy * vy);
-            double ang = atan2(vy, vx);
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = cx + cos(theta) * 20.0;
-            pEnemyShot->y = cy + sin(theta) * 20.0;
-            pEnemyShot->muki = ang;
-            pEnemyShot->speed = spd;
-            pEnemyShot->kind = img_enemyShotSmallBall[4]; // 青
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-        }
-    }
-
-    if (cnt == 60) {
-        // 【プレイヤー狙いの泡弾（やや誘導）】
-        const int num = 4;
-        double baseAim = atan2(player.y - cy, player.x - cx);
-        for (int i = 0; i < num; ++i) {
-            double offset = (GetRand(60) - 30) / 180.0 * DX_PI; // ±30度
-            double ang = baseAim + offset;
-            double spd = 2.0;
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = cx;
-            pEnemyShot->y = cy;
-            pEnemyShot->muki = ang;
-            pEnemyShot->speed = spd;
-            pEnemyShot->kind = img_enemyShotMediumBall[1]; // 黄色
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-        }
-    }
-
-    // ---------- 全弾の移動（毎フレーム） ----------
+    // 弾の移動処理（全弾共通）
     pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
+        // 基本直進＋時間経過で少し曲がる（囲むような動き）
+        double curve = sin(phase * 0.08 + pEnemyShot->x) * 0.015;
+        pEnemyShot->muki += curve;
+
         pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
         pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
+
         pEnemyShot = pEnemyShot->next;
     }
 }
 
-// --------------------------------------------------
-//  敵本体パターン（洗濯機）
-//     ゆらゆらと不規則に動きつつ、一定間隔で
-//     上記の弾幕セットを生成し続ける。
-// --------------------------------------------------
+// ========================
+// 敵本体パターン
+// ========================
 void EnemyPat_Tmp()
 {
-    // 敵の揺れ方を制御するための静的変数
-    static double phaseX = 0.0;
-    static double phaseY = 1.2; // 位相をずらす
+    static int muki = 1;
 
-    // 初回のみ初期化
     if (count == 1) {
+        // 初期位置（上部中央）
         enemy.x = 240.0;
-        enemy.y = 120.0;
-        enemy.maxHp = enemy.hp = 280;
-        phaseX = 0.0;
-        phaseY = 1.2;
+        enemy.y = 100.0;
+        enemy.maxHp = enemy.hp = 200;
+        muki = 1;
     }
     else {
-        // 複雑な振動（リサージュ風の揺れ）
-        enemy.x = 240.0 + 90.0 * sin(phaseX);
-        enemy.y = 130.0 + 50.0 * cos(phaseY * 1.3); // 上下動も加える
-        phaseX += 0.045;
-        phaseY += 0.055;
-        // 画面端で跳ね返る必要はないが、念のためクランプ
-        if (enemy.x < 40.0)  enemy.x = 40.0;
-        if (enemy.x > 440.0) enemy.x = 440.0;
-        if (enemy.y < 30.0)  enemy.y = 30.0;
-        if (enemy.y > 250.0) enemy.y = 250.0;
+        // ゆったり左右往復移動
+        enemy.x += 1.35 * (double)muki;
+        if (count % 95 == 0) muki *= -1;
+
+        // 時々軽く上下移動
+        if (count % 140 < 30) {
+            enemy.y += 0.6;
+        }
+        else if (count % 140 < 70) {
+            enemy.y -= 0.6;
+        }
     }
 
-    // 新しい弾幕セットを定期的に生成（45フレームごと）
-    // 連続して重ねることで、常に複数のパターンが画面に存在する
-    if (count % 45 == 0) {
+    // 弾幕発動（約1.2秒間隔）
+    if (count % 24 == 0) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;            // このセットの経過フレーム
-        pEnemyShotSet->patternFunc = ShotWashingMachine;
+        pEnemyShotSet->count = 0;
+        pEnemyShotSet->patternFunc = ShotGoban;
         pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y;
-        // muki にはプレイヤー方向を保存（今回のパターンでは未使用だが参考として）
+        pEnemyShotSet->y = enemy.y + 18.0;
+
+        // プレイヤー方向を基本角度に
         pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y,
             player.x - pEnemyShotSet->x);
 
-        // ダミーヘッド付き弾リストの初期化
+        // 双方向リスト初期化
         pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
         pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
         pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
 
-        // 全体の弾幕セット二重連結リストに追加
+        // 敵弾セットリストに追加
         pEnemyShotSet->prev = enemyShotSetHead.prev;
         pEnemyShotSet->next = &enemyShotSetHead;
         enemyShotSetHead.prev->next = pEnemyShotSet;

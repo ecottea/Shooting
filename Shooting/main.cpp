@@ -20,18 +20,20 @@
 constexpr int GAME_W = 640;
 constexpr int GAME_H = 480;
 
+constexpr int SPLASH_MIN_TIME = 500;   // スプラッシュ最低表示時間[ms]
+
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     // ウィンドウモードの初期設定
     SetGraphMode(GAME_W, GAME_H, 32);
     ChangeWindowMode(TRUE);
-    SetWindowSize(GAME_W, GAME_H);              // デフォルトサイズ
-    SetWindowSizeChangeEnableFlag(TRUE, TRUE);  // 第2引数TRUEでバックバッファもリサイズに追従
-
+    
     // ウィンドウを非表示で初期化（黒画面を隠す）
     SetWindowVisibleFlag(FALSE);
 
     if (DxLib_Init() == -1) return -1;
+    SetWindowSize(GAME_W, GAME_H);              // デフォルトサイズ
+    SetWindowSizeChangeEnableFlag(TRUE, TRUE);  // 第2引数TRUEでバックバッファもリサイズに追従
 
     // スプラッシュ画像を読み込んで表示
     int splashHandle = LoadGraph("assets/images/splash.jpg");
@@ -54,19 +56,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     loadCursorPos();                     // カーソル位置を復元（先に読み込む）        
     imgSoundLoad();                      // 画像/効果音/メニューBGM 読込
     stageNum = cursor.page * 100 + cursor.y * 10 + cursor.x;
-    loadStageBGM(stageNum);
     setColor();
 
-    // ---------- 最低1秒間スプラッシュを維持 ----------
+    // ---------- 最低 SPLASH_MIN_TIME 間スプラッシュを維持しつつBGMをプリロード ----------
     int elapsed = GetNowCount() - startTime;
-    if (elapsed < 1000 && splashHandle != -1) {
-        int waitEnd = startTime + 1000;
+    if (elapsed < SPLASH_MIN_TIME && splashHandle != -1) {
+        int waitEnd = startTime + SPLASH_MIN_TIME;
+        int preloadStage = stageNum;                // stageNum からロード開始
+        int loadedCount = 0;                        // 読み込んだステージ数
+        const int totalStages = (int)stageData.size();
+
         while (GetNowCount() < waitEnd) {
-            if (ProcessMessage() == -1) break;   // ウィンドウが閉じられたら抜ける
+            if (ProcessMessage() == -1) break;
+
+            // スプラッシュ描画
             SetDrawScreen(DX_SCREEN_BACK);
             DrawGraph(0, 0, splashHandle, TRUE);
             ScreenFlip();
-            WaitTimer(17);   // CPU負荷軽減
+
+            // 未読込のステージがあれば1つロード
+            if (loadedCount < totalStages) {
+                loadStageBGM(preloadStage);
+                ++loadedCount;
+                // 次のステージへ（循環）
+                preloadStage = (preloadStage + 1) % totalStages;
+            }
+
+            WaitTimer(17);   // CPU負荷軽減 & 約60fps維持
         }
     }
 

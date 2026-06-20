@@ -136,5 +136,13 @@ std::vector<StageInfo> stageData = {
     { "claude15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Claude },
     { "qwen15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Qwen },
     { "vibe15", "洗濯機をモチーフにした弾幕", "Taiko_Lightning3", EnemyPat_WashingMachine_Vibe },
+    { "deepseek16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_DeepSeek },
+    { "chatgpt16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_ChatGPT },
+    { "gemini16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_Gemini },
+    { "grok16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_Grok },
+    { "sakana16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_Sakana },
+    { "claude16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_Claude },
+    { "qwen16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_Qwen },
+    { "vibe16", "囲碁をモチーフにした弾幕", "Bullet_Hell_Shrine", EnemyPat_Go_Vibe },
     { "tmp", "ここに貼ってお試し", "Torpedo_Hymn", EnemyPat_Tmp },
 };
