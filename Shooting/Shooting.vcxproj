@@ -151,6 +151,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="enemyPat_chatgptEx1.cpp" />
     <ClCompile Include="enemyPat_claudeEx3.cpp" />
     <ClCompile Include="enemyPat_deepseekEx2.cpp" />
     <ClCompile Include="gameScreen.cpp" />
@@ -173,6 +174,14 @@
     <ClCompile Include="enemyPat_deepseek2.cpp" />
     <ClCompile Include="enemyPat_deepseek3.cpp" />
     <ClCompile Include="enemyPat_deepseek4.cpp" />
+    <ClCompile Include="enemyPat_deepseek17.cpp" />
+    <ClCompile Include="enemyPat_chatgpt17.cpp" />
+    <ClCompile Include="enemyPat_gemini17.cpp" />
+    <ClCompile Include="enemyPat_grok17.cpp" />
+    <ClCompile Include="enemyPat_sakana17.cpp" />
+    <ClCompile Include="enemyPat_claude17.cpp" />
+    <ClCompile Include="enemyPat_qwen17.cpp" />
+    <ClCompile Include="enemyPat_vibe17.cpp" />
     <ClCompile Include="enemyPat_deepseek5.cpp" />
     <ClCompile Include="enemyPat_deepseek16.cpp" />
     <ClCompile Include="enemyPat_chatgpt16.cpp" />
