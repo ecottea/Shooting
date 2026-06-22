@@ -20,7 +20,7 @@
 constexpr int GAME_W = 640;
 constexpr int GAME_H = 480;
 
-constexpr int SPLASH_MIN_TIME = 00;   // スプラッシュ最低表示時間[ms]
+constexpr int SPLASH_MIN_TIME = 1500;   // スプラッシュ最低表示時間[ms]
 
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {

@@ -1,108 +1,107 @@
 ﻿// enemyPat_Tmp.cpp
-// 紅葉（もみじ）をモチーフにした弾幕パターン
-// 落ち葉のように漂う菱形弾・鱗弾を中心に、赤・黄・橙系の色味で秋らしい演出
+// 双曲線モチーフ弾幕パターン（完全リメイク・シンプル版）
 
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-static void ShotMomiji(sEnemyShotSet* pEnemyShotSet)
+// ========================
+// 双曲線モチーフ弾幕：ShotHyperbola
+// ========================
+static void ShotHyperbola(sEnemyShotSet* pEnemyShotSet)
 {
     sEnemyShot* pEnemyShot;
+
     if (pEnemyShotSet->count == 0) {
-        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);  // 落ち葉らしいやや重めの音
+        if (CheckSoundMem(sound_enemyShot_medium) == 1) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
 
-        // 中央から放射状に落ち葉をばらまく（16方向＋ランダム微調整）
-        for (int i = 0; i < 16; i++) {
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = pEnemyShotSet->x;
-            pEnemyShot->y = pEnemyShotSet->y;
+        const int NUM = 130;               // 片側13発
+        const double SPREAD = 0.25;       // 広がり角度をかなり控えめに
 
-            // 基本方向は下寄り（秋の落ち葉イメージ）
-            double baseAngle = DX_PI / 2.0 + (GetRand(120) - 60) / 180.0 * DX_PI * 0.7;
-            pEnemyShot->muki = baseAngle + (i * DX_PI * 2.0 / 16.0);
+        for (int side = 0; side < 2; ++side) {
+            double sign = (side == 0) ? 1.0 : -1.0;
 
-            pEnemyShot->speed = (120 + GetRand(120)) / 100.0;  // ゆったり落ちる速度
+            for (int i = 0; i < NUM; ++i) {
+                pEnemyShot = new sEnemyShot;
+                pEnemyShot->x = pEnemyShotSet->x;
+                pEnemyShot->y = pEnemyShotSet->y;
 
-            // 紅葉らしい色と形状（Diamond=菱形、Scale=鱗で葉っぱっぽく）
-            int leafType = GetRand(1);  // 0: Diamond, 1: Scale
-            int color = GetRand(3);     // 0:赤, 1:黄, 2:緑（秋らしい色中心）
-            if (leafType == 0) {
-                pEnemyShot->kind = img_enemyShotDiamond[color];
+                // 双曲線風角度配置（中央密・外側開く）
+                double t = (double)i / (NUM - 1) * 1.6 - 0.3;
+                double angleOffset = sign * atan(sinh(t * 0.85)) * SPREAD;
+
+                pEnemyShot->muki = pEnemyShotSet->muki + angleOffset;
+                pEnemyShot->speed = 2.9 + (double)i * 0.06;
+
+                // 弾種・色を大幅に絞る（青系のみ）
+                int col = 4; // 青
+                if (i % 3 == 0) {
+                    pEnemyShot->kind = img_enemyShotDiamond[col];     // 菱形弾
+                }
+                else {
+                    pEnemyShot->kind = img_enemyShotMediumBall[col];  // 中玉
+                }
+
+                pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+                pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+                pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+                pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
             }
-            else {
-                pEnemyShot->kind = img_enemyShotScale[color];
-            }
-
-            // 双方向リストに追加
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
         }
     }
 
-    // 弾更新（落ち葉らしいゆらゆら漂う動き）
+    // 弾移動処理（極めてシンプルに）
     pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
-        double t = pEnemyShotSet->count / 8.0;  // ゆったりとした周期
+        // 基本進行方向のみ（双曲線曲がりは最小限に）
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
 
-        // 基本進行方向 + 横揺れ（sinで葉っぱの舞う感じ）
-        double sway = sin(t + pEnemyShot->x) * 1.2;
+        // 軽い双曲線風加速（外側へ少し広がる程度）
+        double accel = 0.012 * pEnemyShot->count;
+        pEnemyShot->x += accel * cos(pEnemyShot->muki + DX_PI / 2);
+        pEnemyShot->y += accel * sin(pEnemyShot->muki + DX_PI / 2);
 
-        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki) + sway;
-        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki) * 0.9 + 0.8;  // 下方向に少し加速感
-
-        // 徐々に速度を落として自然に落ちていく感じ
-        if (pEnemyShotSet->count > 30) {
-            pEnemyShot->speed *= 0.995;
-        }
-
+        pEnemyShot->count++;
         pEnemyShot = pEnemyShot->next;
     }
 }
 
-// 敵本体のパターン
+// ========================
+// 敵本体パターン
+// ========================
 void EnemyPat_Tmp()
 {
     static int muki = 1;
 
     if (count == 1) {
-        // 初期位置（画面上部中央）
         enemy.x = 240.0;
-        enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 250;
+        enemy.y = 55.0;
+        enemy.maxHp = enemy.hp = 280;
         muki = 1;
     }
     else {
-        // ゆったり左右移動
         enemy.x += 1.1 * (double)muki;
-        if (count % 140 == 70) muki *= -1;
-
-        // 時々少し上下に動きを加える
-        if (count % 80 == 0) {
-            enemy.y = 50.0 + sin(count / 40.0) * 20.0;
-        }
+        if (enemy.x < 90.0 || enemy.x > 390.0) muki *= -1;
+        enemy.y = 55.0 + 13.0 * sin(count * 0.03);
     }
 
-    // 定期的に紅葉弾幕を発射（少し間隔を空けて）
-    if (count % 18 == 0) {
+    if (count % 38 == 0) {
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotMomiji;
+        pEnemyShotSet->patternFunc = ShotHyperbola;
         pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 15.0;
+        pEnemyShotSet->y = enemy.y + 20.0;
 
-        // プレイヤー方向を少し意識しつつ、下寄りのランダム性を持たせる
-        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y + GetRand(80) - 40,
-            player.x - pEnemyShotSet->x + GetRand(60) - 30);
+        // 自機方向を正確に（補正なし）
+        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
 
         pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
         pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
         pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
 
-        // 敵弾セットリストに追加
         pEnemyShotSet->prev = enemyShotSetHead.prev;
         pEnemyShotSet->next = &enemyShotSetHead;
         enemyShotSetHead.prev->next = pEnemyShotSet;

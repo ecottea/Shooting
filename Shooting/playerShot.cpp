@@ -77,7 +77,7 @@ void playerShotHit()
 				PlaySoundMem(sound_playerShotHit_default, DX_PLAYTYPE_BACK);
 			}
 			enemy.hp--;
-			if (enemy.hp == 0) {
+			if (enemy.hp <= 0) {
 				PlaySoundMem(sound_enemyDestroyed, DX_PLAYTYPE_BACK);
 				StateManager::ChangeState(Joutai::Win);
 			}

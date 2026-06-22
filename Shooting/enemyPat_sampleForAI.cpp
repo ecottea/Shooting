@@ -11,6 +11,7 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
     sEnemyShot* pEnemyShot;
     if (pEnemyShotSet->count == 0) {
         // Žg‚¦‚éŒø‰Ê‰¹ˆê——
+        if (CheckSoundMem(sound_enemyShot_light) == 1) StopSoundMem(sound_enemyShot_light);
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
         // PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
         // PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
