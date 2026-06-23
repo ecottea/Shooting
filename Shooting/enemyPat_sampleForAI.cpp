@@ -25,7 +25,7 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
             pEnemyShot->speed = (200 + GetRand(200)) / 100.0;
 
             int type = GetRand(5); // [0..5] 小玉、中玉、大玉、銃弾、鱗弾、菱形弾
-            int color = GetRand(7); // [0..7] 0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒
+            int color = GetRand(7); // [0..7] 0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒、8:橙
             switch (type) {
             case 0:
                 pEnemyShot->kind = img_enemyShotSmallBall[color];

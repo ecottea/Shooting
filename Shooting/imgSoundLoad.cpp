@@ -17,12 +17,12 @@ std::vector<ImageData> imageData;
 int img_player;
 int img_playerShot;
 int img_enemy[2];
-int img_enemyShotSmallBall[8];
-int img_enemyShotMediumBall[8];
-int img_enemyShotLargeBall[8];
-int img_enemyShotBullet[8];
-int img_enemyShotScale[8];
-int img_enemyShotDiamond[8];
+int img_enemyShotSmallBall[COL_VAR];
+int img_enemyShotMediumBall[COL_VAR];
+int img_enemyShotLargeBall[COL_VAR];
+int img_enemyShotBullet[COL_VAR];
+int img_enemyShotScale[COL_VAR];
+int img_enemyShotDiamond[COL_VAR];
 
 int sound_menuCursor;
 int sound_enemyShot_light;
@@ -110,7 +110,7 @@ static bool LoadColoredShotsEx(const char* monoFileName, int width, int height,
         return false;
     }
 
-    const struct { int r, g, b; } factors[8] = {
+    const struct { int r, g, b; } factors[COL_VAR] = {
         {255,0,0},
         {255,255,0},
         {0,255,0},
@@ -118,10 +118,11 @@ static bool LoadColoredShotsEx(const char* monoFileName, int width, int height,
         {64,64,255},
         {255,0,255},
         {192,192,192},
-        {64,64,64}
+        {64,64,64},
+        { 255,165,0 }
     };
 
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < COL_VAR; ++i) {
         int dstSoft = MakeARGB8ColorSoftImage(width, height);
         if (dstSoft == -1) goto fail;
 
@@ -156,7 +157,7 @@ static bool LoadColoredShotsEx(const char* monoFileName, int width, int height,
 
 fail:
     // Ž¸”s‚µ‚½‚çŠù‚ÉŠm•Û‚µ‚½‚à‚Ì‚ð‰ð•ú
-    for (int j = 0; j < 8; ++j) {
+    for (int j = 0; j < COL_VAR; ++j) {
         if (imageData[idBuf[j]].handle != -1) {
             DeleteGraph(imageData[idBuf[j]].handle);
             imageData[idBuf[j]].handle = -1;

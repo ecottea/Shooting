@@ -63,15 +63,15 @@ public:
 //  共有構造体
 // ============================================================
 struct sPlayer {
-    double x = 0.0, y = 0.0;
+    double x = 0.0, y = 0.0;        // 位置
 };
 
 // プール管理付き弾構造体: PoolAllocator を継承するだけで
 // new/delete が自動的にプールを使うようになる
 struct sPlayerShot : PoolAllocator<sPlayerShot, 64> {
-    double       x = 0.0, y = 0.0;
+    double       x = 0.0, y = 0.0;  // 位置
     sPlayerShot* prev = nullptr;
-    sPlayerShot* next = nullptr;  // PoolAllocator のフリーリストと兼用
+    sPlayerShot* next = nullptr;    // PoolAllocator のフリーリストと兼用
 };
 
 struct sEnemy {
@@ -80,21 +80,26 @@ struct sEnemy {
 };
 
 struct sEnemyShot : PoolAllocator<sEnemyShot, 4096> {
-    double      x = 0.0, y = 0.0, muki = 0.0, speed = 0.0;
-    int         count = 0; // 毎フレーム自動で+1
-    int         kind = 0;
-    double      margin = 20.0;   // 画面外へどれだけ出たら弾を自動で消すか
+    double      x = 0.0, y = 0.0; // 位置
+    double      muki = 0.0;       // 向き
+    double      speed = 0.0;      // 速さ
+    int         count = 0;        // 毎フレーム自動で+1
+    int         kind = 0;         // 種類と色
+    double      margin = 20.0;    // 画面外へどれだけ出たら弾を自動で消すか（不用意に変更しないこと）
+    int         param_i[4];       // 自由な目的に使えるパラメータ
+    double      param_d[4];       // 自由な目的に使えるパラメータ
     sEnemyShot* prev = nullptr;
-    sEnemyShot* next = nullptr;  // PoolAllocator のフリーリストと兼用
+    sEnemyShot* next = nullptr;   // PoolAllocator のフリーリストと兼用
 };
 
 struct sEnemyShotSet : PoolAllocator<sEnemyShotSet, 1024> {
     // 関数ポインタ型に名前を付けて宣言を読みやすくする
     using PatternFunc = void(*)(sEnemyShotSet*);
 
-    double         x = 0.0, y = 0.0, muki = 0.0;
+    double         x = 0.0, y = 0.0;
+    double         muki = 0.0;
     PatternFunc    patternFunc = nullptr;
-    int            count = 0; // 毎フレーム自動で+1
+    int            count = 0;     // 毎フレーム自動で+1
     int            kind = 0;
     sEnemyShot*    pEnemyShotHead = nullptr;
     sEnemyShotSet* prev = nullptr;

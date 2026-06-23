@@ -6,6 +6,8 @@ extern int colorWhite;
 extern int colorGray;
 extern int colorGreenBlue;
 
+constexpr int COL_VAR = 9;
+
 // ---------- 画像管理用の構造体とグローバル変数 ----------
 struct ImageData {
     int    handle = -1;
@@ -19,12 +21,12 @@ extern std::vector<ImageData> imageData;
 extern int img_player;
 extern int img_playerShot;
 extern int img_enemy[2];
-extern int img_enemyShotSmallBall[8];
-extern int img_enemyShotMediumBall[8];
-extern int img_enemyShotLargeBall[8];
-extern int img_enemyShotBullet[8];
-extern int img_enemyShotScale[8];
-extern int img_enemyShotDiamond[8];
+extern int img_enemyShotSmallBall[COL_VAR];
+extern int img_enemyShotMediumBall[COL_VAR];
+extern int img_enemyShotLargeBall[COL_VAR];
+extern int img_enemyShotBullet[COL_VAR];
+extern int img_enemyShotScale[COL_VAR];
+extern int img_enemyShotDiamond[COL_VAR];
 
 extern int sound_menuCursor;
 extern int sound_enemyShot_light;

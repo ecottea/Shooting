@@ -200,12 +200,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                         StateManager::ChangeState(Joutai::Game);   // 次のステージへ（通常）
                     }
                     else {
-                        key[KEY_INPUT_NUMPAD4] = 0;
-                        key[KEY_INPUT_NUMPAD6] = 0;
-                        key[KEY_INPUT_NUMPAD8] = 0;
-                        key[KEY_INPUT_NUMPAD5] = 0;
-                        key[KEY_INPUT_V] = 1;
-                        key[KEY_INPUT_C] = 0;
                         if (!StateManager::ChangeState(Joutai::Replay)) {
                             // リプレイファイルがない場合はメニューへ
                             StateManager::ChangeState(Joutai::Menu);

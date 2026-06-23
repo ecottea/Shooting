@@ -5,6 +5,7 @@
 #include "initial.h"      // ini(), startNewGame()
 #include "replay.h"       // startReplay(), replayActive
 #include "stageData.h"    // stageData
+#include "gv.h"
 
 int stageNum = 0;
 
@@ -56,6 +57,12 @@ bool StateManager::ChangeState(Joutai newState)
 		// BGM 制御：ステージ BGM に切り替え
 		if (!startReplay(stageNum))
 			return false;  // リプレイファイル不存在など
+		key[KEY_INPUT_NUMPAD4] = 0;
+		key[KEY_INPUT_NUMPAD6] = 0;
+		key[KEY_INPUT_NUMPAD8] = 0;
+		key[KEY_INPUT_NUMPAD5] = 0;
+		key[KEY_INPUT_V] = 1;
+		key[KEY_INPUT_C] = 0;
 		// 遅延ロード
 		loadStageBGM(stageNum);
 		{
