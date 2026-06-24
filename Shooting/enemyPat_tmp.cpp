@@ -1,227 +1,337 @@
-﻿// enemyPat_tmp.cpp
-//
-// 砂時計モチーフ弾幕パターン
-//
-//  ■ パターンA: ShotHourglassSand（砂の流れ）
-//      発射角度の扇幅が「広い→首（細）→広い」と変化し、
-//      砂時計を流れ落ちる砂を黄・橙の小球で表現する。
-//
-//  ■ パターンB: ShotHourglassEdge（砂時計の輪郭）
-//      左縁・右縁の2弾流がX座標を cos 曲線で変化させながら
-//      垂直落下する。スナップショット上では
-//        上端（広い）→ 首（狭い）→ 下端（広い）
-//      という砂時計のシルエットが浮かび上がる。
-//
-// ゲーム画面: 480×480  /  弾速の単位: px/frame
-//
+﻿// enemyPat_Tmp.cpp
 
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-
-// ----------------------------------------------------------------
-// ヘルパー: ショットをセットの双方向リストに追加
-// ----------------------------------------------------------------
-static void AddShot(sEnemyShotSet* pSet,
-    double x, double y,
-    double muki, double speed, int kind)
+// ---------------------------
+// 音ゲーモチーフ：連符ノート（高密度連射）
+// ---------------------------
+static void ShotRapidNote(sEnemyShotSet* pEnemyShotSet)
 {
-    sEnemyShot* p = new sEnemyShot;
-    p->x = x;
-    p->y = y;
-    p->muki = muki;
-    p->speed = speed;
-    p->kind = kind;
-
-    p->prev = pSet->pEnemyShotHead->prev;
-    p->next = pSet->pEnemyShotHead;
-    pSet->pEnemyShotHead->prev->next = p;
-    pSet->pEnemyShotHead->prev = p;
-}
-
-
-// ----------------------------------------------------------------
-// ヘルパー: ショットセットを生成してリストに追加
-// ----------------------------------------------------------------
-static void SpawnShotSet(sEnemyShotSet::PatternFunc func,
-    double x, double y, double muki)
-{
-    sEnemyShotSet* s = new sEnemyShotSet;
-    s->count = 0;
-    s->patternFunc = func;
-    s->x = x;
-    s->y = y;
-    s->muki = muki;
-
-    s->pEnemyShotHead = new sEnemyShot;
-    s->pEnemyShotHead->prev = s->pEnemyShotHead;
-    s->pEnemyShotHead->next = s->pEnemyShotHead;
-
-    s->prev = enemyShotSetHead.prev;
-    s->next = &enemyShotSetHead;
-    enemyShotSetHead.prev->next = s;
-    enemyShotSetHead.prev = s;
-}
-
-
-// ================================================================
-//  【弾幕A】 砂の流れ  ShotHourglassSand
-//
-//  フェーズ              フレーム    扇幅の変化
-//  ─────────────────────────────────────────────────────
-//  上部砂室              [0,  56)   68° → 0°  (t² で急速に絞る)
-//  首                    [56, 84)   ≈ 3° 固定  (ほぼ真下)
-//  下部砂室              [84,140)   0° → 68°  (t² でゆっくり広げる)
-//
-//  各フェーズとも 4フレームおきに弾を生成。
-//  扇の発射数も幅に連動して 9→2（首）→9 と変化する。
-// ================================================================
-static void ShotHourglassSand(sEnemyShotSet* pEnemyShotSet)
-{
-    const int TOP = 56;
-    const int NECK = 84;
-    const int END = 140;
-
+    sEnemyShot* pEnemyShot;
     if (pEnemyShotSet->count == 0) {
-        if (CheckSoundMem(sound_enemyShot_medium) == 1)
-            StopSoundMem(sound_enemyShot_medium);
-        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
-    }
-
-    // 4フレームおきに弾を生成（END フレームで打ち止め）
-    if (pEnemyShotSet->count < END && pEnemyShotSet->count % 4 == 0) {
-
-        const double BASE = DX_PI / 2.0;  // 真下
-        double spread;
-        int    n;
-        int    col;
-
-        if (pEnemyShotSet->count < TOP) {
-            // 上部砂室: t² で扇が急速に絞られる（砂が首へ集まる）
-            double t = (double)pEnemyShotSet->count / TOP;        // 0 → 1
-            spread = (1.0 - t * t) * 68.0 / 180.0 * DX_PI;    // 68° → 0°
-            n = 2 + (int)((1.0 - t) * 7.9);               // 9 → 2
-            col = 1;  // 黄
-        }
-        else if (pEnemyShotSet->count < NECK) {
-            // 首: ほぼ真下に収束
-            spread = 3.0 / 180.0 * DX_PI;
-            n = 3;
-            col = 8;  // 橙
-        }
-        else {
-            // 下部砂室: t² で扇がゆっくり広がる（砂が下室へ流れ込む）
-            double t = (double)(pEnemyShotSet->count - NECK) / (END - NECK);
-            spread = t * t * 68.0 / 180.0 * DX_PI;             // 0° → 68°
-            n = 2 + (int)(t * 7.9);                        // 2 → 9
-            col = 1;  // 黄
-        }
-
-        for (int i = 0; i < n; i++) {
-            double angle = (n > 1)
-                ? BASE - spread + 2.0 * spread * i / (n - 1)
-                : BASE;
-            AddShot(pEnemyShotSet,
-                pEnemyShotSet->x, pEnemyShotSet->y,
-                angle, 2.5, img_enemyShotSmallBall[col]);
-        }
-    }
-
-    // 全弾を移動
-    sEnemyShot* p = pEnemyShotSet->pEnemyShotHead->next;
-    while (p != pEnemyShotSet->pEnemyShotHead) {
-        p->x += p->speed * cos(p->muki);
-        p->y += p->speed * sin(p->muki);
-        p = p->next;
-    }
-}
-
-
-// ================================================================
-//  【弾幕B】 砂時計の輪郭  ShotHourglassEdge
-//
-//  左縁・右縁の2弾流が x 座標を
-//      w(t) = WMAX * |cos(π·t)|
-//  に従って変化させながら真下へ落下する。
-//
-//  スナップショット（古い弾 = 画面下 / 新しい弾 = 画面上）:
-//    t=0.0 (古)  … w=WMAX  (上端: 最も広い)   橙
-//    t=0.5       … w=0     (首: 消滅点)         白
-//    t=1.0 (新)  … w=WMAX  (下端: 最も広い)   黄
-//  → 砂時計のシルエットが浮かび上がる
-// ================================================================
-static void ShotHourglassEdge(sEnemyShotSet* pEnemyShotSet)
-{
-    const int    DUR = 120;
-    const double WMAX = 150.0;  // 最大水平幅 (px)
-    const double SPD = 2.5;
-    const double DOWN = DX_PI / 2.0;
-
-    if (pEnemyShotSet->count == 0) {
-        if (CheckSoundMem(sound_enemyShot_light) == 1)
-            StopSoundMem(sound_enemyShot_light);
+        if (CheckSoundMem(sound_enemyShot_light) == 1) StopSoundMem(sound_enemyShot_light);
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-    }
 
-    if (pEnemyShotSet->count < DUR && pEnemyShotSet->count % 3 == 0) {
-        double t = (double)pEnemyShotSet->count / DUR;  // 0 → 1
-        double w = WMAX * fabs(cos(DX_PI * t));
-        int    col = (t < 0.5) ? 8 : 1;  // 上半: 橙, 下半: 黄
+        // 16発の小玉を扇形に発射
+        for (int i = 0; i < 16; i++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            // 真下を中心に±30度の範囲で発射
+            pEnemyShot->muki = DX_PI / 2.0 + (GetRand(60) - 30) * DX_PI / 180.0;
+            pEnemyShot->speed = 3.5 + (GetRand(150) / 100.0); // 3.5~5.0
 
-        if (w < 2.0) {
-            // 首: 両縁が重なるため中央1発 (白) に置き換え
-            AddShot(pEnemyShotSet,
-                pEnemyShotSet->x, pEnemyShotSet->y,
-                DOWN, SPD, img_enemyShotSmallBall[6]);
-        }
-        else {
-            AddShot(pEnemyShotSet,
-                pEnemyShotSet->x - w, pEnemyShotSet->y,
-                DOWN, SPD, img_enemyShotSmallBall[col]);  // 左縁
-            AddShot(pEnemyShotSet,
-                pEnemyShotSet->x + w, pEnemyShotSet->y,
-                DOWN, SPD, img_enemyShotSmallBall[col]);  // 右縁
+            int color = GetRand(7);
+            pEnemyShot->kind = img_enemyShotSmallBall[color];
+
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
         }
     }
 
-    // 全弾を移動
-    sEnemyShot* p = pEnemyShotSet->pEnemyShotHead->next;
-    while (p != pEnemyShotSet->pEnemyShotHead) {
-        p->x += p->speed * cos(p->muki);
-        p->y += p->speed * sin(p->muki);
-        p = p->next;
+    pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
+        pEnemyShot = pEnemyShot->next;
     }
 }
 
+// ---------------------------
+// 音ゲーモチーフ：トリルノート（プレイヤーを狙う高速連射）
+// ---------------------------
+static void ShotTrillNote(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_medium) == 1) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
 
-// ================================================================
-//  敵本体パターン
-// ================================================================
+        // 8発の中玉をプレイヤー方向に高速発射
+        for (int i = 0; i < 8; i++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            // プレイヤー方向に微妙にばらつき
+            pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(15) - 7.5) * DX_PI / 180.0;
+            pEnemyShot->speed = 5.0 + (GetRand(100) / 100.0); // 5.0~6.0
+
+            int color = GetRand(7);
+            pEnemyShot->kind = img_enemyShotMediumBall[color];
+
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        }
+    }
+
+    pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
+        pEnemyShot = pEnemyShot->next;
+    }
+}
+
+// ---------------------------
+// 音ゲーモチーフ：グリッサンドノート（加速する弾）
+// ---------------------------
+static void ShotGlissandoNote(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_heavy) == 1) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+
+        // 6発の大玉を発射（加速する）
+        for (int i = 0; i < 6; i++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(20) - 10) * DX_PI / 180.0;
+            pEnemyShot->speed = 2.0 + (i * 0.5); // 2.0~4.5（発射ごとに速くなる）
+
+            int color = GetRand(7);
+            pEnemyShot->kind = img_enemyShotLargeBall[color];
+
+            // 加速度を設定
+            pEnemyShot->param_d[0] = 0.02 * (i + 1); // 加速度
+
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        }
+    }
+
+    pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
+        pEnemyShot->speed += pEnemyShot->param_d[0]; // 加速
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
+        pEnemyShot = pEnemyShot->next;
+    }
+}
+
+// ---------------------------
+// 音ゲーモチーフ：アルペジオ（円形に広がる弾）
+// ---------------------------
+static void ShotArpeggioNote(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_extreme) == 1) StopSoundMem(sound_enemyShot_extreme);
+        PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
+
+        // 24発の菱形弾を円形に発射
+        for (int i = 0; i < 24; i++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            pEnemyShot->muki = i * (DX_PI * 2 / 24); // 360度を24等分
+            pEnemyShot->speed = 2.5 + (GetRand(100) / 100.0); // 2.5~3.5
+
+            int color = i % 7;
+            pEnemyShot->kind = img_enemyShotDiamond[color];
+
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        }
+    }
+
+    pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki);
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki);
+        pEnemyShot = pEnemyShot->next;
+    }
+}
+
+// ---------------------------
+// 音ゲーモチーフ：トレモロ（振動する弾）
+// ---------------------------
+static void ShotTremoloNote(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_heavy) == 1) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+
+        // 10発の鱗弾を発射（振動する）
+        for (int i = 0; i < 10; i++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(30) - 15) * DX_PI / 180.0;
+            pEnemyShot->speed = 3.0 + (GetRand(100) / 100.0); // 3.0~4.0
+
+            int color = GetRand(7);
+            pEnemyShot->kind = img_enemyShotScale[color];
+
+            // 振動のパラメータ
+            pEnemyShot->param_d[0] = 0.0; // 位相
+            pEnemyShot->param_d[1] = 0.1 * (i + 1); // 振幅
+            pEnemyShot->param_d[2] = 0.2 + (GetRand(100) / 1000.0); // 周期
+
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        }
+    }
+
+    pEnemyShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pEnemyShot != pEnemyShotSet->pEnemyShotHead) {
+        pEnemyShot->param_d[0] += pEnemyShot->param_d[2]; // 位相を更新
+        double offsetX = pEnemyShot->param_d[1] * sin(pEnemyShot->param_d[0]);
+        double offsetY = pEnemyShot->param_d[1] * cos(pEnemyShot->param_d[0] * 0.5);
+        pEnemyShot->x += pEnemyShot->speed * cos(pEnemyShot->muki) + offsetX;
+        pEnemyShot->y += pEnemyShot->speed * sin(pEnemyShot->muki) + offsetY;
+        pEnemyShot = pEnemyShot->next;
+    }
+}
+
+// ---------------------------
+// 敵本体のパターン
+// ---------------------------
 void EnemyPat_Tmp()
 {
-    // ── 初期化 ─────────────────────────────────────────────
+    static int muki;
+    static int phase = 0; // 0:連符, 1:トリル, 2:グリッサンド, 3:アルペジオ, 4:トレモロ
+    static int step = 0; // 各フェーズ内のステップ
+
     if (count == 1) {
         enemy.x = 240.0;
-        enemy.y = 55.0;
-        enemy.maxHp = enemy.hp = 300;
+        enemy.y = 40.0;
+        enemy.maxHp = enemy.hp = 200;
+        muki = 1;
+        phase = 0;
+        step = 0;
     }
     else {
-        // 画面上部を sin 曲線でゆっくり左右に往復（振幅 ±90px、周期 360f）
-        enemy.x = 240.0 + 90.0 * sin(count * DX_PI / 180.0);
-        enemy.y = 55.0;
+        // 敵は画面上部で高速に左右に往復移動
+        enemy.x += 2.0 * muki;
+        if (enemy.x < 20 || enemy.x > 460) muki *= -1;
+
+        // 30フレームごとにステップを進める
+        if (count % 30 == 0) {
+            step++;
+            // 6ステップごとにフェーズを切り替え
+            if (step >= 6) {
+                step = 0;
+                phase = (phase + 1) % 5;
+            }
+        }
     }
 
-    const double ex = enemy.x;
-    const double ey = enemy.y + 10.0;
-    const double dn = DX_PI / 2.0;
+    // フェーズごとに弾幕を発射
+    switch (phase) {
+    case 0: // 連符ノート
+        if (count % 15 == 0) {
+            sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+            pEnemyShotSet->count = 0;
+            pEnemyShotSet->patternFunc = ShotRapidNote;
+            pEnemyShotSet->x = enemy.x;
+            pEnemyShotSet->y = enemy.y + 20.0;
+            pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
 
-    // ── 弾幕A: 砂の流れ（180フレームおきに発射）────────────
-    if (count % 180 == 10)
-        SpawnShotSet(ShotHourglassSand, ex, ey, dn);
+            pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
 
-    // ── 弾幕B: 砂時計の輪郭（弾幕Aと90フレームずれで発射）──
-    if (count % 180 == 100)
-        SpawnShotSet(ShotHourglassEdge, ex, ey, dn);
+            pEnemyShotSet->prev = enemyShotSetHead.prev;
+            pEnemyShotSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pEnemyShotSet;
+            enemyShotSetHead.prev = pEnemyShotSet;
+        }
+        break;
+
+    case 1: // トリルノート
+        if (count % 10 == 0) {
+            sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+            pEnemyShotSet->count = 0;
+            pEnemyShotSet->patternFunc = ShotTrillNote;
+            pEnemyShotSet->x = enemy.x;
+            pEnemyShotSet->y = enemy.y + 20.0;
+            pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
+
+            pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+
+            pEnemyShotSet->prev = enemyShotSetHead.prev;
+            pEnemyShotSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pEnemyShotSet;
+            enemyShotSetHead.prev = pEnemyShotSet;
+        }
+        break;
+
+    case 2: // グリッサンドノート
+        if (count % 20 == 0) {
+            sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+            pEnemyShotSet->count = 0;
+            pEnemyShotSet->patternFunc = ShotGlissandoNote;
+            pEnemyShotSet->x = enemy.x;
+            pEnemyShotSet->y = enemy.y + 20.0;
+            pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
+
+            pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+
+            pEnemyShotSet->prev = enemyShotSetHead.prev;
+            pEnemyShotSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pEnemyShotSet;
+            enemyShotSetHead.prev = pEnemyShotSet;
+        }
+        break;
+
+    case 3: // アルペジオ
+        if (count % 40 == 0) {
+            sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+            pEnemyShotSet->count = 0;
+            pEnemyShotSet->patternFunc = ShotArpeggioNote;
+            pEnemyShotSet->x = enemy.x;
+            pEnemyShotSet->y = enemy.y + 20.0;
+            pEnemyShotSet->muki = 0;
+
+            pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+
+            pEnemyShotSet->prev = enemyShotSetHead.prev;
+            pEnemyShotSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pEnemyShotSet;
+            enemyShotSetHead.prev = pEnemyShotSet;
+        }
+        break;
+
+    case 4: // トレモロ
+        if (count % 25 == 0) {
+            sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+            pEnemyShotSet->count = 0;
+            pEnemyShotSet->patternFunc = ShotTremoloNote;
+            pEnemyShotSet->x = enemy.x;
+            pEnemyShotSet->y = enemy.y + 20.0;
+            pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
+
+            pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+
+            pEnemyShotSet->prev = enemyShotSetHead.prev;
+            pEnemyShotSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pEnemyShotSet;
+            enemyShotSetHead.prev = pEnemyShotSet;
+        }
+        break;
+    }
 }

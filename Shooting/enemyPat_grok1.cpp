@@ -12,6 +12,7 @@ static void ShotGeometryMulti(sEnemyShotSet* p)
     sEnemyShot *shot, *next; double rad, spd; int i, n;
     p->count++;
     if (p->count == 1) {
+        if (CheckSoundMem(sound_enemyShot_medium) == 1) StopSoundMem(sound_enemyShot_medium);
         PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
         switch (p->kind) {
         case 0: n = 70; for (i=0; i<n; i++) { rad = p->muki + i*(2*PI/n);

@@ -76,16 +76,20 @@ void playerShotHit()
 			else {
 				PlaySoundMem(sound_playerShotHit_default, DX_PLAYTYPE_BACK);
 			}
+
 			enemy.hp--;
-			if (enemy.hp <= 0) {
-				PlaySoundMem(sound_enemyDestroyed, DX_PLAYTYPE_BACK);
-				StateManager::ChangeState(Joutai::Win);
-			}
+			if (enemy.hp < 0) enemy.hp = 0;
+			
 			pPlayerShot->prev->next = pPlayerShot->next;
 			pPlayerShot->next->prev = pPlayerShot->prev;
 			delete pPlayerShot;
 		}
 
 		pPlayerShot = pNextPlayerShot;
+	}
+
+	if (enemy.hp <= 0) {
+		PlaySoundMem(sound_enemyDestroyed, DX_PLAYTYPE_BACK);
+		StateManager::ChangeState(Joutai::Win);
 	}
 }

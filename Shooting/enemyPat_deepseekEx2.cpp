@@ -78,6 +78,7 @@ static void LeafCutterShot(sEnemyShotSet* pEnemyShotSet)
 
     // ----- 初回だけ二重の刃を生成 -----
     if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_medium) == 1) StopSoundMem(sound_enemyShot_medium);
         PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
 
         // 内側の刃（緑の鱗弾、葉っぱイメージ）
@@ -146,6 +147,7 @@ static void LeafCutterShot(sEnemyShotSet* pEnemyShotSet)
 
     // ----- 30フレームごとに小さな扇状弾を放つ（独立したShotSetで） -----
     if (age > 0 && (int)age % 30 == 0) {
+        if (CheckSoundMem(sound_enemyShot_light) == 1) StopSoundMem(sound_enemyShot_light);
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
         // 赤い小玉を7方向へ速度1.8で扇状に発射（プレイヤー方向中心）
         EmitFanShot(pEnemyShotSet, 5, (10.0 / 180.0 * DX_PI), img_enemyShotSmallBall[0], 1.8);
