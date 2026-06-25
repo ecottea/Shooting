@@ -194,5 +194,13 @@ std::vector<StageInfo> stageData = {
     { "claude22", "音ゲーをモチーフにした弾幕", "Organ_Sprint", EnemyPat_RhythmGame_Claude },
     { "qwen22", "音ゲーをモチーフにした弾幕", "Organ_Sprint", EnemyPat_RhythmGame_Qwen },
     { "vibe22", "音ゲーをモチーフにした弾幕", "Organ_Sprint", EnemyPat_RhythmGame_Vibe },
+    { "deepseek23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_DeepSeek },
+    { "chatgpt23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_ChatGPT },
+    { "gemini23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_Gemini },
+    { "grok23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_Grok },
+    { "sakana23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_Sakana },
+    { "claude23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_Claude },
+    { "qwen23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_Qwen },
+    { "vibe23", "シェルピンスキーのギャスケットをモチーフにした弾幕", "Fractal_Boss", EnemyPat_Sierpinski_Vibe },
     { "tmp", "ここに貼ってお試し", "Torpedo_Hymn", EnemyPat_Tmp },
 };

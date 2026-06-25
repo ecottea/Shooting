@@ -86,8 +86,8 @@ struct sEnemyShot : PoolAllocator<sEnemyShot, 4096> {
     int         count = 0;        // 毎フレーム自動で+1
     int         kind = 0;         // 種類と色
     double      margin = 20.0;    // 画面外へどれだけ出たら弾を自動で消すか（不用意に変更しないこと）
-    int         param_i[4];       // 自由な目的に使えるパラメータ
-    double      param_d[4];       // 自由な目的に使えるパラメータ
+    int         param_i[4]{};     // 自由な目的に使えるパラメータ
+    double      param_d[4]{};     // 自由な目的に使えるパラメータ
     sEnemyShot* prev = nullptr;
     sEnemyShot* next = nullptr;   // PoolAllocator のフリーリストと兼用
 };

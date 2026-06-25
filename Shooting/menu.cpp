@@ -257,11 +257,11 @@ void moveCursor()
 
     // ===== ページ切り替え（テンキー7/9） =====
     if (key[KEY_INPUT_NUMPAD7] == 1) {
-        cursor.page = (cursor.page == 0) ? (int)stageData.size() / 100 : cursor.page - 1;
+        cursor.page = (cursor.page == 0) ? ((int)stageData.size() - 1) / 100 : cursor.page - 1;
         PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
     }
     if (key[KEY_INPUT_NUMPAD9] == 1) {
-        cursor.page = (cursor.page == (int)stageData.size() / 100) ? 0 : cursor.page + 1;
+        cursor.page = (cursor.page == ((int)stageData.size() - 1) / 100) ? 0 : cursor.page + 1;
         PlaySoundMem(sound_menuCursor, DX_PLAYTYPE_BACK);
     }
 

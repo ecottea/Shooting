@@ -243,6 +243,22 @@ void drawSidePanel()
         DrawBox(panelLeft, replayY, 630, replayY + lineHeight, INFO_BG_COLOR, TRUE);
         DrawString(panelLeft + 5, replayY, "<Replay Mode>", GetColor(255, 255, 128));
     }
+
+    // デバッグ用：Bキーを押している間、存在する敵弾数を画面右下に表示
+    if (CheckHitKey(KEY_INPUT_B) == 1) {
+        int bulletCount = 0;
+        sEnemyShotSet* pSet = enemyShotSetHead.next;
+        while (pSet != &enemyShotSetHead) {
+            sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+            while (pShot != pSet->pEnemyShotHead) {
+                ++bulletCount;
+                pShot = pShot->next;
+            }
+            pSet = pSet->next;
+        }
+        // FPS表示の少し上 (y=436) に表示。FPSは通常 (565,460) 付近。
+        DrawFormatString(519, 436, colorWhite, "Bullets: %d", bulletCount);
+    }
 }
 
 // ポーズ・勝利・敗北時の半透明オーバーレイとメッセージ（変更なし）
