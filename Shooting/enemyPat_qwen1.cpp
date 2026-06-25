@@ -14,23 +14,23 @@ static void ShotGeometricFlower(sEnemyShotSet* pEnemyShotSet)
 
         int numPetals = 5;         // 花びらの数
         int shotsPerPetal = 8;     // 1花びらあたりの弾数
-        
+
         // 全体の回転角度（時間とともに変化）
         double globalRotation = pEnemyShotSet->count / 50.0;
 
         for (int p = 0; p < numPetals; p++) {
             // 花びらの基本角度
             double petalAngle = globalRotation + (p * 2.0 * 3.14159265 / numPetals);
-            
+
             for (int i = 0; i < shotsPerPetal; i++) {
                 sEnemyShot* pEnemyShot = new sEnemyShot;
                 pEnemyShot->x = pEnemyShotSet->x;
                 pEnemyShot->y = pEnemyShotSet->y;
-                
+
                 // 花びら状に広がる角度
                 double spreadAngle = petalAngle + (i - shotsPerPetal / 2.0) * 0.15;
                 pEnemyShot->muki = spreadAngle;
-                
+
                 // 内側から外側へ速度を上げる
                 pEnemyShot->speed = 1.5 + i * 0.4;
 
@@ -38,9 +38,11 @@ static void ShotGeometricFlower(sEnemyShotSet* pEnemyShotSet)
                 int color = (p + i / 2) % 8;
                 if (i < 3) {
                     pEnemyShot->kind = img_enemyShotSmallBall[color];
-                } else if (i < 6) {
+                }
+                else if (i < 6) {
                     pEnemyShot->kind = img_enemyShotMediumBall[color];
-                } else {
+                }
+                else {
                     pEnemyShot->kind = img_enemyShotScale[color];
                 }
 

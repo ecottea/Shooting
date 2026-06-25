@@ -1,4 +1,4 @@
-﻿// enemyPat_gemini2.cpp
+// enemyPat_Gemini2.cpp
 // パターン11：時間差包囲（静止→一斉狙い）
 #include "DxLib.h"
 #include "gv.h"

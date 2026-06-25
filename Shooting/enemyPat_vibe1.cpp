@@ -28,7 +28,7 @@ static void ShotSpiral(sEnemyShotSet* pEnemyShotSet)
             // 弾の種類と色をランダムに選択
             int color = i % 6; // 7色
             pEnemyShot->kind = img_enemyShotLargeBall[color];
-           
+
             // リンクリストに追加
             pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
             pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;

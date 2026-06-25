@@ -1,4 +1,4 @@
-﻿// enemyPat_deepseek2.cpp
+// enemyPat_DeepSeek2.cpp
 // パターン10：避けてて楽しい弾幕（窄角5WAY＋左右制限＋ランダム）
 #include "DxLib.h"
 #include "gv.h"

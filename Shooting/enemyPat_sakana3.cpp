@@ -1,4 +1,4 @@
-﻿// enemyPat_sakana3.cpp
+// enemyPat_Sakana3.cpp
 // パターン18：花火状＋渦巻き弾幕（見栄え重視）
 #include "DxLib.h"
 #include "gv.h"

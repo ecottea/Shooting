@@ -1,4 +1,4 @@
-﻿// enemyPat_claude3.cpp
+// enemyPat_Claude3.cpp
 // パターン12：高難易度複合（速弾・遅弾・加速・散弾）
 #include "DxLib.h"
 #include "gv.h"

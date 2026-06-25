@@ -1,4 +1,4 @@
-﻿// enemyPat_sakana2.cpp
+// enemyPat_Sakana2.cpp
 // パターン15：ランダム方向多数発射＋速度変化
 #include "DxLib.h"
 #include "gv.h"

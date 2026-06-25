@@ -51,7 +51,7 @@ void EnemyPat_Japanese_Vibe()
         enemy.x = 240.0 + 80.0 * sin(count / 80.0);
     }
 
-    if (count % 4 == 0) {
+    if (count % 6 == 0) {
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
     }
 

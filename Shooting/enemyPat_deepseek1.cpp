@@ -12,7 +12,7 @@ static void ShotRoseCurveSpiral(sEnemyShotSet* p)
     sEnemyShot* shot;
     const int PETAL = 5, N = 120;
     const double R = 35.0, SPEED = 2.8, ROT = 0.025;
-    
+
     if (p->count == 0) {
         if (CheckSoundMem(sound_enemyShot_light) == 1) StopSoundMem(sound_enemyShot_light);
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
@@ -64,6 +64,6 @@ void EnemyPat_Geometry_DeepSeek()
             p->prev = enemyShotSetHead.prev; p->next = &enemyShotSetHead;
             enemyShotSetHead.prev->next = p; enemyShotSetHead.prev = p;
         }
-        phase += PI / 16.0; if (phase > 2*PI) phase -= 2*PI;
+        phase += PI / 16.0; if (phase > 2 * PI) phase -= 2 * PI;
     }
 }

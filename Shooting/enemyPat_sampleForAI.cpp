@@ -72,7 +72,7 @@ void EnemyPat_SampleForAI()
         // ÉQÅ[ÉÄâÊñ ÇÕ 480x480
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 200;
+        enemy.maxHp = enemy.hp = 200; // 200Ç≈å≈íË
         muki = 1;
         shot_count = 0;
     }

@@ -15,8 +15,8 @@ static void ShotLissajousCurtain(sEnemyShotSet* p)
         for (int i = 0; i < N; i++) {
             shot = new sEnemyShot;
             shot->x = p->x; shot->y = p->y;
-            shot->speed = i; shot->muki = 2*PI * i / N;
-            shot->kind = img_enemyShotSmallBall[i%6];
+            shot->speed = i; shot->muki = 2 * PI * i / N;
+            shot->kind = img_enemyShotSmallBall[i % 6];
             shot->prev = p->pEnemyShotHead->prev;
             shot->next = p->pEnemyShotHead;
             p->pEnemyShotHead->prev->next = shot;
@@ -27,13 +27,13 @@ static void ShotLissajousCurtain(sEnemyShotSet* p)
     shot = p->pEnemyShotHead->next;
     while (shot != p->pEnemyShotHead) {
         int idx = (int)shot->speed;
-        double t = 2*PI * idx / N;
-        double x = A*sin(3*t + phase), y = B*sin(4*t);
-        double rot = phase*0.5;
-        double rx = x*cos(rot) - y*sin(rot);
-        double ry = x*sin(rot) + y*cos(rot);
-        shot->x = p->x + rx + cos(p->muki)*p->count;
-        shot->y = p->y + ry + sin(p->muki)*p->count;
+        double t = 2 * PI * idx / N;
+        double x = A * sin(3 * t + phase), y = B * sin(4 * t);
+        double rot = phase * 0.5;
+        double rx = x * cos(rot) - y * sin(rot);
+        double ry = x * sin(rot) + y * cos(rot);
+        shot->x = p->x + rx + cos(p->muki) * p->count;
+        shot->y = p->y + ry + sin(p->muki) * p->count;
         shot = shot->next;
     }
 }
@@ -46,7 +46,7 @@ void EnemyPat_Geometry_ChatGPT()
         enemy.x = 240; enemy.y = 200;
     }
 
-    enemy.x = 240 + 50*sin(count*0.01); enemy.y = 200;
+    enemy.x = 240 + 50 * sin(count * 0.01); enemy.y = 200;
 
     if (count % 300 == 60) {
         p = new sEnemyShotSet;

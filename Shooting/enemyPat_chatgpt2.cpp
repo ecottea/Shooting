@@ -1,4 +1,4 @@
-﻿// enemyPat_chatgpt2.cpp
+// enemyPat_ChatGPT2.cpp
 // パターン13：自機狙い10WAY＋ランダム散弾
 #include "DxLib.h"
 #include "gv.h"

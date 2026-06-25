@@ -23,7 +23,7 @@ static void ShotDynamicRose(sEnemyShotSet* p)
         for (int w = 0; w < ways; w++) {
             shot = new sEnemyShot;
             shot->x = p->x; shot->y = p->y;
-            shot->muki = theta * 0.3 + (2*PI/ways) * w;
+            shot->muki = theta * 0.3 + (2 * PI / ways) * w;
             shot->speed = 1.5 + 4.0 * fabs(r);
             shot->kind = img_enemyShotSmallBall[colorTable[w % 5]];
             shot->prev = p->pEnemyShotHead->prev;
