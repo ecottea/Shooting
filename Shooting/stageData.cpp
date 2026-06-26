@@ -211,5 +211,13 @@ std::vector<StageInfo> stageData = {
     { "Claude24", "メビウスの帯をモチーフにした弾幕", "Cosmic_Mobius", EnemyPat_Mobius_Claude },
     { "Qwen24", "メビウスの帯をモチーフにした弾幕", "Cosmic_Mobius", EnemyPat_Mobius_Qwen },
     { "Vibe24", "メビウスの帯をモチーフにした弾幕", "Cosmic_Mobius", EnemyPat_Mobius_Vibe },
+    { "DeepSeek25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_DeepSeek },
+    { "ChatGPT25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_ChatGPT },
+    { "Gemini25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_Gemini },
+    { "Grok25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_Grok },
+    { "Sakana25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_Sakana },
+    { "Claude25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_Claude },
+    { "Qwen25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_Qwen },
+    { "Vibe25", "扇風機をモチーフにした弾幕", "Frantic_Pulse", EnemyPat_ElectricFan_Vibe },
     { "tmp", "ここに貼ってお試し", "Torpedo_Hymn", EnemyPat_Tmp },
 };

@@ -1,4 +1,4 @@
-// enemyPat_Claude2.cpp
+﻿// enemyPat_Claude2.cpp
 // パターン16：振り子掃射＋時間差3連自機狙い
 #include "DxLib.h"
 #include "gv.h"

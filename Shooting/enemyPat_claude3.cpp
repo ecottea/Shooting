@@ -1,4 +1,4 @@
-// enemyPat_Claude5.cpp
+﻿// enemyPat_Claude5.cpp
 // パターン18：万華鏡ボス
 //
 //  ① 薔薇展開         ─ 8花弁薔薇曲線上に配置した Scale弾 96発を放射状に発射

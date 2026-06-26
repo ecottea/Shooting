@@ -1,4 +1,4 @@
-// enemyPat_Grok2.cpp
+﻿// enemyPat_Grok2.cpp
 // パターン14：自機狙い7WAY＋左右カーテン
 #include "DxLib.h"
 #include "gv.h"

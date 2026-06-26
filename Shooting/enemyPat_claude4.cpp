@@ -1,4 +1,4 @@
-// enemyPat_Claude_wafuu.cpp
+﻿// enemyPat_Claude_wafuu.cpp
 // 和風弾幕パターン:「幽玄の陣」
 //
 // フェーズ  | HP帯         | 発動弾幕

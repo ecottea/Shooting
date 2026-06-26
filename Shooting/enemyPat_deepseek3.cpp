@@ -1,4 +1,4 @@
-// enemyPat_DeepSeek3.cpp
+﻿// enemyPat_DeepSeek3.cpp
 // パターン：レインボースパイラル（多重渦巻き）
 #include "DxLib.h"
 #include "gv.h"

@@ -1,4 +1,4 @@
-// enemyPat_Claude4.cpp
+﻿// enemyPat_Claude4.cpp
 // パターン17：幾何弾幕ボス（ハイポトロコイド→アストロイド→ネフロイド）
 #include "DxLib.h"
 #include "gv.h"
