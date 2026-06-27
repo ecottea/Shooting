@@ -24,8 +24,8 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
             pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(120) - 60) / 180.0 * DX_PI;
             pEnemyShot->speed = (200 + GetRand(200)) / 100.0;
 
-            // 弾の種類: 小玉、中玉、大玉、銃弾、鱗弾、菱形弾
-            // 弾の色:   0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒、8:橙
+            // 弾の種類一覧: 小玉、中玉、大玉、銃弾、鱗弾、菱形弾
+            // 弾の色一覧:   0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒、8:橙
             switch (pEnemyShotSet->kind % 6) {
             case 0:
                 pEnemyShot->kind = img_enemyShotSmallBall[i];

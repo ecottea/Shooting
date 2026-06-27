@@ -99,8 +99,10 @@ struct sEnemyShotSet : PoolAllocator<sEnemyShotSet, 1024> {
     double         x = 0.0, y = 0.0;
     double         muki = 0.0;
     PatternFunc    patternFunc = nullptr;
-    int            count = 0;     // 毎フレーム自動で+1
+    int            count = 0;       // 毎フレーム自動で+1
     int            kind = 0;
+    int            param_i[4]{};    // 自由な目的に使えるパラメータ
+    double         param_d[4]{};    // 自由な目的に使えるパラメータ
     sEnemyShot*    pEnemyShotHead = nullptr;
     sEnemyShotSet* prev = nullptr;
     sEnemyShotSet* next = nullptr;  // PoolAllocator のフリーリストと兼用
