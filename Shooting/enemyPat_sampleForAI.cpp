@@ -12,7 +12,7 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
     if (pEnemyShotSet->count == 0) {
         // Žg‚¦‚éŒø‰Ê‰¹ˆê——
         // PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-        if (CheckSoundMem(sound_enemyShot_medium) == 1) StopSoundMem(sound_enemyShot_medium);
+        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
         PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
         // PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
         // PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);

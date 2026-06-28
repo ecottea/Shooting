@@ -133,7 +133,7 @@ static void ShurikenPattern(sEnemyShotSet* pEnemyShotSet)
 // ------------------------------------------------------------------
 // 敵本体パターン
 // ------------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_Shuriken_DeepSeek()
 {
     static int muki;
     static int wave_timer;   // 次の波を発射するまでのフレーム
