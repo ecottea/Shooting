@@ -1,0 +1,341 @@
+// imgSoundLoad.cpp
+
+#include "DxLib.h"
+#include "gv.h"
+#include "imgSoundLoad.h"
+#include "stageData.h"
+#include <unordered_map>
+#include <string>
+
+
+// ---------- 画像ID管理 ----------
+std::vector<ImageData> imageData;
+
+// ---------- グローバル変数（IDを保持） ----------
+int img_player;
+int img_playerShot;
+int img_enemy[2];
+int img_enemyShotSmallBall[COL_VAR];
+int img_enemyShotMediumBall[COL_VAR];
+int img_enemyShotLargeBall[COL_VAR];
+int img_enemyShotBullet[COL_VAR];
+int img_enemyShotScale[COL_VAR];
+int img_enemyShotDiamond[COL_VAR];
+int img_enemyShotMediumOval[COL_VAR];
+int img_enemyShotLaser[COL_VAR];
+
+int sound_menuCursor;
+int sound_enemyShot_light;
+int sound_enemyShot_medium;
+int sound_enemyShot_heavy;
+int sound_enemyShot_extreme;
+int sound_enemyShot_noize;
+int sound_enemyCharge;
+int sound_enemyDestroyed;
+int sound_playerShotHit_default;
+int sound_playerShotHit_bossLowHP;
+int sound_playerDestroyed;
+
+int bgm_menu;
+int currentBGMHandle;
+
+// ファイル名（例："Torpedo_Hymn2"）→ BGMハンドル のキャッシュ
+static std::unordered_map<std::string, int> bgmCache;
+
+
+// ---------- 単一画像読み込み ----------
+static bool LoadSingleImage(const char* filename, int* idBuf,
+    double mag, bool rotatable, double radiusX, double radiusY)
+{
+    int h = LoadGraph(filename);
+    if (h == -1) return false;
+
+    int id = static_cast<int>(imageData.size());
+    imageData.resize(id + 1);
+    imageData[id].handle = h;
+    imageData[id].mag = mag;
+    imageData[id].rotatable = rotatable;
+    imageData[id].radiusX = radiusX;
+    imageData[id].radiusY = radiusY;
+
+    *idBuf = id;   // 呼び出し元にIDを返す
+    return true;      // 成功
+}
+
+// ---------- 分割画像読み込み（idBuf にID配列を返す） ----------
+static bool LoadDivImages(const char* filename, int allNum, int xNum, int yNum,
+    int xSize, int ySize, int* idBuf,
+    double mag, bool rotatable, double radiusX, double radiusY)
+{
+    // 一時的にハンドル配列を確保
+    int* handles = new int[allNum];
+    int ret = LoadDivGraph(filename, allNum, xNum, yNum, xSize, ySize, handles);
+    if (ret == -1) { delete[] handles; return false; }
+
+    for (int i = 0; i < allNum; ++i) {
+        if (handles[i] == -1) {
+            // 失敗：既に確保したIDとハンドルを解放
+            for (int j = 0; j < i; ++j) {
+                DeleteGraph(imageData[idBuf[j]].handle);
+                imageData[idBuf[j]].handle = -1;  // ロールバック（IDは戻さない簡易実装）
+            }
+            delete[] handles;
+            return false;
+        }
+        int id = static_cast<int>(imageData.size());
+        imageData.resize(id + 1);
+        if (id == -1) {
+            for (int j = 0; j < i; ++j) {
+                DeleteGraph(imageData[idBuf[j]].handle);
+                imageData[idBuf[j]].handle = -1;
+            }
+            DeleteGraph(handles[i]); // 今回の分
+            delete[] handles;
+            return false;
+        }
+        idBuf[i] = id;
+        imageData[id].handle = handles[i];
+        imageData[id].mag = mag;
+        imageData[id].rotatable = rotatable;
+        imageData[id].radiusX = radiusX;
+        imageData[id].radiusY = radiusY;
+    }
+    delete[] handles;
+    return true; // 成功
+}
+
+// ---------- カラー弾8種読み込み（白→白、黒→色付き） ----------
+static bool LoadColoredShotsEx(const char* monoFileName, int width, int height,
+    int* idBuf, double mag, bool rotatable, double radiusX, double radiusY)
+{
+    int srcSoft = LoadSoftImage(monoFileName);
+    if (srcSoft == -1) return false;
+
+    int srcW, srcH;
+    GetSoftImageSize(srcSoft, &srcW, &srcH);
+    if (srcW != width || srcH != height) {
+        DeleteSoftImage(srcSoft);
+        return false;
+    }
+
+    const struct { int r, g, b; } factors[COL_VAR] = {
+        {255,0,0},
+        {255,255,0},
+        {0,255,0},
+        {0,255,255},
+        {64,64,255},
+        {255,0,255},
+        {192,192,192},
+        {64,64,64},
+        { 255,165,0 }
+    };
+
+    for (int i = 0; i < COL_VAR; ++i) {
+        int dstSoft = MakeARGB8ColorSoftImage(width, height);
+        if (dstSoft == -1) goto fail;
+
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                int sa, sr, sg, sb;
+                GetPixelSoftImage(srcSoft, x, y, &sr, &sg, &sb, &sa);
+                int lum = sr;  // モノクロ画像なので sr = sg = sb を利用
+                int r = factors[i].r + ((255 - factors[i].r) * lum) / 255;
+                int g = factors[i].g + ((255 - factors[i].g) * lum) / 255;
+                int b = factors[i].b + ((255 - factors[i].b) * lum) / 255;
+                DrawPixelSoftImage(dstSoft, x, y, r, g, b, sa);
+            }
+        }
+
+        int h = CreateGraphFromSoftImage(dstSoft);
+        DeleteSoftImage(dstSoft);
+        if (h == -1) goto fail;
+
+        int id = static_cast<int>(imageData.size());
+        imageData.resize(id + 1);
+        if (id == -1) { DeleteGraph(h); goto fail; }
+        idBuf[i] = id;
+        imageData[id].handle = h;
+        imageData[id].mag = mag;
+        imageData[id].rotatable = rotatable;
+        imageData[id].radiusX = radiusX;
+        imageData[id].radiusY = radiusY;
+    }
+
+    DeleteSoftImage(srcSoft);
+    return true;
+
+fail:
+    // 失敗したら既に確保したものを解放
+    for (int j = 0; j < COL_VAR; ++j) {
+        if (imageData[idBuf[j]].handle != -1) {
+            DeleteGraph(imageData[idBuf[j]].handle);
+            imageData[idBuf[j]].handle = -1;
+        }
+    }
+    DeleteSoftImage(srcSoft);
+    return false;
+}
+
+// ---------- カラー弾8種読み込み（黒→黒、グレー→色付き、白→白） ----------
+static bool LoadColoredShotsEx2(const char* monoFileName, int width, int height,
+    int* idBuf, double mag, bool rotatable, double radiusX, double radiusY)
+{
+    int srcSoft = LoadSoftImage(monoFileName);
+    if (srcSoft == -1) return false;
+
+    int srcW, srcH;
+    GetSoftImageSize(srcSoft, &srcW, &srcH);
+    if (srcW != width || srcH != height) {
+        DeleteSoftImage(srcSoft);
+        return false;
+    }
+
+    const struct { int r, g, b; } factors[COL_VAR] = {
+        {255,0,0},
+        {255,255,0},
+        {0,255,0},
+        {0,255,255},
+        {64,64,255},
+        {255,0,255},
+        {192,192,192},
+        {64,64,64},
+        { 255,165,0 }
+    };
+
+    const double darkFactor = 0.2;   // 黒相当の明るさ比（0.0～1.0） 0.2で指定色の20%の暗色
+
+    for (int i = 0; i < COL_VAR; ++i) {
+        int dstSoft = MakeARGB8ColorSoftImage(width, height);
+        if (dstSoft == -1) goto fail;
+
+        // 暗色版のベース色を計算
+        int baseR = (int)(factors[i].r * darkFactor);
+        int baseG = (int)(factors[i].g * darkFactor);
+        int baseB = (int)(factors[i].b * darkFactor);
+
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                int sa, sr, sg, sb;
+                GetPixelSoftImage(srcSoft, x, y, &sr, &sg, &sb, &sa);
+                int lum = sr;  // モノクロ画像なので sr = sg = sb
+                int r, g, b;
+                if (lum < 128) {
+                    // 暗色(輝度0) → 指定色(輝度127) へ線形補間
+                    r = baseR + ((factors[i].r - baseR) * lum) / 127;
+                    g = baseG + ((factors[i].g - baseG) * lum) / 127;
+                    b = baseB + ((factors[i].b - baseB) * lum) / 127;
+                }
+                else {
+                    // 指定色(輝度128) → 白(輝度255) へ線形補間
+                    int t = lum - 128;  // 0～127
+                    r = factors[i].r + ((255 - factors[i].r) * t) / 127;
+                    g = factors[i].g + ((255 - factors[i].g) * t) / 127;
+                    b = factors[i].b + ((255 - factors[i].b) * t) / 127;
+                }
+                DrawPixelSoftImage(dstSoft, x, y, r, g, b, sa);
+            }
+        }
+
+        int h = CreateGraphFromSoftImage(dstSoft);
+        DeleteSoftImage(dstSoft);
+        if (h == -1) goto fail;
+
+        int id = static_cast<int>(imageData.size());
+        imageData.resize(id + 1);
+        if (id == -1) { DeleteGraph(h); goto fail; }
+        idBuf[i] = id;
+        imageData[id].handle = h;
+        imageData[id].mag = mag;
+        imageData[id].rotatable = rotatable;
+        imageData[id].radiusX = radiusX;
+        imageData[id].radiusY = radiusY;
+    }
+
+    DeleteSoftImage(srcSoft);
+    return true;
+
+fail:
+    for (int j = 0; j < COL_VAR; ++j) {
+        if (imageData[idBuf[j]].handle != -1) {
+            DeleteGraph(imageData[idBuf[j]].handle);
+            imageData[idBuf[j]].handle = -1;
+        }
+    }
+    DeleteSoftImage(srcSoft);
+    return false;
+}
+
+void imgSoundLoad()
+{
+    // 画像読み込み
+    LoadSingleImage("assets/images/player.png", &img_player, 1.0, false, 2.3, 2.3);
+
+    LoadSingleImage("assets/images/playerShot.png", &img_playerShot, 1.0, false, 22.3, 22.3);
+
+    LoadDivImages("assets/images/enemy.png", 2, 2, 1, 207, 194, img_enemy, 1.0, false, 37.7, 37.7);
+
+    LoadColoredShotsEx("assets/images/enemyShotSmallBall.png", 30, 30, img_enemyShotSmallBall, 0.3, false, 2.5, 2.5);
+    LoadColoredShotsEx("assets/images/enemyShotMediumBall.png", 32, 32, img_enemyShotMediumBall, 0.65, false, 7.0, 7.0);
+    LoadColoredShotsEx("assets/images/enemyShotLargeBall.png", 70, 70, img_enemyShotLargeBall, 1.0, false, 20.0, 20.0);
+    LoadColoredShotsEx("assets/images/enemyShotBullet.png", 29, 14, img_enemyShotBullet, 0.5, true, 5.0, 2.0);
+    LoadColoredShotsEx("assets/images/enemyShotScale.png", 32, 24, img_enemyShotScale, 0.5, true, 4.0, 3.0);
+    LoadColoredShotsEx("assets/images/enemyShotDiamond.png", 32, 16, img_enemyShotDiamond, 0.5, true, 4.5, 2.5);
+    LoadColoredShotsEx("assets/images/enemyShotMediumOval.png", 256, 171, img_enemyShotMediumOval, 0.091, true, 10.5, 7.0);
+    LoadColoredShotsEx("assets/images/enemyShotLaser.png", 256, 16, img_enemyShotLaser, 0.5, true, 64.0, 4.0);
+
+    // 効果音読み込み
+    sound_menuCursor = LoadSoundMem("assets/sounds/menuCursor.wav");
+    sound_playerShotHit_default = LoadSoundMem("assets/sounds/playerShotHit_default.wav");
+    sound_playerShotHit_bossLowHP = LoadSoundMem("assets/sounds/playerShotHit_bossLowHP.wav");
+    sound_playerDestroyed = LoadSoundMem("assets/sounds/playerDestroyed.wav");
+    sound_enemyShot_light = LoadSoundMem("assets/sounds/enemyShot_light.wav");
+    sound_enemyShot_medium = LoadSoundMem("assets/sounds/enemyShot_medium.wav");
+    sound_enemyShot_heavy = LoadSoundMem("assets/sounds/enemyShot_heavy.wav");
+    sound_enemyShot_extreme = LoadSoundMem("assets/sounds/enemyShot_extreme.wav");
+    sound_enemyShot_noize = LoadSoundMem("assets/sounds/enemyShot_noize.wav");
+    sound_enemyCharge = LoadSoundMem("assets/sounds/enemyCharge.wav");
+    sound_enemyDestroyed = LoadSoundMem("assets/sounds/enemyDestroyed.wav");
+
+    // BGM 読み込み
+    bgm_menu = LoadSoundMem("assets/bgm/Neon Static.ogg");
+}
+
+// 遅延ロード用の関数
+void loadStageBGM(int stageIndex)
+{
+    if (stageIndex < 0 || stageIndex >= (int)stageData.size()) return;
+
+    // すでにロード済みなら何もしない
+    if (stageData[stageIndex].bgmHandle != -1) return;
+
+    const char* fileName = stageData[stageIndex].bgmFileName;
+    std::string key(fileName);
+
+    // キャッシュを検索
+    auto it = bgmCache.find(key);
+    if (it != bgmCache.end()) {
+        // キャッシュにヒット → ハンドルをコピーするだけでロード不要
+        stageData[stageIndex].bgmHandle = it->second;
+        return;
+    }
+
+    // 未キャッシュ → 新規ロード
+    char fullPath[256];
+    int handle = -1;
+
+    // まず通常パスを試す
+    sprintf_s(fullPath, sizeof(fullPath), "assets/bgm/%s.ogg", fileName);
+    handle = LoadSoundMem(fullPath);
+
+    // 失敗したら代替パスを試す
+    if (handle == -1) {
+        sprintf_s(fullPath, sizeof(fullPath), "AI_work/oldBGM/%s.ogg", fileName);
+        handle = LoadSoundMem(fullPath);
+    }
+
+    // 成功した場合のみキャッシュに登録
+    if (handle != -1) {
+        bgmCache[key] = handle;
+        stageData[stageIndex].bgmHandle = handle;
+    }
+}

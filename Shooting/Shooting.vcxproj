@@ -1,0 +1,597 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{d6e84001-f68a-43a6-b0c0-f48a43054cb0}</ProjectGuid>
+    <RootNamespace>Shooting</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>D:\tools\DxLib_VC\include;D:\tools\nlohmann</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>D:\tools\DxLib_VC\include;</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>D:\tools\DxLib_VC\include;D:\tools\nlohmann</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>D:\tools\DxLib_VC\include;</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>D:\tools\DxLib_VC\include;D:\tools\nlohmann</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>D:\tools\DxLib_VC\include;</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>D:\tools\DxLib_VC\include;D:\tools\nlohmann</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>D:\tools\DxLib_VC\include;</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="enemyPat_ChatGPTEx1.cpp" />
+    <ClCompile Include="enemyPat_ClaudeEx3.cpp" />
+    <ClCompile Include="enemyPat_ClaudeEx4.cpp" />
+    <ClCompile Include="enemyPat_DeepSeekEx2.cpp" />
+    <ClCompile Include="gameScreen.cpp" />
+    <ClCompile Include="enemy.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT1.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT2.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT3.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT4.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT5.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT6.cpp" />
+    <ClCompile Include="enemyPat_Claude1.cpp" />
+    <ClCompile Include="enemyPat_Claude2.cpp" />
+    <ClCompile Include="enemyPat_Claude3.cpp" />
+    <ClCompile Include="enemyPat_Claude4.cpp" />
+    <ClCompile Include="enemyPat_Claude5.cpp" />
+    <ClCompile Include="enemyPat_Claude6.cpp" />
+    <ClCompile Include="enemyPat_ClaudeEx1.cpp" />
+    <ClCompile Include="enemyPat_ClaudeEx2.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek1.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek2.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek27.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek48.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT48.cpp" />
+    <ClCompile Include="enemyPat_Gemini48.cpp" />
+    <ClCompile Include="enemyPat_Grok48.cpp" />
+    <ClCompile Include="enemyPat_Claude48.cpp" />
+    <ClCompile Include="enemyPat_Qwen48.cpp" />
+    <ClCompile Include="enemyPat_Sakana48.cpp" />
+    <ClCompile Include="enemyPat_Zai48.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek47.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT47.cpp" />
+    <ClCompile Include="enemyPat_Gemini47.cpp" />
+    <ClCompile Include="enemyPat_Grok47.cpp" />
+    <ClCompile Include="enemyPat_Claude47.cpp" />
+    <ClCompile Include="enemyPat_Qwen47.cpp" />
+    <ClCompile Include="enemyPat_Kimi47.cpp" />
+    <ClCompile Include="enemyPat_Zai47.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek46.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT46.cpp" />
+    <ClCompile Include="enemyPat_Gemini46.cpp" />
+    <ClCompile Include="enemyPat_Grok46.cpp" />
+    <ClCompile Include="enemyPat_Claude46.cpp" />
+    <ClCompile Include="enemyPat_Qwen46.cpp" />
+    <ClCompile Include="enemyPat_Kimi46.cpp" />
+    <ClCompile Include="enemyPat_Zai46.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek45.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT45.cpp" />
+    <ClCompile Include="enemyPat_Gemini45.cpp" />
+    <ClCompile Include="enemyPat_Grok45.cpp" />
+    <ClCompile Include="enemyPat_Claude45.cpp" />
+    <ClCompile Include="enemyPat_Qwen45.cpp" />
+    <ClCompile Include="enemyPat_Kimi45.cpp" />
+    <ClCompile Include="enemyPat_Zai45.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek44.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT44.cpp" />
+    <ClCompile Include="enemyPat_Gemini44.cpp" />
+    <ClCompile Include="enemyPat_Grok44.cpp" />
+    <ClCompile Include="enemyPat_Claude44.cpp" />
+    <ClCompile Include="enemyPat_Qwen44.cpp" />
+    <ClCompile Include="enemyPat_Kimi44.cpp" />
+    <ClCompile Include="enemyPat_Zai44.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek43.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT43.cpp" />
+    <ClCompile Include="enemyPat_Gemini43.cpp" />
+    <ClCompile Include="enemyPat_Grok43.cpp" />
+    <ClCompile Include="enemyPat_Claude43.cpp" />
+    <ClCompile Include="enemyPat_Qwen43.cpp" />
+    <ClCompile Include="enemyPat_Kimi43.cpp" />
+    <ClCompile Include="enemyPat_Zai43.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek42.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT42.cpp" />
+    <ClCompile Include="enemyPat_Gemini42.cpp" />
+    <ClCompile Include="enemyPat_Grok42.cpp" />
+    <ClCompile Include="enemyPat_Claude42.cpp" />
+    <ClCompile Include="enemyPat_Qwen42.cpp" />
+    <ClCompile Include="enemyPat_Kimi42.cpp" />
+    <ClCompile Include="enemyPat_Zai42.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek41.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT41.cpp" />
+    <ClCompile Include="enemyPat_Gemini41.cpp" />
+    <ClCompile Include="enemyPat_Grok41.cpp" />
+    <ClCompile Include="enemyPat_Sakana41.cpp" />
+    <ClCompile Include="enemyPat_Claude41.cpp" />
+    <ClCompile Include="enemyPat_Qwen41.cpp" />
+    <ClCompile Include="enemyPat_Kimi41.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek40.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT40.cpp" />
+    <ClCompile Include="enemyPat_Gemini40.cpp" />
+    <ClCompile Include="enemyPat_Grok40.cpp" />
+    <ClCompile Include="enemyPat_Sakana40.cpp" />
+    <ClCompile Include="enemyPat_Claude40.cpp" />
+    <ClCompile Include="enemyPat_Qwen40.cpp" />
+    <ClCompile Include="enemyPat_Kimi40.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek39.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT39.cpp" />
+    <ClCompile Include="enemyPat_Gemini39.cpp" />
+    <ClCompile Include="enemyPat_Grok39.cpp" />
+    <ClCompile Include="enemyPat_Sakana39.cpp" />
+    <ClCompile Include="enemyPat_Claude39.cpp" />
+    <ClCompile Include="enemyPat_Qwen39.cpp" />
+    <ClCompile Include="enemyPat_Kimi39.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek38.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT38.cpp" />
+    <ClCompile Include="enemyPat_Gemini38.cpp" />
+    <ClCompile Include="enemyPat_Grok38.cpp" />
+    <ClCompile Include="enemyPat_Sakana38.cpp" />
+    <ClCompile Include="enemyPat_Claude38.cpp" />
+    <ClCompile Include="enemyPat_Qwen38.cpp" />
+    <ClCompile Include="enemyPat_Kimi38.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek37.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT37.cpp" />
+    <ClCompile Include="enemyPat_Gemini37.cpp" />
+    <ClCompile Include="enemyPat_Grok37.cpp" />
+    <ClCompile Include="enemyPat_Sakana37.cpp" />
+    <ClCompile Include="enemyPat_Claude37.cpp" />
+    <ClCompile Include="enemyPat_Qwen37.cpp" />
+    <ClCompile Include="enemyPat_Kimi37.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek36.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT36.cpp" />
+    <ClCompile Include="enemyPat_Gemini36.cpp" />
+    <ClCompile Include="enemyPat_Grok36.cpp" />
+    <ClCompile Include="enemyPat_Sakana36.cpp" />
+    <ClCompile Include="enemyPat_Claude36.cpp" />
+    <ClCompile Include="enemyPat_Qwen36.cpp" />
+    <ClCompile Include="enemyPat_Kimi36.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek35.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT35.cpp" />
+    <ClCompile Include="enemyPat_Gemini35.cpp" />
+    <ClCompile Include="enemyPat_Grok35.cpp" />
+    <ClCompile Include="enemyPat_Sakana35.cpp" />
+    <ClCompile Include="enemyPat_Claude35.cpp" />
+    <ClCompile Include="enemyPat_Qwen35.cpp" />
+    <ClCompile Include="enemyPat_Kimi35.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek34.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT34.cpp" />
+    <ClCompile Include="enemyPat_Gemini34.cpp" />
+    <ClCompile Include="enemyPat_Grok34.cpp" />
+    <ClCompile Include="enemyPat_Sakana34.cpp" />
+    <ClCompile Include="enemyPat_Claude34.cpp" />
+    <ClCompile Include="enemyPat_Qwen34.cpp" />
+    <ClCompile Include="enemyPat_Kimi34.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek33.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT33.cpp" />
+    <ClCompile Include="enemyPat_Gemini33.cpp" />
+    <ClCompile Include="enemyPat_Grok33.cpp" />
+    <ClCompile Include="enemyPat_Sakana33.cpp" />
+    <ClCompile Include="enemyPat_Claude33.cpp" />
+    <ClCompile Include="enemyPat_Qwen33.cpp" />
+    <ClCompile Include="enemyPat_Kimi33.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek32.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT32.cpp" />
+    <ClCompile Include="enemyPat_Gemini32.cpp" />
+    <ClCompile Include="enemyPat_Grok32.cpp" />
+    <ClCompile Include="enemyPat_Sakana32.cpp" />
+    <ClCompile Include="enemyPat_Claude32.cpp" />
+    <ClCompile Include="enemyPat_Qwen32.cpp" />
+    <ClCompile Include="enemyPat_Kimi32.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek31.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT31.cpp" />
+    <ClCompile Include="enemyPat_Gemini31.cpp" />
+    <ClCompile Include="enemyPat_Grok31.cpp" />
+    <ClCompile Include="enemyPat_Sakana31.cpp" />
+    <ClCompile Include="enemyPat_Claude31.cpp" />
+    <ClCompile Include="enemyPat_Qwen31.cpp" />
+    <ClCompile Include="enemyPat_Kimi31.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek30.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT30.cpp" />
+    <ClCompile Include="enemyPat_Gemini30.cpp" />
+    <ClCompile Include="enemyPat_Grok30.cpp" />
+    <ClCompile Include="enemyPat_Sakana30.cpp" />
+    <ClCompile Include="enemyPat_Claude30.cpp" />
+    <ClCompile Include="enemyPat_Qwen30.cpp" />
+    <ClCompile Include="enemyPat_Kimi30.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek29.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT29.cpp" />
+    <ClCompile Include="enemyPat_Gemini29.cpp" />
+    <ClCompile Include="enemyPat_Grok29.cpp" />
+    <ClCompile Include="enemyPat_Sakana29.cpp" />
+    <ClCompile Include="enemyPat_Claude29.cpp" />
+    <ClCompile Include="enemyPat_Qwen29.cpp" />
+    <ClCompile Include="enemyPat_Vibe29.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek28.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT28.cpp" />
+    <ClCompile Include="enemyPat_Gemini28.cpp" />
+    <ClCompile Include="enemyPat_Grok28.cpp" />
+    <ClCompile Include="enemyPat_Sakana28.cpp" />
+    <ClCompile Include="enemyPat_Claude28.cpp" />
+    <ClCompile Include="enemyPat_Qwen28.cpp" />
+    <ClCompile Include="enemyPat_Vibe28.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT27.cpp" />
+    <ClCompile Include="enemyPat_Gemini27.cpp" />
+    <ClCompile Include="enemyPat_Grok27.cpp" />
+    <ClCompile Include="enemyPat_Sakana27.cpp" />
+    <ClCompile Include="enemyPat_Claude27.cpp" />
+    <ClCompile Include="enemyPat_Qwen27.cpp" />
+    <ClCompile Include="enemyPat_Vibe27.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek26.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT26.cpp" />
+    <ClCompile Include="enemyPat_Gemini26.cpp" />
+    <ClCompile Include="enemyPat_Grok26.cpp" />
+    <ClCompile Include="enemyPat_Sakana26.cpp" />
+    <ClCompile Include="enemyPat_Claude26.cpp" />
+    <ClCompile Include="enemyPat_Qwen26.cpp" />
+    <ClCompile Include="enemyPat_Vibe26.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek25.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT25.cpp" />
+    <ClCompile Include="enemyPat_Gemini25.cpp" />
+    <ClCompile Include="enemyPat_Grok25.cpp" />
+    <ClCompile Include="enemyPat_Sakana25.cpp" />
+    <ClCompile Include="enemyPat_Claude25.cpp" />
+    <ClCompile Include="enemyPat_Qwen25.cpp" />
+    <ClCompile Include="enemyPat_Vibe25.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek3.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek24.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT24.cpp" />
+    <ClCompile Include="enemyPat_Gemini24.cpp" />
+    <ClCompile Include="enemyPat_Grok24.cpp" />
+    <ClCompile Include="enemyPat_Sakana24.cpp" />
+    <ClCompile Include="enemyPat_Claude24.cpp" />
+    <ClCompile Include="enemyPat_Qwen24.cpp" />
+    <ClCompile Include="enemyPat_Vibe24.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek23.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT23.cpp" />
+    <ClCompile Include="enemyPat_Gemini23.cpp" />
+    <ClCompile Include="enemyPat_Grok23.cpp" />
+    <ClCompile Include="enemyPat_Sakana23.cpp" />
+    <ClCompile Include="enemyPat_Claude23.cpp" />
+    <ClCompile Include="enemyPat_Qwen23.cpp" />
+    <ClCompile Include="enemyPat_Vibe23.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek22.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT22.cpp" />
+    <ClCompile Include="enemyPat_Gemini22.cpp" />
+    <ClCompile Include="enemyPat_Grok22.cpp" />
+    <ClCompile Include="enemyPat_Sakana22.cpp" />
+    <ClCompile Include="enemyPat_Claude22.cpp" />
+    <ClCompile Include="enemyPat_Qwen22.cpp" />
+    <ClCompile Include="enemyPat_Vibe22.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek21.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT21.cpp" />
+    <ClCompile Include="enemyPat_Gemini21.cpp" />
+    <ClCompile Include="enemyPat_Grok21.cpp" />
+    <ClCompile Include="enemyPat_Sakana21.cpp" />
+    <ClCompile Include="enemyPat_Claude21.cpp" />
+    <ClCompile Include="enemyPat_Qwen21.cpp" />
+    <ClCompile Include="enemyPat_Vibe21.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek20.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT20.cpp" />
+    <ClCompile Include="enemyPat_Gemini20.cpp" />
+    <ClCompile Include="enemyPat_Grok20.cpp" />
+    <ClCompile Include="enemyPat_Sakana20.cpp" />
+    <ClCompile Include="enemyPat_Claude20.cpp" />
+    <ClCompile Include="enemyPat_Qwen20.cpp" />
+    <ClCompile Include="enemyPat_Vibe20.cpp" />
+    <ClCompile Include="enemyPat_GeminiEx2.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek19.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT19.cpp" />
+    <ClCompile Include="enemyPat_Gemini19.cpp" />
+    <ClCompile Include="enemyPat_Grok19.cpp" />
+    <ClCompile Include="enemyPat_Sakana19.cpp" />
+    <ClCompile Include="enemyPat_Claude19.cpp" />
+    <ClCompile Include="enemyPat_Qwen19.cpp" />
+    <ClCompile Include="enemyPat_Vibe19.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek4.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek18.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT18.cpp" />
+    <ClCompile Include="enemyPat_Gemini18.cpp" />
+    <ClCompile Include="enemyPat_Grok18.cpp" />
+    <ClCompile Include="enemyPat_Sakana18.cpp" />
+    <ClCompile Include="enemyPat_Claude18.cpp" />
+    <ClCompile Include="enemyPat_Qwen18.cpp" />
+    <ClCompile Include="enemyPat_Vibe18.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek17.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT17.cpp" />
+    <ClCompile Include="enemyPat_Gemini17.cpp" />
+    <ClCompile Include="enemyPat_Grok17.cpp" />
+    <ClCompile Include="enemyPat_Sakana17.cpp" />
+    <ClCompile Include="enemyPat_Claude17.cpp" />
+    <ClCompile Include="enemyPat_Qwen17.cpp" />
+    <ClCompile Include="enemyPat_Vibe17.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek5.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek16.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT16.cpp" />
+    <ClCompile Include="enemyPat_Gemini16.cpp" />
+    <ClCompile Include="enemyPat_Grok16.cpp" />
+    <ClCompile Include="enemyPat_Sakana16.cpp" />
+    <ClCompile Include="enemyPat_Claude16.cpp" />
+    <ClCompile Include="enemyPat_Qwen16.cpp" />
+    <ClCompile Include="enemyPat_Vibe16.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek15.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT15.cpp" />
+    <ClCompile Include="enemyPat_Gemini15.cpp" />
+    <ClCompile Include="enemyPat_Grok15.cpp" />
+    <ClCompile Include="enemyPat_Sakana15.cpp" />
+    <ClCompile Include="enemyPat_Claude15.cpp" />
+    <ClCompile Include="enemyPat_Qwen15.cpp" />
+    <ClCompile Include="enemyPat_Vibe15.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek14.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT14.cpp" />
+    <ClCompile Include="enemyPat_Gemini14.cpp" />
+    <ClCompile Include="enemyPat_Grok14.cpp" />
+    <ClCompile Include="enemyPat_Sakana14.cpp" />
+    <ClCompile Include="enemyPat_Claude14.cpp" />
+    <ClCompile Include="enemyPat_Qwen14.cpp" />
+    <ClCompile Include="enemyPat_Vibe14.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek6.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek13.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT13.cpp" />
+    <ClCompile Include="enemyPat_Gemini13.cpp" />
+    <ClCompile Include="enemyPat_Grok13.cpp" />
+    <ClCompile Include="enemyPat_Sakana13.cpp" />
+    <ClCompile Include="enemyPat_Claude13.cpp" />
+    <ClCompile Include="enemyPat_Qwen13.cpp" />
+    <ClCompile Include="enemyPat_Vibe13.cpp" />
+    <ClCompile Include="enemyPat_DeepSeekEx1.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek12.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT12.cpp" />
+    <ClCompile Include="enemyPat_Gemini12.cpp" />
+    <ClCompile Include="enemyPat_Grok12.cpp" />
+    <ClCompile Include="enemyPat_handmade5.cpp" />
+    <ClCompile Include="enemyPat_Sakana12.cpp" />
+    <ClCompile Include="enemyPat_Claude12.cpp" />
+    <ClCompile Include="enemyPat_Qwen12.cpp" />
+    <ClCompile Include="enemyPat_Vibe12.cpp" />
+    <ClCompile Include="enemyPat_Gemini5.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek11.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT11.cpp" />
+    <ClCompile Include="enemyPat_Gemini11.cpp" />
+    <ClCompile Include="enemyPat_GeminiEx1.cpp" />
+    <ClCompile Include="enemyPat_Grok11.cpp" />
+    <ClCompile Include="enemyPat_Sakana11.cpp" />
+    <ClCompile Include="enemyPat_Claude11.cpp" />
+    <ClCompile Include="enemyPat_Qwen11.cpp" />
+    <ClCompile Include="enemyPat_Vibe11.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek10.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT10.cpp" />
+    <ClCompile Include="enemyPat_Gemini10.cpp" />
+    <ClCompile Include="enemyPat_Grok10.cpp" />
+    <ClCompile Include="enemyPat_Sakana10.cpp" />
+    <ClCompile Include="enemyPat_Claude10.cpp" />
+    <ClCompile Include="enemyPat_Qwen10.cpp" />
+    <ClCompile Include="enemyPat_Vibe10.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek9.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT9.cpp" />
+    <ClCompile Include="enemyPat_Gemini9.cpp" />
+    <ClCompile Include="enemyPat_Grok9.cpp" />
+    <ClCompile Include="enemyPat_Sakana9.cpp" />
+    <ClCompile Include="enemyPat_Claude9.cpp" />
+    <ClCompile Include="enemyPat_Qwen9.cpp" />
+    <ClCompile Include="enemyPat_Vibe9.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek8.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT8.cpp" />
+    <ClCompile Include="enemyPat_Gemini8.cpp" />
+    <ClCompile Include="enemyPat_Grok8.cpp" />
+    <ClCompile Include="enemyPat_Sakana8.cpp" />
+    <ClCompile Include="enemyPat_Claude8.cpp" />
+    <ClCompile Include="enemyPat_Qwen8.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek7.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT7.cpp" />
+    <ClCompile Include="enemyPat_Gemini7.cpp" />
+    <ClCompile Include="enemyPat_Grok7.cpp" />
+    <ClCompile Include="enemyPat_GrokEX1.cpp" />
+    <ClCompile Include="enemyPat_Sakana7.cpp" />
+    <ClCompile Include="enemyPat_Claude7.cpp" />
+    <ClCompile Include="enemyPat_Qwen7.cpp" />
+    <ClCompile Include="enemyPat_Gemini6.cpp" />
+    <ClCompile Include="enemyPat_Grok5.cpp" />
+    <ClCompile Include="enemyPat_Grok6.cpp" />
+    <ClCompile Include="enemyPat_handmade4.cpp" />
+    <ClCompile Include="enemyPat_Qwen5.cpp" />
+    <ClCompile Include="enemyPat_Qwen6.cpp" />
+    <ClCompile Include="enemyPat_Sakana5.cpp" />
+    <ClCompile Include="enemyPat_Sakana6.cpp" />
+    <ClCompile Include="enemyPat_tmp.cpp" />
+    <ClCompile Include="enemyPat_Gemini1.cpp" />
+    <ClCompile Include="enemyPat_Gemini2.cpp" />
+    <ClCompile Include="enemyPat_Gemini3.cpp" />
+    <ClCompile Include="enemyPat_Gemini4.cpp" />
+    <ClCompile Include="enemyPat_Grok1.cpp" />
+    <ClCompile Include="enemyPat_Grok2.cpp" />
+    <ClCompile Include="enemyPat_Grok3.cpp" />
+    <ClCompile Include="enemyPat_Grok4.cpp" />
+    <ClCompile Include="enemyPat_Qwen1.cpp" />
+    <ClCompile Include="enemyPat_Qwen2.cpp" />
+    <ClCompile Include="enemyPat_Qwen3.cpp" />
+    <ClCompile Include="enemyPat_Qwen4.cpp" />
+    <ClCompile Include="enemyPat_Sakana1.cpp" />
+    <ClCompile Include="enemyPat_Sakana2.cpp" />
+    <ClCompile Include="enemyPat_Sakana3.cpp" />
+    <ClCompile Include="enemyPat_Sakana4.cpp" />
+    <ClCompile Include="enemyPat_sampleForAI.cpp" />
+    <ClCompile Include="enemyPat_handmade1.cpp" />
+    <ClCompile Include="enemyPat_handmade2.cpp" />
+    <ClCompile Include="enemyPat_handmade3.cpp" />
+    <ClCompile Include="enemyPat_Vibe1.cpp" />
+    <ClCompile Include="enemyPat_Vibe2.cpp" />
+    <ClCompile Include="enemyPat_Vibe3.cpp" />
+    <ClCompile Include="enemyPat_Vibe4.cpp" />
+    <ClCompile Include="enemyPat_Vibe5.cpp" />
+    <ClCompile Include="enemyPat_Vibe6.cpp" />
+    <ClCompile Include="enemyPat_Vibe7.cpp" />
+    <ClCompile Include="enemyPat_Vibe8.cpp" />
+    <ClCompile Include="enemyShot.cpp" />
+    <ClCompile Include="fileOpenClose.cpp" />
+    <ClCompile Include="fps.cpp" />
+    <ClCompile Include="getHitKeyStateAll2.cpp" />
+    <ClCompile Include="gv.cpp" />
+    <ClCompile Include="imgSoundLoad.cpp" />
+    <ClCompile Include="initial.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="menu.cpp" />
+    <ClCompile Include="player.cpp" />
+    <ClCompile Include="playerShot.cpp" />
+    <ClCompile Include="replay.cpp" />
+    <ClCompile Include="stageData.cpp" />
+    <ClCompile Include="stateManager.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="gameScreen.h" />
+    <ClInclude Include="enemy.h" />
+    <ClInclude Include="enemyShot.h" />
+    <ClInclude Include="fileOpenClose.h" />
+    <ClInclude Include="fps.h" />
+    <ClInclude Include="getHitKeyStateAll2.h" />
+    <ClInclude Include="gv.h" />
+    <ClInclude Include="imgSoundLoad.h" />
+    <ClInclude Include="initial.h" />
+    <ClInclude Include="menu.h" />
+    <ClInclude Include="player.h" />
+    <ClInclude Include="playerShot.h" />
+    <ClInclude Include="replay.h" />
+    <ClInclude Include="stageData.h" />
+    <ClInclude Include="stateManager.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="saveData\bestTime.json" />
+    <None Include="saveData\cursor.json" />
+    <None Include="saveData\window.json" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
