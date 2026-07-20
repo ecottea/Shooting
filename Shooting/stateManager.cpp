@@ -15,7 +15,7 @@ sCursor cursor = { 0, 0, 0 };
 Joutai StateManager::currentState = Joutai::None;
 
 // 録画モード用グローバル変数
-bool recordingMode = false;   // 録画モード
+bool recordingMode = false;   // (true:録画モード, false:通常モード)
 int  replayLoopCount = 8;    // 連続リプレイ録画個数
 
 

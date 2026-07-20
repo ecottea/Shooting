@@ -208,7 +208,7 @@ static void ShotSwimmy(sEnemyShotSet* pEnemyShotSet)
 
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_Swimmy_Zai()
 {
     static int muki;
     static int shot_count;
