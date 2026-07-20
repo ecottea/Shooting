@@ -418,5 +418,13 @@ std::vector<StageInfo> stageData = {
     { "Qwen50", "スイミーをモチーフにした弾幕", "Shoal Storm Run", EnemyPat_Swimmy_Qwen },
     { "Kimi50", "スイミーをモチーフにした弾幕", "Shoal Storm Run", EnemyPat_Swimmy_Kimi },
     { "Zai50", "スイミーをモチーフにした弾幕", "Shoal Storm Run", EnemyPat_Swimmy_Zai },
+    { "DeepSeek51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_DeepSeek },
+    { "ChatGPT51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_ChatGPT },
+    { "Gemini51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Gemini },
+    { "Grok51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Grok },
+    { "Claude51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Claude },
+    { "Qwen51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Qwen },
+    { "Kimi51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Kimi },
+    { "Zai51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Zai },
     { "tmp", "ここに貼ってお試し", "Torpedo_Hymn", EnemyPat_Tmp },
 };
