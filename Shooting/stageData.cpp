@@ -426,5 +426,13 @@ std::vector<StageInfo> stageData = {
     { "Qwen51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Qwen },
     { "Kimi51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Kimi },
     { "Zai51", "イライラ棒をモチーフにした弾幕", "Clockwork Panic Run", EnemyPat_Irairabou_Zai },
+    { "DeepSeek52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_DeepSeek },
+    { "ChatGPT52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_ChatGPT },
+    { "Gemini52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_Gemini },
+    { "Grok52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_Grok },
+    { "Claude52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_Claude },
+    { "Qwen52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_Qwen },
+    { "Kimi52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_Kimi },
+    { "Zai52", "蜂をモチーフにした弾幕", "Hive Storm", EnemyPat_Bee_Zai },
     { "tmp", "ここに貼ってお試し", "Torpedo_Hymn", EnemyPat_Tmp },
 };
