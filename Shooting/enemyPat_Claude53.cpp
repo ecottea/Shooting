@@ -73,10 +73,10 @@ static const double BURST_SPEED = 1.6;   // 1段目の飛散速度
 static const double GRAVITY = 0.015; // 落下（火の粉が舞い落ちる表現）
 
 // 多重発生：同時に発生させる「大」の数と、それぞれの中心位置・出現タイミングのずれ
-static const int    N_MULTI = 2;
-static const double MULTI_CX[N_MULTI] = { 170.0, 310.0 }; // 各インスタンスの中心X
-static const double MULTI_CY[N_MULTI] = { 170.0, 230.0 }; // 各インスタンスの中心Y
-static const int    MULTI_STAGGER[N_MULTI] = { 0, 15 };         // 出現タイミングのずれ(フレーム)
+static const int    N_MULTI = 3;
+static const double MULTI_CX[N_MULTI] = { 260.0, 170.0, 310.0 }; // 各インスタンスの中心X
+static const double MULTI_CY[N_MULTI] = { 50.0, 170.0, 230.0 }; // 各インスタンスの中心Y
+static const int    MULTI_STAGGER[N_MULTI] = { 0, 15, 30 };         // 出現タイミングのずれ(フレーム)
 
 // このパターンを再発生させる間隔（周期短縮：以前より詰めている）
 static const int LOOP_INTERVAL = 200;
@@ -287,7 +287,7 @@ static void ShotDaimonji(sEnemyShotSet* pEnemyShotSet)
 // ============================================================
 //  敵本体のパターン：大文字送り火
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_Daimonji_Claude()
 {
     static int muki;
 

@@ -56,6 +56,7 @@ bool StateManager::ChangeState(Joutai newState)
 				}
 				currentBGMHandle = bgmHandle;
 				if (bgmHandle != -1) {
+					//ChangeVolumeSoundMem(240, bgmHandle); // BGM ‚Ì‰¹—Ê‚ð‰º‚°‚é
 					PlaySoundMem(bgmHandle, DX_PLAYTYPE_LOOP);
 				}
 			}
