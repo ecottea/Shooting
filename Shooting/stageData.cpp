@@ -555,5 +555,13 @@ std::vector<StageInfo> stageData = {
     { "Qwen67", "世界一難しい弾幕", "未来確定弾幕「ラプラスの最終定理」", "Cyber Doom Circuit", EnemyPat_TheHardest_Qwen },
     { "Kimi67", "世界一難しい弾幕", "無限分岐のカオス・フラクタル", "Cyber Doom Circuit", EnemyPat_TheHardest_Kimi },
     { "Zai67", "世界一難しい弾幕", "虚数迷宮・因果律の崩壊", "Cyber Doom Circuit", EnemyPat_TheHardest_Zai },
+    { "DeepSeek68", "花火をモチーフにした弾幕", "大輪牡丹花火・千輪咲き", "Starburst Matsuri", EnemyPat_Firework_DeepSeek },
+    { "ChatGPT68", "花火をモチーフにした弾幕", "残光花火", "Starburst Matsuri", EnemyPat_Firework_ChatGPT },
+    { "Gemini68", "花火をモチーフにした弾幕", "昇り曲導付 尺玉千輪菊", "Starburst Matsuri", EnemyPat_Firework_Gemini },
+    { "Grok68", "花火をモチーフにした弾幕", "菊花大輪", "Starburst Matsuri", EnemyPat_Firework_Grok },
+    { "Claude68", "花火をモチーフにした弾幕", "尺玉二段咲き", "Starburst Matsuri", EnemyPat_Firework_Claude },
+    { "Qwen68", "花火をモチーフにした弾幕", "花火「三尺玉・三段咲き」", "Starburst Matsuri", EnemyPat_Firework_Qwen },
+    { "Kimi68", "花火をモチーフにした弾幕", "昇華の瞬間（アセンション・ブルーム）", "Starburst Matsuri", EnemyPat_Firework_Kimi },
+    { "Zai68", "花火をモチーフにした弾幕", "二重咲き・昇華スターマイン", "Starburst Matsuri", EnemyPat_Firework_Zai },
     { "tmp", "お試し弾幕", "", "Torpedo_Hymn", EnemyPat_Tmp },
 };

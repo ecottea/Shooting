@@ -239,7 +239,7 @@ static void FireworkCenterLaser(sEnemyShotSet* pEnemyShotSet)
             pShot->muki = angle;  // 向きも回転
 
             // 火花弾発射（一定間隔）
-            if (pEnemyShotSet->count % FIRE_INTERVAL == 0) {
+            if (pEnemyShotSet->count % FIRE_INTERVAL == 0 && pEnemyShotSet->count < 600) {
                 // 自機狙い方向
                 double aim = atan2(player.y - pShot->y, player.x - pShot->x);
                 sEnemyShot* pSpark = new sEnemyShot;
@@ -309,7 +309,7 @@ static void FireworkScatter(sEnemyShotSet* pEnemyShotSet)
 //--------------------------------------
 // 敵本体のパターン
 //--------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_Firework_DeepSeek()
 {
     // 初期化
     if (count == 1) {
