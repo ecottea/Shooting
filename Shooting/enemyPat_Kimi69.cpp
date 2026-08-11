@@ -336,7 +336,7 @@ static void ShotFruit(sEnemyShotSet* pSet)
 }
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_SuikaGame_Kimi()
 {
     static int muki;
     static int shot_count;

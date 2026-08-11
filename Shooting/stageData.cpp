@@ -563,5 +563,13 @@ std::vector<StageInfo> stageData = {
     { "Qwen68", "花火をモチーフにした弾幕", "花火「三尺玉・三段咲き」", "Starburst Matsuri", EnemyPat_Firework_Qwen },
     { "Kimi68", "花火をモチーフにした弾幕", "昇華の瞬間（アセンション・ブルーム）", "Starburst Matsuri", EnemyPat_Firework_Kimi },
     { "Zai68", "花火をモチーフにした弾幕", "二重咲き・昇華スターマイン", "Starburst Matsuri", EnemyPat_Firework_Zai },
+    { "DeepSeek69", "スイカゲームをモチーフにした弾幕", "果実合成「弾けるスイカ連鎖」", "Watermelon Sky Run", EnemyPat_SuikaGame_DeepSeek },
+    { "ChatGPT69", "スイカゲームをモチーフにした弾幕", "果実融合「スイカ連鎖フィーバー」", "Watermelon Sky Run", EnemyPat_SuikaGame_ChatGPT },
+    { "Gemini69", "スイカゲームをモチーフにした弾幕", "シンカの連鎖弾（くだものフュージョン）", "Watermelon Sky Run", EnemyPat_SuikaGame_Gemini },
+    { "Grok69", "スイカゲームをモチーフにした弾幕", "果実融合弾幕", "Watermelon Sky Run", EnemyPat_SuikaGame_Grok },
+    { "Claude69", "スイカゲームをモチーフにした弾幕", "果実転生", "Watermelon Sky Run", EnemyPat_SuikaGame_Claude },
+    { "Qwen69", "スイカゲームをモチーフにした弾幕", "果実合成のスイカ割り", "Watermelon Sky Run", EnemyPat_SuikaGame_Qwen },
+    { "Kimi69", "スイカゲームをモチーフにした弾幕", "進化の果実列", "Watermelon Sky Run", EnemyPat_SuikaGame_Kimi },
+    { "Zai69", "スイカゲームをモチーフにした弾幕", "重力合成弾幕・果実のカスケード", "Watermelon Sky Run", EnemyPat_SuikaGame_Zai },
     { "tmp", "お試し弾幕", "", "Torpedo_Hymn", EnemyPat_Tmp },
 };
