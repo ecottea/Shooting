@@ -123,6 +123,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             if (StateManager::GetState() == Joutai::Replay) {
                 // リプレイ中でもQキーを取得する（物理キーボード）
                 if (CheckHitKey(KEY_INPUT_Q)) key[KEY_INPUT_Q] = 1;
+				// ジョイスティック用
+                int pad = GetJoypadInputState(DX_INPUT_PAD1);
+                key[KEY_INPUT_Q] |= (pad & PAD_INPUT_4) ? 1 : 0;
 
                 if (!updateReplayInput()) {
                     // リプレイデータ終了 → メニューへ
