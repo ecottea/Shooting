@@ -130,7 +130,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>E:\_Drive_N\program\vc2022\_tool\DxLib_VC\include;</AdditionalLibraryDirectories>
+     <AdditionalLibraryDirectories>E:\_Drive_N\program\vc2022\_tool\DxLib_VC\include;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -141,7 +141,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>E:\_Drive_N\program\vc2022\_tool\DxLib_VC\include;E:\_Drive_N\program\vc2022\_tool\json-develop\include;E:\_Drive_N\program\vc2022\_tool\json-develop\include\nlohmann</AdditionalIncludeDirectories>
+     <AdditionalIncludeDirectories>E:\_Drive_N\program\vc2022\_tool\DxLib_VC\include;E:\_Drive_N\program\vc2022\_tool\json-develop\include;E:\_Drive_N\program\vc2022\_tool\json-develop\include\nlohmann</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -160,6 +160,7 @@
     <ClCompile Include="enemyPat_DeepSeekEx2.cpp" />
     <ClCompile Include="enemyPat_geminiEx3.cpp" />
     <ClCompile Include="enemyPat_handmade6.cpp" />
+    <ClCompile Include="enemyPat_handmade7.cpp" />
     <ClCompile Include="gameScreen.cpp" />
     <ClCompile Include="enemy.cpp" />
     <ClCompile Include="enemyPat_ChatGPT1.cpp" />
@@ -176,6 +177,14 @@
     <ClCompile Include="enemyPat_Claude6.cpp" />
     <ClCompile Include="enemyPat_ClaudeEx1.cpp" />
     <ClCompile Include="enemyPat_ClaudeEx2.cpp" />
+    <ClCompile Include="enemyPat_DeepSeek72.cpp" />
+    <ClCompile Include="enemyPat_ChatGPT72.cpp" />
+    <ClCompile Include="enemyPat_Gemini72.cpp" />
+    <ClCompile Include="enemyPat_Grok72.cpp" />
+    <ClCompile Include="enemyPat_Claude72.cpp" />
+    <ClCompile Include="enemyPat_Qwen72.cpp" />
+    <ClCompile Include="enemyPat_Kimi72.cpp" />
+    <ClCompile Include="enemyPat_Zai72.cpp" />
     <ClCompile Include="enemyPat_DeepSeek71.cpp" />
     <ClCompile Include="enemyPat_ChatGPT71.cpp" />
     <ClCompile Include="enemyPat_Gemini71.cpp" />

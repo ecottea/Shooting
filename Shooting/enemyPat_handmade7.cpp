@@ -14,8 +14,8 @@
 static const double FRAME_TIME_SEC = 0.017;  // 1フレーム = 17ms
 static const double SYNC_OFFSET_SEC = 0.020; // 遅延補正（秒）
 
-static const int minNote = 21; // ピアノ88鍵盤の最低音 (A0)
-static const int maxNote = 21 + 88 - 1; // 指定の最高音
+static const int minNote = 31; // ピアノ88鍵盤の最低音 (A0) は 21
+static const int maxNote = 91; // ピアノ88鍵盤の最高音 (C8) は 108
 
 static int g_bgmHandle = -1;
 
@@ -57,8 +57,8 @@ static void ShotMoveLaserKey(sEnemyShotSet* pEnemyShotSet)
 // ----------------------------------------------------------------
 static void SpawnPianoKeysLaser()
 {
-    const double startX = 0.0;
-    const double endX = 480.0;
+    const double startX = 20.0;
+    const double endX = 460.0;
     const double topY = 10.0; // 画面最上部
 
     for (int n = minNote; n <= maxNote; ++n) {
@@ -123,7 +123,7 @@ static void SpawnPianoRollShot(int note, int velocity)
     if (norm < 0.0) norm = 0.0;
     if (norm > 1.0) norm = 1.0;
 
-    double spawnX = 0.0 + norm * (480.0 - 0.0);
+    double spawnX = 20.0 + norm * (460.0 - 20.0);
     double spawnY = 25.0; // 鍵盤レーザーの位置から真下へ発射
 
     sEnemyShotSet* pSet = new sEnemyShotSet;
@@ -169,7 +169,7 @@ static void LoadMidiEvents()
     g_eventIndex = 0;
 
     smf::MidiFile midifile;
-    if (!midifile.read("AI_work/oldBGM/サーカスギャロップ.mid")) {
+    if (!midifile.read("AI_work/oldBGM/Turkish March.mid")) {
         g_midiLoaded = false;
         return;
     }
@@ -216,7 +216,7 @@ static double GetCurrentBgmTimeInSeconds()
 // ----------------------------------------------------------------
 // 敵本体のメイン制御関数
 // ----------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_TurkishMarch()
 {
     static int muki;
 
