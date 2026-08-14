@@ -86,7 +86,7 @@ void EnemyPat_Unavoidable_Gemini()
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 80.0; // 少し下げて画面中央寄りに
-        enemy.maxHp = enemy.hp = 100; // 仕様通り200固定
+        enemy.maxHp = enemy.hp = 200; // 仕様通り200固定
         muki = 1;
     }
     else {

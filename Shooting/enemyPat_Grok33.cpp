@@ -133,7 +133,7 @@ void EnemyPat_Unavoidable_Grok() {
     if (count == 1) {
         enemy.x = 240.0;
         enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 100;
+        enemy.maxHp = enemy.hp = 200;
         muki = 1;
         phase = 0;
         timer = 0;

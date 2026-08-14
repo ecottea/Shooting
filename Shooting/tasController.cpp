@@ -14,7 +14,7 @@
 
 
 // TASƒ‚[ƒh‚Ì—LŒø/–³Œø‚ğØ‚è‘Ö‚¦‚é
-bool g_isTasMode = false;
+bool g_isTasMode = 0;
 
 
 void iniGameForTas()

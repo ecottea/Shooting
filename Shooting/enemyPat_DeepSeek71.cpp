@@ -1,4 +1,4 @@
-﻿// EnemyPat_Tmp.cpp
+﻿// EnemyPat_FlickeringLight_DeepSeek.cpp
 // 切れかけの電球モチーフ弾幕「終焉のフィラメント」
 
 #include "DxLib.h"
@@ -21,7 +21,7 @@ static void Pattern_StableLightSpiral(sEnemyShotSet* pSet)
     }
 
     // 約5秒間（300フレーム）だけ弾を生成
-    if (pSet->count < 300) {
+    if (pSet->count < 270) {
         const double angleStep = 0.12;            // 1フレームあたりの角度変化
         const double radius0 = 20.0;
         double radius = radius0 + pSet->count * pSet->param_d[0];
@@ -37,7 +37,7 @@ static void Pattern_StableLightSpiral(sEnemyShotSet* pSet)
             pShot->x = sx;
             pShot->y = sy;
             pShot->muki = ang;                     // 外側へ飛ぶ
-            pShot->speed = 1.2 / 3;
+            pShot->speed = 1.2 * 1.5;
             pShot->kind = img_enemyShotSmallBall[8]; // オレンジ小玉
 
             pShot->prev = pSet->pEnemyShotHead->prev;
@@ -72,7 +72,7 @@ static void Pattern_FlickerBright(sEnemyShotSet* pSet)
         PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
 
         double R = fireTime * pSet->param_d[0]; // この時点での輪の半径
-        const int numBullets = 36 * 10;              // 10度間隔
+        const int numBullets = 36 * 2;              // 10度間隔
         for (int i = 0; i < numBullets; ++i) {
             double ang = i * (2.0 * DX_PI) / numBullets;
             double fx = pSet->x + R * cos(ang);
@@ -85,6 +85,7 @@ static void Pattern_FlickerBright(sEnemyShotSet* pSet)
             pShot->muki = ang + DX_PI + (GetRand(20) - 10) * DX_PI / 180.0;
             pShot->speed = 4.0 + GetRand(200) / 100.0; // 4.0～6.0
             pShot->kind = img_enemyShotBullet[3];      // シアン銃弾（針弾イメージ）
+            pShot->margin = 240;
 
             pShot->prev = pSet->pEnemyShotHead->prev;
             pShot->next = pSet->pEnemyShotHead;
@@ -162,7 +163,7 @@ static void Pattern_Spark(sEnemyShotSet* pSet)
         if (CheckSoundMem(sound_enemyShot_extreme)) StopSoundMem(sound_enemyShot_extreme);
         PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
 
-        for (int i = 0; i < 10 * 10; ++i) {
+        for (int i = 0; i < 10 * 5; ++i) {
             double ang = GetRand(360) * DX_PI / 180.0;
             sEnemyShot* pShot = new sEnemyShot;
             pShot->x = pSet->x;
@@ -196,7 +197,7 @@ static void Pattern_DyingWeb(sEnemyShotSet* pSet)
 
     if (pSet->count == 0) {
         // 20発の低速残光弾をランダムな位置に生成
-        for (int i = 0; i < 20 * 10; ++i) {
+        for (int i = 0; i < 20 * 5; ++i) {
             double offsetX = GetRand(200) - 100.0;
             double offsetY = GetRand(200) - 100.0;
             sEnemyShot* pShot = new sEnemyShot;
@@ -310,7 +311,7 @@ static void Pattern_LaserWalls(sEnemyShotSet* pSet)
 // ---------------------------------------------------------------
 // 敵本体パターン（終焉のフィラメント）
 // ---------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_FlickeringLight_DeepSeek()
 {
     // 静的ローカル変数で状態を保持
     static int  muki = 1;

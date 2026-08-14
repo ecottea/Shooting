@@ -11,7 +11,7 @@
 // 録画モード用グローバル変数
 bool recordingMode = 0;   // (true:録画モード, false:通常モード)
 int  replayLoopCount = 8;    // 連続リプレイ録画個数
-bool is_tate = false;
+bool is_tate = 0;
 
 RecordController::RecordController()
     : m_step(RecordStep::InitMenu)
