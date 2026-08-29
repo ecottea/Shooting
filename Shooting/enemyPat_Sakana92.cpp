@@ -205,7 +205,7 @@ static void ShotMeteor(sEnemyShotSet* pEnemyShotSet)
 // ============================================================================
 // 敵本体のパターン：上空から隕石を降らせ続ける
 // ============================================================================
-void EnemyPat_Tmp()
+void EnemyPat_Meteor_Sakana()
 {
     static int muki;        // 敵の左右移動方向
     static int side;        // 隕石を落とす側（左右交互のための種）
