@@ -153,7 +153,7 @@ static void Signal_ShotRedWall(sEnemyShotSet* pSet)
 // ============================================================
 //  敵本体のパターン
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_TrafficLight_Zai()
 {
     static int muki;
 
