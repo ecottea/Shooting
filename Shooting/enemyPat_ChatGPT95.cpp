@@ -87,7 +87,7 @@ static void ShotRuleBreak(sEnemyShotSet* set)
 }
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_Violate_ChatGPT()
 {
     static int phase;
     static int shotSeed;
