@@ -259,6 +259,159 @@ void clearAllPlayerEngineFlames() {
 
 
 
+// 無敵エフェクト用の定義
+#define MAX_INVINCIBLE_PARTICLES 200
+
+struct InvincibleParticle {
+    bool active;
+    double x, y;          // 現在位置（ゲームエリア内座標）
+    double angle;         // 公転角度（ラジアン）
+    double radius;        // 中心からの距離
+    double angularSpeed;  // 公転速度
+    double radialSpeed;   // 外側への拡散速度
+    int life;             // 残り寿命
+    double hue;           // 色相（0～360）
+    double hueSpeed;      // 色相の変化速度
+};
+
+static InvincibleParticle invincibleParts[MAX_INVINCIBLE_PARTICLES];
+
+// HSVからRGBへの変換（H: 0～360, S: 0～1, V: 0～1）
+static void HSVtoRGB(double h, double s, double v, int& r, int& g, int& b) {
+    double c = v * s;
+    double hp = h / 60.0;
+    double x = c * (1.0 - fabs(fmod(hp, 2.0) - 1.0));
+    double r1, g1, b1;
+    if (hp < 1) { r1 = c; g1 = x; b1 = 0; }
+    else if (hp < 2) { r1 = x; g1 = c; b1 = 0; }
+    else if (hp < 3) { r1 = 0; g1 = c; b1 = x; }
+    else if (hp < 4) { r1 = 0; g1 = x; b1 = c; }
+    else if (hp < 5) { r1 = x; g1 = 0; b1 = c; }
+    else { r1 = c; g1 = 0; b1 = x; }
+    double m = v - c;
+    r = (int)((r1 + m) * 255.0 + 0.5);
+    g = (int)((g1 + m) * 255.0 + 0.5);
+    b = (int)((b1 + m) * 255.0 + 0.5);
+    if (r > 255) r = 255; if (r < 0) r = 0;
+    if (g > 255) g = 255; if (g < 0) g = 0;
+    if (b > 255) b = 255; if (b < 0) b = 0;
+}
+
+// 無敵エフェクト用パーティクルを生成（毎フレーム呼ぶ）
+void spawnInvincibleParticles(double playerX, double playerY) {
+    if (g_isTasMode) return;
+
+    // 1フレームに発生させる数（必要に応じて調整）
+    int count = 5;
+    for (int i = 0; i < count; ++i) {
+        int idx = -1;
+        for (int j = 0; j < MAX_INVINCIBLE_PARTICLES; ++j) {
+            if (!invincibleParts[j].active) {
+                idx = j;
+                break;
+            }
+        }
+        if (idx == -1) continue;  // 空きなし
+
+        InvincibleParticle* p = &invincibleParts[idx];
+        p->active = true;
+
+        // 発生位置は自機中心からわずかに離れた位置（初期radius=0でも良いが、少し広げると見栄えが良い）
+        p->angle = 2.0 * 3.14159265 * effectRandDouble();  // ランダムな角度
+        p->radius = 10.0 + effectRandDouble() * 10.0;     // 初期距離 10～20
+        p->x = playerX + cos(p->angle) * p->radius;
+        p->y = playerY + sin(p->angle) * p->radius;
+
+        // 公転速度：時計回り or 反時計回りをランダムに（同じ方向でも虹色はきれいなので、揃えても良い）
+        p->angularSpeed = (0.05 + effectRandDouble() * 0.08);
+        if (effectRandInt(2) == 0) p->angularSpeed = -p->angularSpeed;
+
+        // 外側への拡散速度
+        p->radialSpeed = 1.0 + effectRandDouble() * 1.5;
+
+        // 寿命
+        p->life = 10 + effectRandInt(15);
+
+        // 色相は発生時の角度に対応させて虹色に分布させる
+        p->hue = p->angle * (180.0 / 3.14159265); // ラジアン→度
+        if (p->hue < 0) p->hue += 360.0;
+
+        // 色相の回転速度（毎フレーム数度変化）
+        p->hueSpeed = 2.0 + effectRandDouble() * 2.0; // 2～4度/フレーム
+    }
+}
+
+// 無敵エフェクト用パーティクルの更新
+void updateInvincibleParticles(double playerX, double playerY) {
+    if (g_isTasMode || !isMuteki) return;
+
+    // 毎フレーム生成
+    spawnInvincibleParticles(playerX, playerY);
+
+    // 既存パーティクルの更新
+    for (int i = 0; i < MAX_INVINCIBLE_PARTICLES; ++i) {
+        if (!invincibleParts[i].active) continue;
+
+        InvincibleParticle* p = &invincibleParts[i];
+
+        // 位置更新（公転＋拡散）
+        p->angle += p->angularSpeed;
+        p->radius += p->radialSpeed;
+        p->x = playerX + cos(p->angle) * p->radius;
+        p->y = playerY + sin(p->angle) * p->radius;
+
+        // 色相更新
+        p->hue += p->hueSpeed;
+        if (p->hue >= 360.0) p->hue -= 360.0;
+        if (p->hue < 0.0) p->hue += 360.0;
+
+        // 寿命減少
+        p->life--;
+        if (p->life <= 0) {
+            p->active = false;
+        }
+    }
+}
+
+// 無敵エフェクト用パーティクルの描画
+void drawInvincibleParticles() {
+    SetDrawBlendMode(DX_BLENDMODE_ADD, 255); // 加算ブレンドでより明るく
+
+    for (int i = 0; i < MAX_INVINCIBLE_PARTICLES; ++i) {
+        if (!invincibleParts[i].active) continue;
+
+        InvincibleParticle* p = &invincibleParts[i];
+
+        // 寿命による減光（寿命が長いほど明るい）
+        double lifeRatio = (double)p->life / 10.0; // 最大寿命10としておおよその割合
+        if (lifeRatio > 1.0) lifeRatio = 1.0;
+        if (lifeRatio < 0.0) lifeRatio = 0.0;
+
+        // HSVからRGBへ変換（S=1, V=lifeRatio）
+        int r, g, b;
+        double brightness = lifeRatio * 1.2;
+        if (brightness > 1.0) brightness = 1.0;
+        HSVtoRGB(p->hue, 1.0, brightness, r, g, b);
+
+        // 粒子サイズ（寿命が短いと小さくなる）
+        float size = 2.0f * (float)lifeRatio + 1.0f;
+
+        // 描画座標（既存の力場パーティクルと同様に GAME_AREA_X を加算）
+        DrawCircleAA(GAME_AREA_X + (float)p->x, (float)p->y, size, 16, GetColor(r, g, b), TRUE);
+    }
+
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+}
+
+// 無敵エフェクト用パーティクルを全て消去
+void clearAllInvincibleParticles() {
+    for (int i = 0; i < MAX_INVINCIBLE_PARTICLES; ++i) {
+        invincibleParts[i].active = false;
+    }
+}
+
+
+
 void playerControl() {
     double playerSpeed;
     if (key[KEY_INPUT_C] != 0) { playerSpeed = 1.5; isSlowMode = true; }
@@ -293,6 +446,13 @@ void playerControl() {
     updatePlayerEngineFlame();
 
     updateForceParticles();
+
+    if (isMuteki) {
+        updateInvincibleParticles(player.x, player.y);
+    }
+    else {
+        clearAllInvincibleParticles();
+    }
 }
 
 void playerDisp() {
@@ -306,4 +466,8 @@ void playerDisp() {
     drawPlayerEngineFlame();
 
     drawForceParticles();
+
+    if (isMuteki) {
+        //drawInvincibleParticles();
+    }
 }

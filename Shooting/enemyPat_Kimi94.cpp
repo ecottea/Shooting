@@ -171,7 +171,7 @@ static void ShotSunflowerDance(sEnemyShotSet* pEnemyShotSet)
 // --------------------------------------------------
 // 敵本体のパターン
 // --------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_Sunflower_Kimi()
 {
     static int muki;
     static int shot_count;
