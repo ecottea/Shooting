@@ -169,7 +169,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (key[KEY_INPUT_M] == 1) {
             isMuteki = !isMuteki;
         }
-        
+
         // 状態に応じて処理を分岐
         if (StateManager::GetState() == Joutai::Menu) {
             moveCursor();
@@ -202,6 +202,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             // Qキーで即メニューに戻る
             if (key[KEY_INPUT_Q] == 1) {
                 StateManager::ChangeState(Joutai::Menu);
+            }
+
+            // D キーで自滅
+            if (StateManager::GetState() == Joutai::Game && key[KEY_INPUT_D] == 1) {
+                StateManager::ChangeState(Joutai::Lose);
             }
 
             // TAS用に最大countを更新
@@ -291,7 +296,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         SetDrawScreen(gameScreen);
 
         // FPS 調整
-        if (key[KEY_INPUT_D] >= 1) frameDurationMs = 17 * 8; // デバッグ用に激遅にする
         int elapsed = GetNowCount() - frameStart;
         if (elapsed < frameDurationMs) WaitTimer(frameDurationMs - elapsed);
     }

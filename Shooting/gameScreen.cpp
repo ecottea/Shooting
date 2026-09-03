@@ -789,32 +789,24 @@ void drawSidePanel()
             DrawString(panelLeftScreen, y, "無敵モード ON", GetColor(255, 255, 128));
             isMuteki = true;
         }
-        // 他の分岐も同様に短縮した文字列に調整
+        if (stageData[stageNum].stageId == "Claude67") {
+            isMuteki = false;
+        }
         if (stageData[stageNum].stageId == "DeepSeek67"
             || stageData[stageNum].stageId == "ChatGPT67"
             || stageData[stageNum].stageId == "Gemini67"
             || stageData[stageNum].stageId == "Zai67"
             || stageData[stageNum].stageId == "DeepSeek85"
             || stageData[stageNum].stageId == "Qwen85"
-            || stageData[stageNum].stageId == "Gemini85")
+            || stageData[stageNum].stageId == "Gemini85"
+            || stageData[stageNum].stageId == "Grok98"
+            || stageData[stageNum].stageId == "Claude98"
+            || stageData[stageNum].stageId == "Kimi98")
             {
             DrawString(panelLeftScreen, y, "人力では無理！", GetColor(255, 255, 128));
             y += lineHeight;
             DrawString(panelLeftScreen, y, "TAS プレイです", GetColor(255, 255, 128));
-            isMuteki = false;
-        }
-        if (stageData[stageNum].stageId == "Claude67"
-            || stageData[stageNum].stageId == "Qwen67"
-            || stageData[stageNum].stageId == "Kimi67"
-            || stageData[stageNum].stageId == "ChatGPT85"
-            || stageData[stageNum].stageId == "Claude85"
-            || stageData[stageNum].stageId == "Kimi85"
-            || stageData[stageNum].stageId == "Zai85"
-            || stageData[stageNum].stageId == "Grok85")
-        {
-            DrawString(panelLeftScreen, y, "人力プレイです", GetColor(255, 255, 128));
-            isMuteki = false;
-        }
+        }        
     }
 
     // デバッグ用（無敵モード時）
