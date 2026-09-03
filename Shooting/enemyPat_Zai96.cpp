@@ -40,7 +40,6 @@ static sEnemyShot* AddEnemyShot(sEnemyShotSet* pSet, double x, double y, double 
     pShot->muki = muki;
     pShot->speed = speed;
     pShot->kind = kind;
-    pShot->margin = 480;
 
     pShot->prev = pSet->pEnemyShotHead->prev;
     pShot->next = pSet->pEnemyShotHead;
@@ -90,7 +89,7 @@ static void Shot_TomatoThrow(sEnemyShotSet* pEnemyShotSet)
             // 目標地点: 自機付近(±60のぶれ)。画面上部のときは軌道が上に抜けないよう下限でクランプ
             double ty = player.y - 30.0;
             if (ty < 200.0) ty = 200.0;
-            double tx = player.x + GetRand(120) - 60;
+            double tx = player.x + (GetRand(120) - 60) * 2;
             double dx = tx - pEnemyShotSet->x;
             double dy = ty - pEnemyShotSet->y;
 
@@ -250,7 +249,7 @@ static void Shot_AimedTomato(sEnemyShotSet* pEnemyShotSet)
 // ============================================================
 //  敵本体のパターン
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_Tomatina_Zai()
 {
     static int muki; // 敵の横移動方向
 
