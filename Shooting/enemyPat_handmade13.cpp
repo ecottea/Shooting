@@ -227,14 +227,14 @@ static void ShotFormationAnagram(sEnemyShotSet* pEnemyShotSet)
             // [問題] を画面上部やや上 (Y: 50.0) にシアン小弾で表示
             if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
             PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-            SpawnTextShots(pEnemyShotSet, q_str, 80.0, img_enemyShotSmallBall[0], 1);
+            SpawnTextShots(pEnemyShotSet, q_str, 90.0, img_enemyShotSmallBall[0], 1);
         }
         else if (state == 1) {
             // [問題の読み] を画面上部 (Y: 50.0) に白小弾で表示。移動先を画面最下部 (Y: 430.0) に設定
             if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
             PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
             std::vector<int> match = GetAnagramMatch(q_yomi, a_yomi);
-            SpawnTextShots(pEnemyShotSet, q_yomi, 80.0, img_enemyShotSmallBall[5], 2, true, match, 450.0);
+            SpawnTextShots(pEnemyShotSet, q_yomi, 90.0, img_enemyShotSmallBall[5], 2, true, match, 460.0);
         }
         else if (state == 2) {
             // [移動開始] 150フレームかけて画面最下部へ動かす
@@ -252,7 +252,7 @@ static void ShotFormationAnagram(sEnemyShotSet* pEnemyShotSet)
             // [答え] を画面最下部 (Y: 430.0) に白小弾で表示
             if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
             PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-            SpawnTextShots(pEnemyShotSet, a_str, 450.0, img_enemyShotSmallBall[0], 4);
+            SpawnTextShots(pEnemyShotSet, a_str, 460.0, img_enemyShotSmallBall[0], 4);
         }
     }
 
@@ -270,7 +270,7 @@ static void ShotFormationAnagram(sEnemyShotSet* pEnemyShotSet)
             }
 
             // 軌跡として低速の青小弾をばら撒く
-            if (GetRand(500) == 0) {
+            if (GetRand(300) == 0) {
                 sEnemyShot* traj = new sEnemyShot;
                 traj->x = p->x;
                 traj->y = p->y;
@@ -323,7 +323,7 @@ static void ShotFormationAnagram(sEnemyShotSet* pEnemyShotSet)
 // ============================================================
 //  敵本体のパターン
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_Anagram()
 {
     static int muki;
 
@@ -332,6 +332,25 @@ void EnemyPat_Tmp()
         enemy.y = 40.0;
         enemy.maxHp = enemy.hp = 400;
         muki = 1;
+
+        anagram_data = {
+            {{"清楚系描きたい", "せいそけいかきたい", "形態素解析", "けいたいそかいせき"}},
+            {{"早よカキコしたれ", "はよかきこしたれ", "高橋是清", "たかはしこれきよ"}},
+            {{"ヘソの意味、無い", "へそのいみない", "磯野波平", "いそのなみへい"}},
+            {{"龍舞し、勝つ", "りゅうまいしかつ", "対馬海流", "つしまかいりゅう"}},
+            {{"破格の三塁打", "はかくのさんるいだ", "春の大三角", "はるのだいさんかく"}},
+            {{"臭すぎた歯間", "くさすぎたしかん", "高杉晋作", "たかすぎしんさく"}},
+            {{"再三の誤ＢＡＮ", "さいさんのごばん", "最後の晩餐", "さいごのばんさん"}},
+            {{"湿り気があった愛", "しめりけがあったあい", "雨上がり決死隊", "あめあがりけっしたい"}},
+            {{"蚊、どうにかしたい", "かどうにかしたい", "二階堂高嗣", "にかいどうたかし"}},
+            {{"麻生が艦これ", "あそうがかんこれ", "赤レンガ倉庫", "あかれんがそうこ"}},
+            {{"吸い物、冷めへんかい？", "すいものさめへんかい", "かもめの水兵さん", "かもめのすいへいさん"}},
+            {{"げ、先端臭い", "げせんたんくさい", "減反政策", "げんたんせいさく"}},
+            {{"山に監禁、泣く", "やまにかんきんなく", "なかやまきんに君", "なかやまきんにくん"}},
+            {{"四連着信", "よんれんちゃくしん", "クレヨンしんちゃん", "くれよんしんちゃん"}},
+            {{"痛いし喘いどるん？", "いたいしあえいどるん", "アイドル新鋭隊", "あいどるしんえいたい"}},
+            {{"おサボり禁止で描く", "おさぼりきんしでかく", "デオキシリボ核酸", "でおきしりぼかくさん"}}
+        };
 
         // シャッフル
         for (int i = (int)anagram_data.size() - 1; i > 0; --i) {

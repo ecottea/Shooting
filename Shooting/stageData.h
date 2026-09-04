@@ -835,3 +835,4 @@ extern void EnemyPat_Doppler_Claude();
 extern void EnemyPat_Doppler_Qwen();
 extern void EnemyPat_Doppler_MetaAI();
 extern void EnemyPat_Doppler_Zai();
+extern void EnemyPat_Anagram();
