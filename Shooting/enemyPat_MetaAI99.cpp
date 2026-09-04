@@ -87,7 +87,7 @@ static void ShotDopplerWave(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-void EnemyPat_Tmp()
+void EnemyPat_Doppler_MetaAI()
 {
     static int dir;        // 1:右 -1:左
     static double baseVx;  // 基本速度
@@ -96,7 +96,7 @@ void EnemyPat_Tmp()
         // ゲーム画面は 480x480
         enemy.x = 240.0;
         enemy.y = 80.0;
-        enemy.maxHp = enemy.hp = 200;
+        enemy.maxHp = enemy.hp = 100;
         dir = 1;
         baseVx = 7.5; // 弾速2.0に対して3.75倍。ドップラーが最も綺麗に見える比率
     }
