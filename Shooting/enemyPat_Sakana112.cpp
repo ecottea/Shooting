@@ -165,7 +165,7 @@ static void ShotQRMatrix(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_QRCode_Sakana()
 {
     static const int PERIOD = 360; // QR弾幕1サイクルの長さ
 
