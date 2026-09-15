@@ -199,9 +199,9 @@ static void ShotFlowerOfKent(sEnemyShotSet* pEnemyShotSet)
 
 // ============================================================
 // 敵本体パターン
-// 関数名は指定通り void EnemyPat_Tmp()
+// 関数名は指定通り void EnemyPat_FlowerOfKent_Grok()
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_FlowerOfKent_Grok()
 {
     static int muki;
     static int shotPhase;
