@@ -200,7 +200,7 @@ static void ShotPolarityOrb(sEnemyShotSet* pEnemyShotSet)
 // -------------------------------------------------------
 // 敵本体パターン
 // -------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_miComet_Grok()
 {
     static bool polarityInitialized = false;
 
