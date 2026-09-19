@@ -10,8 +10,6 @@
 //  ・菱形弾は初速0→毎フレーム加速→終端速度到達後は等速直線運動
 //  ・1周期(240フレーム)ごとに動きを切り替えて繰り返す
 //----------------------------------------------------------
-#include "DxLib.h"
-#include "gv.h"
 
 // ---- 設定定数 ----
 static const int    LASER_NUM = 4;     // 連結する短レーザーの本数
@@ -23,7 +21,7 @@ static const int    CYCLE = 240;   // 1周期のフレーム数
 static const int    SHOT_INTERVAL = 8;     // 菱形弾の射出間隔[フレーム]
 static const double SHOT_ACC = 0.16;  // 菱形弾の加速度
 static const double SHOT_VEL = 3.4;   // 菱形弾の終端速度
-static const double MARGIN = 48.0;  // レーザー根元(ボス)の壁反射マージン
+static const double MARGIN = 68.0;  // レーザー根元(ボス)の壁反射マージン
 
 // ============================================================
 //  レーザーと菱形弾の挙動 (sEnemyShotSet に登録される)
@@ -151,7 +149,7 @@ static void ShotLevatein(sEnemyShotSet* pEnemyShotSet)
 // ============================================================
 //  敵本体のパターン：禁忌「レーヴァテイン」
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_Levatain_Zai()
 {
     static sEnemyShotSet* pSet = nullptr; // レーザー管理用セット
     static int cycleFrame = 0;            // 周期内の経過フレーム
