@@ -119,7 +119,7 @@ static void ShotKarmanVortex(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_KarmanVortex_ChatGPT()
 {
     static int vortexSide;
 
