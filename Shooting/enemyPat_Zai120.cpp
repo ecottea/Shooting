@@ -153,7 +153,7 @@ static void ShotSpiralDown(sEnemyShotSet* pSet)
 // ============================================================
 // 敵本体のパターン
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_FallOut_Zai()
 {
     const int CYCLE = 660; // 1周のフレーム数
 
