@@ -94,8 +94,8 @@ static void ShotGaltonBall(sEnemyShotSet* pEnemyShotSet)
 
     // 敵HPに応じて落下間隔が短くなる(=正規分布が速く完成する)
     int interval;
-    if (enemy.hp > 130) interval = 14;  // 序盤: ぽつぽつ
-    else if (enemy.hp > 60)  interval = 6;   // 中盤: 雨
+    if (enemy.hp > 150) interval = 14;  // 序盤: ぽつぽつ
+    else if (enemy.hp > 100)  interval = 6;   // 中盤: 雨
     else                     interval = 4;   // 終盤: 激流
 
     // 弾の発射(セットが空になると消されるため、最初の1発は即座に撃つ)
@@ -199,7 +199,7 @@ static void ShotGaltonSweep(sEnemyShotSet* pEnemyShotSet)
 //--------------------------------------------------------------
 // 敵本体のパターン
 //--------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_GaltonBoard_Zai()
 {
     static int sweepCreated;
 
