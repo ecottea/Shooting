@@ -67,14 +67,14 @@ static void ShotAirHockey(sEnemyShotSet* pEnemyShotSet)
         if (pEnemyShotSet->param_i[4] == 1) {
             PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK); // 予告音
         }
-        if (pEnemyShotSet->param_i[4] >= 60) {
+        if (pEnemyShotSet->param_i[4] >= 20) {
             // パック(大玉・白)をサーブ:自機めがけて発射
             pPack = AddShot(pEnemyShotSet, 1, img_enemyShotLargeBall[6]);
             pPack->x = 240.0;
             pPack->y = 60.0;
             pPack->muki = atan2(player.y - pPack->y, player.x - pPack->x);
             pPack->speed = 3.0;
-            pPack->margin = 999;
+            pPack->margin = 40;
 
             pEnemyShotSet->param_i[0] = 1;   // ラリーへ
             pEnemyShotSet->param_i[1] = 0;   // ラリー回数
@@ -200,7 +200,7 @@ static void ShotAirHockey(sEnemyShotSet* pEnemyShotSet)
     }
     else if (pEnemyShotSet->param_i[0] == 3) {
         pEnemyShotSet->param_i[4]++;
-        if (pEnemyShotSet->param_i[4] >= 120) {
+        if (pEnemyShotSet->param_i[4] >= 10) {
             // サーブ待ちへ戻って無限ループ
             pEnemyShotSet->param_i[0] = 0;
             pEnemyShotSet->param_i[4] = 0;
@@ -209,7 +209,7 @@ static void ShotAirHockey(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void EnemyPat_Tmp()
+void EnemyPat_AirHockey_Zai()
 {
     static int muki;
 
