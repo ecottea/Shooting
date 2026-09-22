@@ -325,7 +325,7 @@ static void ShotKochSnow(sEnemyShotSet* pSet)
 // ============================================================
 // 敵本体のパターン
 // ============================================================
-void EnemyPat_Tmp()
+void EnemyPat_KochSnowflake_Zai()
 {
     static int muki;
 
