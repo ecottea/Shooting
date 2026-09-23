@@ -1,9 +1,4 @@
-﻿#include "DxLib.h"
-#include "gv.h"
-#include "imgSoundLoad.h"
-#include <math.h>
-
-// 弾幕処理：炭酸怒濤：メントス・フォンテナー
+﻿// 弾幕処理：炭酸怒濤：メントス・フォンテナー
 static void ShotMentosCola(sEnemyShotSet* pEnemyShotSet)
 {
     // ----------------------------------------------------
@@ -45,7 +40,7 @@ static void ShotMentosCola(sEnemyShotSet* pEnemyShotSet)
     if (pEnemyShotSet->count >= 60 && pEnemyShotSet->count <= 240) {
 
         // --- A. コーラ柱（真上へ向かう大玉・中楕円弾の高速連射）---
-        for (int i = 0; i < 2*2; i++) {
+        for (int i = 0; i < 2 * 2; i++) {
             sEnemyShot* pEnemyShot = new sEnemyShot;
 
             pEnemyShot->x = pEnemyShotSet->x + GetRand(24) - 12;
@@ -135,7 +130,7 @@ static void ShotMentosCola(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体パターン
-void EnemyPat_Tmp()
+void EnemyPat_MentosCola_Gemini()
 {
     static int muki;
 
