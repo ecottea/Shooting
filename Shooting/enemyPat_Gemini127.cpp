@@ -13,7 +13,7 @@ static void ShotGabrielTrumpet(sEnemyShotSet* pEnemyShotSet)
     // 1. ラッパの断面となる「リング（楕円の輪）」の定期生成
     // ============================================================
     // 8フレームごとに、ボスの位置（ラッパの奥の管）から1つずつリングを射出
-    if (pEnemyShotSet->count % 28 == 0) {
+    if (pEnemyShotSet->count % 30 == 0) {
         const int RING_BULLETS = 16; // 輪を構成する弾の数
         double base_rot = (pEnemyShotSet->count * 0.04); // 時間とともにラッパ全体が自転
 
@@ -46,7 +46,7 @@ static void ShotGabrielTrumpet(sEnemyShotSet* pEnemyShotSet)
     // 2. ラッパの中心を通る「赤色銃弾（直線貫通弾）」の生成
     // ============================================================
     // 14フレームごとに、ラッパの細い奥からプレイヤーへ向けて高速弾を吹き出させる
-    if (pEnemyShotSet->count % 28 == 0) {
+    if (pEnemyShotSet->count % 60 == 30) {
         if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
 
@@ -129,7 +129,7 @@ static void ShotGabrielTrumpet(sEnemyShotSet* pEnemyShotSet)
 // ----------------------------------------------------------------
 // 敵本体のパターン関数（エントリーポイント）
 // ----------------------------------------------------------------
-void EnemyPat_Tmp()
+void EnemyPat_GabrielsHorn_Gemini()
 {
     static int move_dir;
 
