@@ -1,221 +1,316 @@
-﻿#include "DxLib.h"
+﻿// enemyPat_typhoon.cpp
+// 台風モチーフ弾幕「台風の眼」
+// フェーズ1:接近(0〜15秒) / フェーズ2:最盛期(15〜40秒)
+// フェーズ3:眼の通過(40〜55秒) / フェーズ4:通過後の強風(55〜60秒)
+// ※ count / pEnemyShotSet->count / pEnemyShot->count のインクリメントと
+//   画面外弾の消去はメインルーチンで行われる前提。
+// ※ 空になった弾セットはメインルーチン側で破棄される前提。
+
+#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// ============================================================
-//  弾幕:ニュートンのゆりかご「慣性の伝達」
-// ------------------------------------------------------------
-//  構成:
-//    おもり ... 中玉。両端の玉(列番号0と4)が交互に振り子運動する
-//    糸 ..... 小玉(白)をアンカー〜おもり間に6分割で並べた点線
-//
-//  動作(240フレーム周期でループ):
-//    0〜 60F:右の玉が最下点→右へ減速しながら上昇
-//     60〜120F:右の玉が加速しながら下降(折り返し点でプレイヤー狙い弾)
-//    120F:最下点で衝突!衝撃波が発生し、左の玉が同じ角度まで押し出される
-//    120〜240F:今度は左の玉が同じ運動をして戻ってくる(慣性の伝達)
-//
-//  難易度展開(グローバルcountで判定):
-//    Phase1(〜600F):衝撃波+狙い弾
-//    Phase2(600〜1200F):衝突時に列中央から狙い3Way追加
-//    Phase3(1200F〜):衝撃波が12Way化、狙い5Way化、
-//                     最下点のおもりから左右へ中玉追加
-//
-//  弾の役割は sEnemyShot::param_i[0] で管理:
-//    0:自由飛翔弾(等速直線移動)  1:おもり  2:糸
-//    param_i[1]:おもり/糸のグループ番号(玉の列番号 0〜4)
-//    param_i[2]:糸の分割番号
-// ============================================================
+static const double TAU = DX_PI * 2.0;
 
-static constexpr double CRADLE_LENGTH = 100.0;        // 糸の長さ
-static constexpr double CRADLE_SPACING = 16.0;         // おもり同士の間隔
-static constexpr double CRADLE_THETA_MAX = DX_PI / 3.0;  // 振り子の最大角度
-static constexpr int    CRADLE_QUARTER = 60/2;           // 1/4周期(フレーム)
-static constexpr int    CRADLE_CYCLE = CRADLE_QUARTER * 4; // 240F
-static constexpr int    CRADLE_STRINGS = 6;            // 糸の分割数
+// ---- サイクル定義(60fps想定 / 全60秒でループ) ----
+static const int CYCLE = 2000; // 1ループ = 60秒
+static const int T_PHASE1_END = 600;  // 15秒 接近終了
+static const int T_PHASE2_END = 1200; // 40秒 最盛期終了
+static const int T_PHASE3_END = 1800; // 55秒 眼の通過終了(以降は強風)
 
-// 弾を生成してリストに登録するヘルパ
-static sEnemyShot* CradleCreateShot(sEnemyShotSet* pSet, double x, double y,
-    double muki, double speed, int kind, int role)
+// ---- 素材(色index: 0:赤 1:黄 2:緑 3:シアン 4:青 5:マゼンタ 6:白 7:黒 8:橙) ----
+static int KIND_RAIN_SMALL = img_enemyShotSmallBall[3];   // 雨(小玉・シアン)
+static int KIND_RAIN_MEDIUM = img_enemyShotMediumOval[4];  // 風に流される雨(中楕円・青)
+static int KIND_EYE_WALL = img_enemyShotLargeBall[6];   // 眼の壁(大玉・白)
+static int KIND_BURST = img_enemyShotMediumOval[5];  // 壁の破裂(中楕円・マゼンタ)
+static int KIND_GUST = img_enemyShotLaser[6];       // 突風(短レーザー・白)
+
+// ---- 効果音再生ヘルパ ----
+static void PlayShotSound(int soundHandle)
 {
-    sEnemyShot* p = new sEnemyShot;
-    p->x = x;
-    p->y = y;
-    p->muki = muki;
-    p->speed = speed;
-    p->kind = kind;
-    p->param_i[0] = role;
-    p->prev = pSet->pEnemyShotHead->prev;
-    p->next = pSet->pEnemyShotHead;
-    pSet->pEnemyShotHead->prev->next = p;
-    pSet->pEnemyShotHead->prev = p;
-    return p;
+    if (CheckSoundMem(soundHandle)) StopSoundMem(soundHandle);
+    PlaySoundMem(soundHandle, DX_PLAYTYPE_BACK);
 }
 
-// ゆりかご本体
-static void CradleNewton(sEnemyShotSet* pEnemyShotSet)
+// ---- 弾セット生成ヘルパ ----
+static sEnemyShotSet* CreateShotSet(double x, double y, double muki, int kind,
+    void (*patternFunc)(sEnemyShotSet*))
 {
-    // アンカーは敵(本体)の位置に追従させる
-    pEnemyShotSet->x = enemy.x;
-    pEnemyShotSet->y = enemy.y;
-    const double ax = pEnemyShotSet->x;
-    const double ay = pEnemyShotSet->y;
+    sEnemyShotSet* pSet = new sEnemyShotSet;
+    pSet->count = 0;
+    pSet->patternFunc = patternFunc;
+    pSet->x = x;
+    pSet->y = y;
+    pSet->muki = muki;
+    pSet->kind = kind;
+    pSet->pEnemyShotHead = new sEnemyShot;
+    pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+    pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+    pSet->prev = enemyShotSetHead.prev;
+    pSet->next = &enemyShotSetHead;
+    enemyShotSetHead.prev->next = pSet;
+    enemyShotSetHead.prev = pSet;
+    return pSet;
+}
 
-    const int t = pEnemyShotSet->count % CRADLE_CYCLE;
+// ---- 弾生成ヘルパ(生成した弾のポインタを返す) ----
+static sEnemyShot* AddShot(sEnemyShotSet* pSet, double x, double y, double muki, double speed, int kind)
+{
+    sEnemyShot* pShot = new sEnemyShot;
+    pShot->x = x;
+    pShot->y = y;
+    pShot->muki = muki;
+    pShot->speed = speed;
+    pShot->kind = kind;
+    pShot->prev = pSet->pEnemyShotHead->prev;
+    pShot->next = pSet->pEnemyShotHead;
+    pSet->pEnemyShotHead->prev->next = pShot;
+    pSet->pEnemyShotHead->prev = pShot;
+    return pShot;
+}
 
-    // ---- 振り子の角度計算 ----
-    // 上昇は正弦(減速)、下降は余弦(加速)で釣り針のような natural な動きにする
-    double thR = 0.0, thL = 0.0;
-    if (t < CRADLE_QUARTER * 2) {
-        double s = (t < CRADLE_QUARTER)
-            ? sin(DX_PI / 2.0 * t / CRADLE_QUARTER)
-            : cos(DX_PI / 2.0 * (t - CRADLE_QUARTER) / CRADLE_QUARTER);
-        thR = CRADLE_THETA_MAX * s;
-    }
-    else {
-        double u = t - CRADLE_QUARTER * 2;
-        double s = (u < CRADLE_QUARTER)
-            ? sin(DX_PI / 2.0 * u / CRADLE_QUARTER)
-            : cos(DX_PI / 2.0 * (u - CRADLE_QUARTER) / CRADLE_QUARTER);
-        thL = -CRADLE_THETA_MAX * s;
-    }
-
-    // おもり5個の位置(0=左端 〜 4=右端)
-    double ballX[5], ballY[5];
-    for (int i = 0; i < 5; i++) {
-        ballX[i] = ax + (i - 2) * CRADLE_SPACING;
-        ballY[i] = ay + CRADLE_LENGTH;
-    }
-    ballX[4] += CRADLE_LENGTH * sin(thR);
-    ballY[4] = ay + CRADLE_LENGTH * cos(thR);
-    ballX[0] += CRADLE_LENGTH * sin(thL);
-    ballY[0] = ay + CRADLE_LENGTH * cos(thL);
-
-    // ---- 初回のみ:おもりと糸を配置 ----
-    if (pEnemyShotSet->count == 0) {
-        for (int i = 0; i < 5; i++) {
-            // おもり(中玉・橙)
-            sEnemyShot* pBall = CradleCreateShot(pEnemyShotSet, ballX[i], ballY[i],
-                0.0, 0.0, img_enemyShotMediumBall[8], 1);
-            pBall->param_i[1] = i;
-            // 糸(小玉・白の点線)
-            for (int j = 1; j < CRADLE_STRINGS; j++) {
-                sEnemyShot* pStr = CradleCreateShot(pEnemyShotSet, ballX[i], ballY[i],
-                    0.0, 0.0, img_enemyShotSmallBall[6], 2);
-                pStr->param_i[1] = i;
-                pStr->param_i[2] = j;
-            }
-        }
-    }
-
-    // ---- 衝突イベント(最下点で玉がぶつかる瞬間) ----
-    if (t == CRADLE_QUARTER * 2 || (t == 0 && pEnemyShotSet->count > 0)) {
-        // どちら側の玉が衝突したか(t==120:右 / t==0:左)
-        int side = (t == 0) ? -1 : 1;
-        double cx = ax + side * CRADLE_SPACING * 1.5;   // 接触点
-        double cy = ay + CRADLE_LENGTH;
-
-        // 衝撃波:接触点から全周放射(ランダム回転で毎回変化)
-        int nWave = (count > 800) ? 12*2 : 10*2;
-        double base = GetRand(360) / 180.0 * DX_PI;
-        for (int k = 0; k < nWave; k++) {
-            double m = base + DX_PI * 2.0 * k / nWave;
-            CradleCreateShot(pEnemyShotSet, cx, cy, m, 2.5,
-                img_enemyShotSmallBall[3], 0);   // シアンの小玉
-        }
-
-        if (count > 400) {
-            // 列の中央からプレイヤー狙いの拡散(マゼンタの鱗弾)
-            int nAim = (count > 800) ? 5*2+1 : 3*2+1;
-            double aim = atan2(player.y - cy, player.x - ax);
-            for (int k = 0; k < nAim; k++) {
-                double m = aim + ((nAim - 1) / 2.0 - k) * 0.22;
-                CradleCreateShot(pEnemyShotSet, ax, cy, m, 3.4,
-                    img_enemyShotScale[5], 0);
-            }
-        }
-
-        if (count > 800) {
-            // 最下点に来たばかりのおもりから左右へ中玉(クッション役)
-            double bx = ax + side * 2 * CRADLE_SPACING;
-            CradleCreateShot(pEnemyShotSet, bx, cy, DX_PI, 2.0, img_enemyShotMediumBall[0], 0);
-            CradleCreateShot(pEnemyShotSet, bx, cy, 0.0, 2.0, img_enemyShotMediumBall[0], 0);
-        }
-
-        // 衝突音
-        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
-        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-    }
-
-    // ---- 振り上げきわ(おもりの折り返し点):予告音+狙い弾 ----
-    if (t == CRADLE_QUARTER || t == CRADLE_QUARTER * 3) {
-        int bi = (t == CRADLE_QUARTER) ? 4 : 0;
-        double aim = atan2(player.y - ballY[bi], player.x - ballX[bi]);
-        CradleCreateShot(pEnemyShotSet, ballX[bi], ballY[bi], aim, 3.0*2,
-            img_enemyShotSmallBall[1], 0);   // 黄の小玉
-
-        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
-        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-    }
-
-    // ---- 各弾の更新 ----
-    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        switch (pShot->param_i[0]) {
-        case 0: // 自由飛翔弾:等速直線移動
-            pShot->x += pShot->speed * cos(pShot->muki);
-            pShot->y += pShot->speed * sin(pShot->muki);
-            break;
-        case 1: // おもり:振り子位置に直接配置
-        {
-            int i = pShot->param_i[1];
-            pShot->x = ballX[i];
-            pShot->y = ballY[i];
-            // 振れている玉は赤で強調し、主従をはっきりさせる
-            pShot->kind = ((t < CRADLE_QUARTER * 2 && i == 4) ||
-                (t >= CRADLE_QUARTER * 2 && i == 0))
-                ? img_enemyShotMediumBall[0] : img_enemyShotMediumBall[8];
-            break;
-        }
-        case 2: // 糸:アンカー〜おもり間を分割した点に直接配置
-        {
-            int i = pShot->param_i[1];
-            double r = pShot->param_i[2] / (double)CRADLE_STRINGS;
-            pShot->x = ax + (ballX[i] - ax) * r;
-            pShot->y = ay + (ballY[i] - ay) * r;
-            break;
-        }
-        }
+// ---- 共通移動処理(フェーズ4の強風で全弾が同一方向へ流される) ----
+static void MoveShotsCommon(sEnemyShotSet* pSet)
+{
+    bool wind = (((count - 1) % CYCLE) >= T_PHASE3_END);
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
+        pShot->x += pShot->speed * cos(pShot->muki);
+        pShot->y += pShot->speed * sin(pShot->muki);
+        if (wind) { pShot->x += 2.2; pShot->y -= 0.2; } // 強風で横に流される
         pShot = pShot->next;
     }
 }
 
+// ============================================================
+// フェーズ1:接近 — 仮想渦の中心かららせん状に雨(小玉)が流入
+// param_d[0]/[1]: 渦の中心の移動速度  param_d[2]: 渦の回転速度
+// ============================================================
+static void ShotSpiralRain(sEnemyShotSet* pSet)
+{
+    int t = (count - 1) % CYCLE;
+    if (t < T_PHASE1_END) {
+        // 渦の中心(台風本体)を画面中央へゆっくり接近させる
+        pSet->x += pSet->param_d[0];
+        pSet->y += pSet->param_d[1];
+        if (pSet->count % 3 == 0) {
+            double base = pSet->count * pSet->param_d[2];
+            for (int i = 0; i < 2; i++) {
+                // 角度に揺らぎを入れて「横殴りの雨」感を出す
+                double ang = base + i * DX_PI + (GetRand(10) - 5) / 180.0 * DX_PI;
+                double sp = 1.4 + GetRand(60) / 100.0;
+                AddShot(pSet, pSet->x + cos(ang) * 30.0, pSet->y + sin(ang) * 30.0, ang, sp, KIND_RAIN_SMALL);
+            }
+        }
+    }
+    MoveShotsCommon(pSet);
+}
+
+// ============================================================
+// フェーズ2:最盛期 — 螺旋腕(中楕円弾)が回転しながら広がる
+// param_i[0]: 腕の本数  param_d[0]: 腕の基準角  param_d[1]: 回転速度
+// ============================================================
+static void ShotSpiralArms(sEnemyShotSet* pSet)
+{
+    int t = (count - 1) % CYCLE;
+    if (t >= T_PHASE1_END && t < T_PHASE2_END) {
+        // フェーズ2の途中で回転方向を反転(台風の不規則な揺らぎ)
+        double dir = (t < 1650) ? 1.0 : -1.0;
+        pSet->param_d[0] += pSet->param_d[1] * dir;
+        if (pSet->count % 4 == 0) {
+            int arms = pSet->param_i[0];
+            for (int i = 0; i < arms; i++) {
+                double ang = pSet->param_d[0] + i * (TAU / arms);
+                AddShot(pSet, enemy.x + cos(ang) * 20.0, enemy.y + sin(ang) * 20.0, ang, 2.2, KIND_RAIN_MEDIUM);
+            }
+        }
+    }
+    MoveShotsCommon(pSet);
+}
+
+// ============================================================
+// 突風 — 短レーザーがプレイヤーめがけて直線的に突き抜ける
+// ============================================================
+static void ShotGust(sEnemyShotSet* pSet)
+{
+    if (pSet->count == 0) {
+        double ang = atan2(player.y - pSet->y, player.x - pSet->x)
+            + (GetRand(20) - 10) / 180.0 * DX_PI; // 狙いに揺らぎ
+        AddShot(pSet, pSet->x, pSet->y, ang, 9.0, KIND_GUST);
+        PlayShotSound(sound_enemyShot_light);
+    }
+    MoveShotsCommon(pSet);
+}
+
+// ============================================================
+// フェーズ3:眼の通過 — 大玉リングが収縮→眼の内部から雨が噴出→破裂
+// param_i[0]: stage(0:収縮 1:停止+噴出 2:破裂済み)
+// param_i[1]: 壁の弾数
+// param_d[0]: 現在半径  param_d[1]/[2]: 中心x/y
+// 各リング弾の param_d[0]: 自分の円周上の角度 / param_i[0]: 1=リング以外の弾
+// ============================================================
+static void ShotEyeRing(sEnemyShotSet* pSet)
+{
+    int stage = pSet->param_i[0];
+
+    if (stage == 0) {
+        // ゆっくり収縮
+        pSet->param_d[0] -= 0.3;
+        if (pSet->param_d[0] <= 120.0) {
+            pSet->param_d[0] = 120.0;
+            pSet->param_i[0] = 1;
+        }
+    }
+    else if (stage == 1) {
+        // 眼の中から不規則な雨(小玉)が噴出
+        if (pSet->count % 6 == 0) {
+            int n = 1 + GetRand(1); // 1〜2発
+            for (int i = 0; i < n; i++) {
+                double ang = GetRand(359) / 180.0 * DX_PI;
+                double sp = 1.5 + GetRand(200) / 100.0;
+                double r = GetRand(50);
+                sEnemyShot* pShot = AddShot(pSet,
+                    pSet->param_d[1] + cos(ang) * r,
+                    pSet->param_d[2] + sin(ang) * r, ang, sp, KIND_RAIN_SMALL);
+                pShot->param_i[0] = 1; // リング弾ではない印
+            }
+        }
+        // 破裂タイミング
+        if (pSet->count >= 650) {
+            pSet->param_i[0] = 2;
+            // 先にリング弾の情報を退避してから新しい弾を追加する
+            // (リストへ追加しながら走査すると新規弾まで処理してしまうため)
+            const int NMAX = 32;
+            double bx[NMAX], by[NMAX], ba[NMAX];
+            int n = 0;
+            sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+            while (pShot != pSet->pEnemyShotHead && n < NMAX) {
+                bx[n] = pShot->x;
+                by[n] = pShot->y;
+                ba[n] = pShot->param_d[0];
+                pShot->speed = 5.5;              // 壁も弾けて外へ飛ぶ
+                pShot->muki = pShot->param_d[0];
+                n++;
+                pShot = pShot->next;
+            }
+            for (int i = 0; i < n; i++) {
+                for (int k = -1; k <= 1; k++) {  // 最も危険な一撃
+                    AddShot(pSet, bx[i], by[i], ba[i] + k * 0.22, 4.5, KIND_BURST);
+                }
+            }
+            PlayShotSound(sound_enemyShot_extreme);
+        }
+    }
+
+    if (pSet->param_i[0] < 2) {
+        // stage 0/1: リング弾は円周上に直接配置、それ以外は通常移動
+        double r = pSet->param_d[0];
+        sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+        while (pShot != pSet->pEnemyShotHead) {
+            if (pShot->param_i[0] == 0) {
+                pShot->x = pSet->param_d[1] + r * cos(pShot->param_d[0]);
+                pShot->y = pSet->param_d[2] + r * sin(pShot->param_d[0]);
+            }
+            else {
+                pShot->x += pShot->speed * cos(pShot->muki);
+                pShot->y += pShot->speed * sin(pShot->muki);
+            }
+            pShot = pShot->next;
+        }
+    }
+    else {
+        // stage 2: 破裂後は全弾通常移動(リング弾は画面外へ抜けて自動消去)
+        MoveShotsCommon(pSet);
+    }
+}
+
+// ============================================================
+// フェーズ3後半:通過後の残り雨 — 上からぽつぽつ降る
+// ============================================================
+static void ShotResidueRain(sEnemyShotSet* pSet)
+{
+    int t = (count - 1) % CYCLE;
+    if (t >= 3120 && t < T_PHASE3_END && pSet->count % 18 == 0) {
+        for (int i = 0; i < 3; i++) {
+            double x = GetRand(440) + 20;
+            double ang = DX_PI / 2.0 + (GetRand(20) - 10) / 180.0 * DX_PI;
+            double sp = 2.0 + GetRand(100) / 100.0;
+            AddShot(pSet, x, -10.0, ang, sp, KIND_RAIN_SMALL);
+        }
+    }
+    MoveShotsCommon(pSet);
+}
+
+// ============================================================
 // 敵本体のパターン
+// ============================================================
 void EnemyPat_Tmp()
 {
+    int t = (count - 1) % CYCLE; // サイクル内の経過フレーム(0開始)
+
     if (count == 1) {
         enemy.x = 240.0;
-        enemy.y = 150.0;
+        enemy.y = 40.0;
         enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
+        KIND_RAIN_SMALL = img_enemyShotSmallBall[3];   // 雨(小玉・シアン)
+        KIND_RAIN_MEDIUM = img_enemyShotMediumOval[4];  // 風に流される雨(中楕円・青)
+        KIND_EYE_WALL = img_enemyShotLargeBall[6];   // 眼の壁(大玉・白)
+        KIND_BURST = img_enemyShotMediumOval[5];  // 壁の破裂(中楕円・マゼンタ)
+        KIND_GUST = img_enemyShotLaser[6];       // 突風(短レーザー・白)
     }
-    // アンカー(敵本体)ごとゆっくり揺らして、吊り下げ感を出す
-    enemy.x = 240.0 + 14.0 * sin(count * 0.015);
 
-    if (count == 30) {
-        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = CradleNewton;
-        pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y;
-        pEnemyShotSet->muki = 0.0;
-        pEnemyShotSet->kind = 0;
-        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->prev = enemyShotSetHead.prev;
-        pEnemyShotSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pEnemyShotSet;
-        enemyShotSetHead.prev = pEnemyShotSet;
+    // ---- 敵の移動 ----
+    if (t < T_PHASE2_END) {
+        // 上部を滑らかに左右に揺れる
+        enemy.x = 240.0 + 120.0 * sin((count % 240) / 240.0 * TAU);
+        enemy.y = 40.0;
+    }
+    else {
+        // 眼のフェーズは中央上部へ落ち着く
+        enemy.x += (240.0 - enemy.x) * 0.05;
+    }
+
+    // ---- フェーズごとの弾幕セット生成 ----
+    if (t == 0) {
+        // フェーズ1:左右から渦を巻いて接近する雨
+        PlayShotSound(sound_enemyShot_light);
+        sEnemyShotSet* pL = CreateShotSet(80.0, 120.0, 0, 0, ShotSpiralRain);
+        pL->param_d[0] = (240.0 - 80.0) / T_PHASE1_END;   // 中心の移動速度x
+        pL->param_d[1] = (240.0 - 120.0) / T_PHASE1_END;  // 中心の移動速度y
+        pL->param_d[2] = 0.12;                            // 渦の回転速度
+        sEnemyShotSet* pR = CreateShotSet(400.0, 120.0, 0, 0, ShotSpiralRain);
+        pR->param_d[0] = (240.0 - 400.0) / T_PHASE1_END;
+        pR->param_d[1] = (240.0 - 120.0) / T_PHASE1_END;
+        pR->param_d[2] = -0.12;                           // 反対回転
+    }
+    if (t == T_PHASE1_END) {
+        // フェーズ2:螺旋腕(4本)
+        PlayShotSound(sound_enemyShot_heavy);
+        sEnemyShotSet* pArms = CreateShotSet(0, 0, 0, 0, ShotSpiralArms);
+        pArms->param_i[0] = 4;    // 腕の本数(3=易 / 4=普通 / 5〜7=激)
+        pArms->param_d[1] = 0.05; // 回転速度
+    }
+    if (t >= T_PHASE1_END + 60 && t < T_PHASE2_END && (t - (T_PHASE1_END + 60)) % 90 == 0) {
+        // フェーズ2:突風(レーザー)を断続的に撃つ
+        CreateShotSet(enemy.x, enemy.y + 10.0, 0, 0, ShotGust);
+    }
+    if (t == T_PHASE2_END) {
+        // フェーズ3:台風の眼
+        PlayShotSound(sound_enemyCharge); // 予告音
+        sEnemyShotSet* pEye = CreateShotSet(0, 0, 0, 0, ShotEyeRing);
+        pEye->param_d[0] = 230.0; // 初期半径
+        pEye->param_d[1] = 240.0; // 中心x
+        pEye->param_d[2] = 240.0; // 中心y
+        pEye->param_i[0] = 0;     // stage
+        pEye->param_i[1] = 24;    // 壁の弾数
+        for (int i = 0; i < 24; i++) {
+            sEnemyShot* pShot = AddShot(pEye, 0, 0, 0, 0.0, KIND_EYE_WALL);
+            pShot->param_d[0] = i * TAU / 24.0; // 自分の円周上の角度
+        }
+    }
+    if (t == T_PHASE3_END - 180) {
+        // フェーズ3後半:残り雨
+        CreateShotSet(0, 0, 0, 0, ShotResidueRain);
     }
 }
