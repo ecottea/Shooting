@@ -3,182 +3,202 @@
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// ============================================================
-// 弾幕：シュレッダー「裁断の刻」
-//  フェーズ1: 白い紙(短レーザー)が4枚降りてきて刃の位置で停止
-//  フェーズ2: シアンの刃(短レーザー)が縦に走り抜ける
-//  フェーズ3: 紙が短冊(銃弾)に分裂し、正弦波で揺れながら舞い落ちる
-// ============================================================
+// 罔両「禅寺に棲む妖蝶」ループ版
+// 青卍(左回り)+青蝶帰巣 → 赤卍(右回り)+赤蝶横広がり → ループ
+// 鱗弾=蝶、短レーザー=卍
 
-// param_i[0] に格納する弾の状態
-#define SHRED_STATE_PAPER_MOVE   0  // 投入中の紙(下降中)
-#define SHRED_STATE_PAPER_STOP   1  // 刃の位置で停止した紙
-#define SHRED_STATE_SHRED_LASER  2  // 断裁後の長い紙片(短レーザー)
-#define SHRED_STATE_BLADE        3  // 刃(直進のみ)
-#define SHRED_STATE_SHRED_BULLET 4  // 断裁後の短冊(銃弾)
-
-// 弾をリストに追加してポインタを返す
-static sEnemyShot* ShredAddShot(sEnemyShotSet* pSet, double x, double y,
-    double muki, double speed, int kind)
+static void ShotManji(sEnemyShotSet* pSet)
 {
-    sEnemyShot* pEnemyShot = new sEnemyShot;
-    pEnemyShot->x = x;
-    pEnemyShot->y = y;
-    pEnemyShot->muki = muki;
-    pEnemyShot->speed = speed;
-    pEnemyShot->kind = kind;
-    pEnemyShot->prev = pSet->pEnemyShotHead->prev;
-    pEnemyShot->next = pSet->pEnemyShotHead;
-    pSet->pEnemyShotHead->prev->next = pEnemyShot;
-    pSet->pEnemyShotHead->prev = pEnemyShot;
-    return pEnemyShot;
+    const int LIFE = 190;
+    if (pSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_medium) == 0) PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+        for (int arm = 0; arm < 4; arm++) {
+            for (int j = 0; j < 3; j++) {
+                sEnemyShot* p = new sEnemyShot;
+                p->x = enemy.x; p->y = enemy.y;
+                p->param_d[0] = arm * DX_PI_F / 2.0;
+                p->param_d[1] = 22.0 + j * 26.0;
+                p->kind = img_enemyShotLaser[(pSet->kind == 0) ? 4 : 0];
+                p->prev = pSet->pEnemyShotHead->prev;
+                p->next = pSet->pEnemyShotHead;
+                pSet->pEnemyShotHead->prev->next = p;
+                pSet->pEnemyShotHead->prev = p;
+            }
+        }
+    }
+
+    bool isEnd = pSet->count > LIFE;
+    double rotSpeed = (pSet->kind == 0) ? -0.018 : 0.038;
+    double expand = (pSet->kind == 0) ? 0.08 : 0.18;
+
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
+        if (!isEnd) {
+            pShot->param_d[0] += rotSpeed;
+            double ang = pShot->param_d[0];
+            double rad = pShot->param_d[1] + pSet->count * expand;
+            pShot->x = enemy.x + rad * cos(ang);
+            pShot->y = enemy.y + rad * sin(ang);
+            pShot->muki = ang + DX_PI_F / 2.0;
+        }
+        else {
+            // 寿命後は外へ飛ばして画面外削除に任せる
+            pShot->x += 3.0 * cos(pShot->muki);
+            pShot->y += 3.0 * sin(pShot->muki);
+        }
+        pShot = pShot->next;
+    }
 }
 
-// 紙片の共通更新：正弦波で揺れながら落下(位相は個体ごとにバラバラ)
-static void ShredFall(sEnemyShot* pShot)
+static void ShotBlueButterfly(sEnemyShotSet* pSet)
 {
-    double sway = sin(pShot->count * pShot->param_d[2] + pShot->param_d[0]);
-    pShot->x += sway * pShot->param_d[1];
-    pShot->y += pShot->param_d[3];
-    // 揺れに合わせて紙片が傾く
-    pShot->muki = DX_PI / 2.0
-        + cos(pShot->count * pShot->param_d[2] + pShot->param_d[0]) * 0.5;
-}
-
-// シュレッダー本体
-static void ShotShredder(sEnemyShotSet* pEnemyShotSet)
-{
-    int t = pEnemyShotSet->count;
-
-    if (t == 0) {
-        // フェーズ1: 予告音を鳴らして紙を4枚投入
-        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
-        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
-
-        for (int i = 0; i < 4; i++) {
-            // 紙の投入位置(敵の中心を基準に左右に展開、少しランダム)
-            double px = pEnemyShotSet->x - 135.0 + i * 90.0 + (GetRand(40) - 20);
-            if (px < 40.0)  px = 40.0;   // 画面内にクランプ
-            if (px > 440.0) px = 440.0;
-            // 白い紙(短レーザー白)を横方向にして上から降ろす
-            sEnemyShot* pPaper = ShredAddShot(pEnemyShotSet, px, 70.0, 0.0, 2.5,
-                img_enemyShotLaser[6]);
-            pPaper->param_i[0] = SHRED_STATE_PAPER_MOVE;
-            pPaper->param_d[0] = 160.0;  // 停止位置=刃のライン
-        }
-    }
-    else if (t == 50) {
-        // フェーズ2: 刃(シアンの短レーザー)が縦に一瞬走り抜ける
-        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
-        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-
-        for (sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-            pShot != pEnemyShotSet->pEnemyShotHead; pShot = pShot->next) {
-            if (pShot->param_i[0] == SHRED_STATE_PAPER_STOP) {
-                sEnemyShot* pBlade = ShredAddShot(pEnemyShotSet, pShot->x,
-                    pShot->y - 20.0,
-                    DX_PI / 2.0, 16.0,
-                    img_enemyShotLaser[3]);
-                pBlade->param_i[0] = SHRED_STATE_BLADE;
-            }
-        }
-    }
-    else if (t == 56) {
-        // フェーズ3: 停止中の紙を断裁して短冊にする
-        // ※ループ中にリストへ追加するため、nextを先に退避してから処理
-        sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-        while (pShot != pEnemyShotSet->pEnemyShotHead) {
-            sEnemyShot* pNext = pShot->next;
-            if (pShot->param_i[0] == SHRED_STATE_PAPER_STOP) {
-                // 紙そのものを「長い紙片」に変化させて落下させる
-                pShot->param_i[0] = SHRED_STATE_SHRED_LASER;
-                pShot->param_d[0] = GetRand(628) / 100.0;        // 揺れの位相 0.00〜6.28
-                pShot->param_d[1] = 0.6 + GetRand(60) / 100.0;   // 揺れ幅   0.60〜1.20
-                pShot->param_d[2] = 0.05 + GetRand(6) / 100.0;   // 揺れ周期 0.05〜0.11
-                pShot->param_d[3] = 1.0 + GetRand(50) / 100.0;   // 落下速度 1.00〜1.50
-
-                // 1枚の紙から短冊(銃弾)を4本切り出す
-                for (int i = 0; i < 4; i++) {
-                    double sx = pShot->x + GetRand(64) - 32;     // 紙の幅(64px)内に散らす
-                    // 2割ほど橙味の紙片を混ぜる
-                    int color = (GetRand(4) == 0) ? 8 : 6;
-                    sEnemyShot* pShred = ShredAddShot(pEnemyShotSet,
-                        sx, pShot->y + GetRand(8) - 4,
-                        DX_PI / 2.0, 0.0,
-                        img_enemyShotBullet[color]);
-                    pShred->param_i[0] = SHRED_STATE_SHRED_BULLET;
-                    pShred->param_d[0] = GetRand(628) / 100.0;       // 位相
-                    pShred->param_d[1] = 0.8 + GetRand(100) / 100.0; // 揺れ幅   0.80〜1.80
-                    pShred->param_d[2] = 0.06 + GetRand(8) / 100.0;  // 揺れ周期 0.06〜0.14
-                    pShred->param_d[3] = 1.3 + GetRand(80) / 100.0;  // 落下速度 1.30〜2.10
-                }
-            }
-            pShot = pNext;
+    const int SPAWN_END = 180;
+    if (pSet->count < SPAWN_END && pSet->count % 6 == 0) {
+        for (int k = 0; k < 8; k++) {
+            sEnemyShot* p = new sEnemyShot;
+            double baseAng = DX_PI_F * 2.0 * k / 8.0 + (double)GetRand(20) / 180.0 * DX_PI_F;
+            p->x = enemy.x; p->y = enemy.y;
+            p->muki = baseAng;
+            p->speed = 3.2 + (double)GetRand(80) / 100.0+12;
+            p->kind = img_enemyShotScale[4];
+            p->param_i[0] = 0;
+            p->param_i[1] = GetRand(100);
+            p->margin = 120;
+            p->prev = pSet->pEnemyShotHead->prev;
+            p->next = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->prev->next = p;
+            pSet->pEnemyShotHead->prev = p;
         }
     }
 
-    // 毎フレームの移動更新
-    for (sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-        pShot != pEnemyShotSet->pEnemyShotHead; pShot = pShot->next) {
-        switch (pShot->param_i[0]) {
-        case SHRED_STATE_PAPER_MOVE:
-            // 紙が降りてきて刃の位置で停止する
-            pShot->y += pShot->speed;
-            if (pShot->y >= pShot->param_d[0]) {
-                pShot->y = pShot->param_d[0];
-                pShot->speed = 0.0;
-                pShot->param_i[0] = SHRED_STATE_PAPER_STOP;
-            }
-            break;
-        case SHRED_STATE_SHRED_LASER:
-        case SHRED_STATE_SHRED_BULLET:
-            // 揺れながら舞い落ちる紙片
-            ShredFall(pShot);
-            break;
-        case SHRED_STATE_BLADE:
-        default:
-            // 刃などは直進(メインルーチンと同じ更新式)
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
+        if (pShot->param_i[0] == 0) {
+            pShot->speed *= 0.955;
             pShot->x += pShot->speed * cos(pShot->muki);
             pShot->y += pShot->speed * sin(pShot->muki);
-            break;
+            if (pShot->speed < 0.45 || pShot->count > 55) {
+                pShot->param_i[0] = 1;
+                pShot->speed = 0.6;
+            }
         }
+        else {
+            double dx = enemy.x - pShot->x;
+            double dy = enemy.y - pShot->y;
+            double target = atan2(dy, dx);
+            double diff = target - pShot->muki;
+            while (diff > DX_PI_F) diff -= DX_PI_F * 2.0;
+            while (diff < -DX_PI_F) diff += DX_PI_F * 2.0;
+            pShot->muki += diff * 0.07;
+            pShot->muki += sin(pShot->count * 0.18 + pShot->param_i[1]) * 0.09;
+            pShot->speed = 0.9 + (double)GetRand(30) / 100.0;
+            pShot->x += pShot->speed * cos(pShot->muki);
+            pShot->y += pShot->speed * sin(pShot->muki);
+
+            if (pSet->count > SPAWN_END + 40) {
+                double d = dx * dx + dy * dy;
+                if (d < 100.0) { // 敵に戻ったら消去
+                    pShot->y = -50.0;
+                }
+            }
+        }
+        pShot = pShot->next;
     }
 }
 
-// ============================================================
-// 敵本体のパターン
-// ============================================================
-void EnemyPat_Tmp()
+static void ShotRedButterfly(sEnemyShotSet* pSet)
 {
-    static int muki;
-    if (count == 1) {
-        // ゲーム画面は 480x480
-        enemy.x = 240.0;
-        enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
-        muki = 1;
-    }
-    else {
-        enemy.x += 0.98 * (double)muki;
-        if (count % 240 == 120) muki *= -1;
+    const int SPAWN_END = 190;
+    if (pSet->count < SPAWN_END && pSet->count % 10 == 0) {
+        double mukiCenter = atan2(player.y - enemy.y, player.x - enemy.x);
+        for (int s = -2; s <= 2; s++) {
+            double streamAng = mukiCenter + s * 0.19;
+            for (int k = 0; k < 6; k++) {
+                sEnemyShot* p = new sEnemyShot;
+                double off = k * 14.0;
+                p->x = enemy.x + cos(streamAng) * off;
+                p->y = enemy.y + sin(streamAng) * off;
+                p->muki = streamAng + (GetRand(20) - 10) / 180.0 * DX_PI_F * 0.3;
+                p->speed = 2.1 + k * 0.18 + (double)GetRand(20) / 100.0;
+                p->kind = img_enemyShotScale[0];
+                p->param_i[0] = s;
+                p->param_i[1] = GetRand(100);
+                p->prev = pSet->pEnemyShotHead->prev;
+                p->next = pSet->pEnemyShotHead;
+                pSet->pEnemyShotHead->prev->next = p;
+                pSet->pEnemyShotHead->prev = p;
+            }
+        }
+        if (pSet->count % 20 == 0) {
+            if (CheckSoundMem(sound_enemyShot_heavy) == 0) PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+        }
     }
 
-    // 300フレームごとにシュレッダー攻撃を1サイクル起こす
-    // (前サイクルの紙片が画面外に出て消える頃合いを見計らった間隔)
-    if (count % 200 == 1) {
-        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotShredder;
-        pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 10.0;
-        pEnemyShotSet->muki = 0.0;
-        pEnemyShotSet->kind = 0;
-        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->prev = enemyShotSetHead.prev;
-        pEnemyShotSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pEnemyShotSet;
-        enemyShotSetHead.prev = pEnemyShotSet;
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
+        double side = (double)pShot->param_i[0] * pShot->count * 0.015;
+        double mvMuki = pShot->muki + sin(pShot->count * 0.22 + pShot->param_i[1]) * 0.06;
+        pShot->x += pShot->speed * cos(mvMuki) - side * 0.25 * sin(mvMuki);
+        pShot->y += pShot->speed * sin(mvMuki) + side * 0.25 * cos(mvMuki);
+        pShot = pShot->next;
+    }
+}
+
+void EnemyPat_Tmp()
+{
+    const int BLUE_TIME = 200;
+    const int RED_TIME = 200;
+    const int LOOP = BLUE_TIME + RED_TIME; // 400Fループ
+
+    if (count == 1) {
+        enemy.x = 240.0;
+        enemy.y = 170.0;
+        enemy.maxHp = enemy.hp = 200;
+    }
+    enemy.x += sin(count * 0.012) * 0.25;
+
+    int loopPos = (count - 1) % LOOP;
+
+    // ループ毎の青開始
+    if (loopPos == 0) {
+        sEnemyShotSet* pManji = new sEnemyShotSet;
+        pManji->count = 0; pManji->patternFunc = ShotManji;
+        pManji->kind = 0; pManji->x = enemy.x; pManji->y = enemy.y;
+        pManji->pEnemyShotHead = new sEnemyShot;
+        pManji->pEnemyShotHead->prev = pManji->pEnemyShotHead;
+        pManji->pEnemyShotHead->next = pManji->pEnemyShotHead;
+        pManji->prev = enemyShotSetHead.prev; pManji->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pManji; enemyShotSetHead.prev = pManji;
+
+        sEnemyShotSet* pBlue = new sEnemyShotSet;
+        pBlue->count = 0; pBlue->patternFunc = ShotBlueButterfly;
+        pBlue->kind = 0; pBlue->x = enemy.x; pBlue->y = enemy.y;
+        pBlue->pEnemyShotHead = new sEnemyShot;
+        pBlue->pEnemyShotHead->prev = pBlue->pEnemyShotHead;
+        pBlue->pEnemyShotHead->next = pBlue->pEnemyShotHead;
+        pBlue->prev = enemyShotSetHead.prev; pBlue->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pBlue; enemyShotSetHead.prev = pBlue;
+    }
+    // ループ内の赤開始
+    else if (loopPos == BLUE_TIME) {
+        if (CheckSoundMem(sound_enemyCharge) == 0) PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+
+        sEnemyShotSet* pManji = new sEnemyShotSet;
+        pManji->count = 0; pManji->patternFunc = ShotManji;
+        pManji->kind = 1; pManji->x = enemy.x; pManji->y = enemy.y;
+        pManji->pEnemyShotHead = new sEnemyShot;
+        pManji->pEnemyShotHead->prev = pManji->pEnemyShotHead;
+        pManji->pEnemyShotHead->next = pManji->pEnemyShotHead;
+        pManji->prev = enemyShotSetHead.prev; pManji->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pManji; enemyShotSetHead.prev = pManji;
+
+        sEnemyShotSet* pRed = new sEnemyShotSet;
+        pRed->count = 0; pRed->patternFunc = ShotRedButterfly;
+        pRed->kind = 1; pRed->x = enemy.x; pRed->y = enemy.y;
+        pRed->pEnemyShotHead = new sEnemyShot;
+        pRed->pEnemyShotHead->prev = pRed->pEnemyShotHead;
+        pRed->pEnemyShotHead->next = pRed->pEnemyShotHead;
+        pRed->prev = enemyShotSetHead.prev; pRed->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pRed; enemyShotSetHead.prev = pRed;
     }
 }
