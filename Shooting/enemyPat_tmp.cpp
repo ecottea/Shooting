@@ -1,253 +1,204 @@
-﻿#include "DxLib.h"
+﻿// enemyPat_Tmp.cpp
+// 弾幕パターン「渦潮」： 全弾1px/frame以下の低速弾のみで構成
+//  1440フレーム(24秒)で1ループする3ウェーブ構成
+//  ・ウェーブ1(   0～ 600f): 渦の生成 … 双渦スパイラル(2方向から同時に8°ずつ回転発射、
+//                             発射60フレーム後から0.5°/frameで進行方向を曲げて渦を描く)
+//  ・ウェーブ2( 600～1080f): 潮の満ち引き … 全弾にサイン波の横揺れ(振幅20px)を加え、
+//                             画面下部からも低速の狙い弾を出して下への逃げ場を塞ぐ
+//  ・ウェーブ3(1080～1440f): 大渦の収束 … 全弾を減速(0.3)し、1°/frameで自機方向へ偏向
+
+#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
-#include <windows.h>
-#include <gdiplus.h>
-#include <vector>
-#include <cmath>
-#include <map>
+#include <math.h>
 
-#pragma comment(lib, "gdiplus.lib")
-using namespace Gdiplus;
-
-//============================================================
-// GDI+ 初期化
-//============================================================
-static void InitGdiplusOnce()
-{
-    static bool initialized = false;
-    if (!initialized) {
-        GdiplusStartupInput gdiInput;
-        ULONG_PTR token;
-        GdiplusStartup(&token, &gdiInput, nullptr);
-        initialized = true;
-    }
+namespace {
+    const double SPIRAL_SPEED = 0.9;  // 渦弾の速度
+    const double AIMED_SPEED = 0.5;  // 下部からの狙い弾の速度
+    const double HOME_SPEED = 0.3;  // 収束時の速度
+    const double BEND_RAD = 0.5 * DX_PI / 180.0*0.75; // 渦弾が1フレームごとに曲がる角度
+    const double HOME_RAD = 1.0 * DX_PI / 180.0; // 収束時の偏向角(1°/frame)
+    const double SWAY_AMP = 20.0; // 横揺れの振幅(px)
+    const double SWAY_FREQ = 0.03; // 横揺れの角周波数
+    const int    CYCLE = 1440; // 1ループのフレーム数
+    const int    W1_END = 600;  // ウェーブ1終了
+    const int    W2_END = 1080; // ウェーブ2終了
 }
 
-//============================================================
-// 任意の文字列をラスタライズして白ピクセルの相対座標を返す
-//============================================================
-static std::vector<std::pair<double, double>> SampleTextPixels(const wchar_t* txt)
+// ----------------------------------------------------------
+// 渦弾マスターセットのパターン関数
+//  弾の param_d[0]/[1] : 横揺れの基準となる座標
+//  弾の param_i[0]     : 渦を巻く方向(+1/-1)
+//  弾の param_i[1]     : 横揺れ開始フラグ
+//  弾の param_i[2]     : 横揺れ振幅の立ち上がりカウンタ
+// ----------------------------------------------------------
+static void ShotUzushio(sEnemyShotSet* pEnemyShotSet)
 {
-    InitGdiplusOnce();
+    const int c = pEnemyShotSet->count % CYCLE;
 
-    const int FONT_SIZE = 28/2;
-    int len = (int)wcslen(txt);
-    if (len == 0) len = 1;
-    const int W = FONT_SIZE * len * 2 + 40; // 長いコメント用に幅を確保
-    const int H = FONT_SIZE * 3;
+    // サイクル頭で発射音、ウェーブ3開始で予告音
+    if (c == 0) {
+        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+    }
+    if (c == W2_END) {
+        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+    }
 
-    Bitmap bitmap(W, H, PixelFormat32bppARGB);
-    Graphics g(&bitmap);
-    g.Clear(Color(0, 0, 0, 0));
-    g.SetTextRenderingHint(TextRenderingHintSingleBitPerPixelGridFit);
+    sEnemyShot* pEnemyShot;
 
-    SolidBrush whiteBrush(Color(255, 255, 255, 255));
-    FontFamily fontFamily(L"Yu Gothic UI");
-    Font font(&fontFamily, (REAL)FONT_SIZE, FontStyleBold, UnitPixel);
-    g.DrawString(txt, -1, &font, PointF(2, 2), &whiteBrush);
-
-    BitmapData bmpData;
-    Rect rect(0, 0, W, H);
-    bitmap.LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bmpData);
-    BYTE* argb = (BYTE*)bmpData.Scan0;
-
-    std::vector<std::pair<int, int>> whitePixels;
-    int minX = W, maxX = -1, minY = H, maxY = -1;
-
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
-            int idx = y * bmpData.Stride + x * 4;
-            BYTE a = argb[idx + 3];
-            if (a == 255) {
-                whitePixels.emplace_back(x, y);
-                if (x < minX) minX = x;
-                if (x > maxX) maxX = x;
-                if (y < minY) minY = y;
-                if (y > maxY) maxY = y;
-            }
+    // ── ウェーブ1: 渦の生成(双渦スパイラル) ──
+    // 6フレームに1回、pEnemyShotSet->param_i[0]を発射番号として
+    // 発射角を8°ずつ回転させ、180°反対の2方向から同時に発射する
+    if (c < W1_END && c % 6 == 0) {
+        double base = DX_PI / 2.0 + pEnemyShotSet->param_i[0] * 8.0 * DX_PI / 180.0;
+        for (int arm = 0; arm < 2; arm++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            pEnemyShot->muki = base + arm * DX_PI;
+            pEnemyShot->speed = SPIRAL_SPEED;
+            pEnemyShot->margin = 120;
+            // シアン/青の中玉で潮のイメージ
+            pEnemyShot->kind = img_enemyShotMediumBall[(arm == 0) ? 3 : 4];
+            pEnemyShot->param_d[0] = pEnemyShot->x;
+            pEnemyShot->param_d[1] = pEnemyShot->y;
+            pEnemyShot->param_i[0] = (arm == 0) ? 1 : -1; // 2つの腕は互い違いに渦を巻く
+            // リストの末尾に追加
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
         }
-    }
-    bitmap.UnlockBits(&bmpData);
-
-    std::vector<std::pair<double, double>> result;
-    if (!whitePixels.empty()) {
-        double cx = (minX + maxX) / 2.0;
-        double cy = (minY + maxY) / 2.0;
-        result.reserve(whitePixels.size());
-        for (auto& p : whitePixels) {
-            result.emplace_back(p.first - cx, p.second - cy);
-        }
-    }
-    return result;
-}
-
-// コメント種別
-static const wchar_t* COMMENT_TEXTS[] = {
-    L"ｗｗｗｗｗｗ",
-    L"草",
-    L"88888888",
-    L"うぽつ",
-    L"かわいい",
-    L"大草原不可避"
-};
-static const int COMMENT_NUM = 6;
-
-static std::vector<std::pair<double, double>>& GetOffsetsByKind(int kind)
-{
-    static std::map<int, std::vector<std::pair<double, double>>> cache;
-    static bool first = true;
-    kind = kind % COMMENT_NUM;
-    if (kind < 0) kind = 0;
-    auto it = cache.find(kind);
-    if (it != cache.end()) return it->second;
-
-    auto vec = SampleTextPixels(COMMENT_TEXTS[kind]);
-    cache[kind] = vec;
-    return cache[kind];
-}
-
-//============================================================
-// ニコニコ風コメント流し弾幕
-// pEnemyShotSet->param_d[0]=speed
-// param_d[1]=amp, [2]=freq, [3]=phase, [4]=scale
-// param_i[0]=colorIdx
-//============================================================
-static void ShotNicoCommentFlow(sEnemyShotSet* pEnemyShotSet)
-{
-    if (pEnemyShotSet->count == 0) {
-        // 使える効果音: sound_enemyShot_medium を採用
-        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
-        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
-
-        int commentKind = pEnemyShotSet->kind % COMMENT_NUM;
-        const auto& offsets = GetOffsetsByKind(commentKind);
-
-        double speed = pEnemyShotSet->param_d[0];
-        double amp = pEnemyShotSet->param_d[1];
-        double freq = pEnemyShotSet->param_d[2];
-        double phase = pEnemyShotSet->param_d[3];
-        double scale = pEnemyShotSet->param_d[4]*2;
-        int colorIdx = pEnemyShotSet->param_i[0];
-
-        // 色は smallBall の色違いで表現 0:赤 6:白 8:橙 など
-        int bulletImg = img_enemyShotSmallBall[colorIdx % 9];
-
-        for (size_t i = 0; i < offsets.size(); ++i) {
-            sEnemyShot* shot = new sEnemyShot;
-
-            // コメントの形を保ったまま右から出現
-            shot->x = pEnemyShotSet->x + offsets[i].first * scale;
-            shot->y = pEnemyShotSet->y + offsets[i].second * scale;
-            shot->muki = DX_PI; // 左方向
-            shot->speed = speed;
-            shot->kind = bulletImg;
-            shot->margin = 480.0; // 画面外判定の余白
-
-            // 波打つ動き用にベースYとパラメータを保存
-            shot->param_d[0] = shot->y; // baseY
-            shot->param_d[1] = amp;
-            shot->param_d[2] = freq;
-            shot->param_d[3] = phase + offsets[i].first * 0.02; // 文字内で位相を少しずらすと波が綺麗
-
-            shot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            shot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = shot;
-            pEnemyShotSet->pEnemyShotHead->prev = shot;
-        }
+        pEnemyShotSet->param_i[0]++;
     }
 
-    // 移動: 基本は左へ、ampがあればsin波で上下
-    sEnemyShot* p = pEnemyShotSet->pEnemyShotHead->next;
-    while (p != pEnemyShotSet->pEnemyShotHead) {
-        p->x -= p->speed;
-        double amp = p->param_d[1];
-        if (amp > 0.1) {
-            double freq = p->param_d[2];
-            double phase = p->param_d[3];
-            double baseY = p->param_d[0];
-            p->y = baseY + amp * sin(p->x * freq + phase);
-        }
-        if (p->x < -20) p->margin = -999;
-        p = p->next;
-    }
-}
-
-//============================================================
-// 敵本体
-//============================================================
-void EnemyPat_Tmp()
-{
-    static int muki;
-
-    if (count == 1) {
-        enemy.x = 240.0;
-        enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 200;
-        muki = 1;
-    }
-    else {
-        enemy.x += 0.98 * (double)muki;
-        if (count % 120 == 60) muki *= -1;
-    }
-
-    // 12フレームごとに右端からコメントを流す
-    if (count % 24 == 0) {
-        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotNicoCommentFlow;
-
-        // 右画面外から出現 (ゲーム画面 480x480)
-        pEnemyShotSet->x = 560.0;
-        // yはランダム 60～380の間
-        pEnemyShotSet->y = 60.0 + GetRand(320+80);
-        pEnemyShotSet->muki = DX_PI;
-
-        // コメント種類 0～5 (GetRand(5)は0..5の6通り)
-        pEnemyShotSet->kind = GetRand(COMMENT_NUM - 1);
-
-        // レイヤー抽選 0:高速赤 1:波打ち白 2:低速壁橙
-        int layer = GetRand(4)/2; // 0..2の3通り
-        double speed, amp = 0.0, freq = 0.05, phase, scale;
-        int colorIdx;
-
-        phase = GetRand(628) / 100.0; // 0..6.28
-
-        if (layer == 0) {
-            // 高速 5.0～7.0
-            speed = (50 + GetRand(20)) / 10.0;
-            scale = 2.2;
-            colorIdx = 0; // 赤
-        }
-        else if (layer == 1) {
-            // 中速 波打ち 2.0～3.5
-            speed = (20 + GetRand(15)) / 10.0;
-            amp = 10.0 + GetRand(30)/3; // 10～40
-            freq = (3 + GetRand(7)) / 100.0; // 0.03～0.10
-            scale = 2.0;
-            colorIdx = 6; // 白
+    // ── 全弾の更新 ──
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        if (c >= W2_END) {
+            // ── ウェーブ3: 減速して自機方向へ1°/frameで偏向 ──
+            pShot->speed = HOME_SPEED;
+            double target = atan2(player.y - pShot->y, player.x - pShot->x);
+            double diff = target - pShot->muki;
+            while (diff > DX_PI) diff -= 2.0 * DX_PI;
+            while (diff < -DX_PI) diff += 2.0 * DX_PI;
+            if (diff > HOME_RAD)        pShot->muki += HOME_RAD;
+            else if (diff < -HOME_RAD)  pShot->muki -= HOME_RAD;
+            else                        pShot->muki = target;
         }
         else {
-            // 低速 壁 1.0～2.0 巨大
-            speed = (10 + GetRand(10)) / 10.0;
-            scale = 3.0;
-            colorIdx = 8; // 橙
+            // ── ウェーブ1～2: 発射60フレーム後から渦を巻く ──
+            if (pShot->count > 60) pShot->muki += pShot->param_i[0] * BEND_RAD;
         }
 
-        pEnemyShotSet->param_d[0] = speed;
-        pEnemyShotSet->param_d[1] = amp;
-        pEnemyShotSet->param_d[2] = freq;
-        pEnemyShotSet->param_d[3] = phase;
-        pEnemyShotSet->param_d[4] = scale;
-        pEnemyShotSet->param_i[0] = colorIdx;
+        // 基準位置を移動(横揺れの影響を受けない座標)
+        pShot->param_d[0] += pShot->speed * cos(pShot->muki);
+        pShot->param_d[1] += pShot->speed * sin(pShot->muki);
 
-        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+        // ── ウェーブ2以降: サイン波による横揺れ ──
+        if (c >= W1_END && pShot->param_i[1] == 0) pShot->param_i[1] = 1;
+        double amp = 0.0;
+        if (pShot->param_i[1] == 1) {
+            if (pShot->param_i[2] < 60) pShot->param_i[2]++; // 振幅をなめらかに立ち上げる
+            amp = SWAY_AMP * pShot->param_i[2] / 60.0;
+        }
+        pShot->x = pShot->param_d[0] + sin(pShot->count * SWAY_FREQ) * amp;
+        pShot->y = pShot->param_d[1];
 
-        pEnemyShotSet->prev = enemyShotSetHead.prev;
-        pEnemyShotSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pEnemyShotSet;
-        enemyShotSetHead.prev = pEnemyShotSet;
+        pShot = pShot->next;
+    }
+}
+
+// ----------------------------------------------------------
+// ウェーブ2限定: 画面下部から自機を狙う低速直進弾(3発/2秒ごと)
+// ----------------------------------------------------------
+static void ShotAimedBottom(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+        for (int i = 0; i < 3; i++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = 240.0 + (i - 1) * 40.0;
+            pEnemyShot->y = 492.0; // 画面のわずかに下(margin 20px以内)から出す
+            pEnemyShot->muki = atan2(player.y - pEnemyShot->y, player.x - pEnemyShot->x);
+            pEnemyShot->speed = AIMED_SPEED;
+            pEnemyShot->kind = img_enemyShotSmallBall[5]; // マゼンタの小玉(渦弾と区別)
+            // リストの末尾に追加
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        }
+    }
+    // 直進のみ
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        pShot->x += pShot->speed * cos(pShot->muki);
+        pShot->y += pShot->speed * sin(pShot->muki);
+        pShot = pShot->next;
+    }
+}
+
+// 敵本体のパターン
+void EnemyPat_Tmp()
+{
+    static sEnemyShotSet* pMaster = nullptr; // 渦弾マスターセット(常時弾を保持し続けるため空にならない)
+
+    if (count == 1) {
+        // ゲーム画面は 480x480
+        enemy.x = 240.0;
+        enemy.y = 240.0;
+        enemy.maxHp = enemy.hp = 300; // 200から変更しないこと
+
+        // 渦弾マスターセットの生成(以後、消滅させず渦の中心として使い続ける)
+        pMaster = new sEnemyShotSet;
+        pMaster->count = 0;
+        pMaster->patternFunc = ShotUzushio;
+        pMaster->x = enemy.x;
+        pMaster->y = enemy.y + 10.0;
+        pMaster->muki = 0.0;
+        pMaster->kind = 0;
+        pMaster->param_i[0] = 0; // 発射番号(スパイラルの回転角に使用)
+        pMaster->pEnemyShotHead = new sEnemyShot;
+        pMaster->pEnemyShotHead->prev = pMaster->pEnemyShotHead;
+        pMaster->pEnemyShotHead->next = pMaster->pEnemyShotHead;
+        pMaster->prev = enemyShotSetHead.prev;
+        pMaster->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pMaster;
+        enemyShotSetHead.prev = pMaster;
+    }
+    else {
+        // 敵はゆっくりと漂うように移動する(=渦の中心が動き、待ち続けられなくなる)
+        enemy.x = 240.0 + sin(count * 0.010) * 100.0;
+        enemy.y = 240.0 + sin(count * 0.021) * 55.0;
+
+        // 渦の中心を敵に追従させる
+        if (pMaster != nullptr) {
+            pMaster->x = enemy.x;
+            pMaster->y = enemy.y + 10.0;
+        }
+
+        // ── ウェーブ2の期間だけ、下から低速の狙い弾を2秒ごとに3発 ──
+        int c2 = (count - 1) % CYCLE; // マスターセットのcountと同期した周期位置
+        if (c2 >= W1_END && c2 < W2_END && count % 120 == 0) {
+            sEnemyShotSet* pSet = new sEnemyShotSet;
+            pSet->count = 0;
+            pSet->patternFunc = ShotAimedBottom;
+            pSet->x = 240.0;
+            pSet->y = 492.0;
+            pSet->muki = 0.0;
+            pSet->kind = 0;
+            pSet->pEnemyShotHead = new sEnemyShot;
+            pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+            pSet->prev = enemyShotSetHead.prev;
+            pSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pSet;
+            enemyShotSetHead.prev = pSet;
+        }
     }
 }
