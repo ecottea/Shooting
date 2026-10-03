@@ -1,140 +1,55 @@
-﻿// enemyPat_Tmp.cpp
-// 弾幕パターン「渦潮」： 全弾1px/frame以下の低速弾のみで構成
-//  1440フレーム(24秒)で1ループする3ウェーブ構成
-//  ・ウェーブ1(   0～ 600f): 渦の生成 … 双渦スパイラル(2方向から同時に8°ずつ回転発射、
-//                             発射60フレーム後から0.5°/frameで進行方向を曲げて渦を描く)
-//  ・ウェーブ2( 600～1080f): 潮の満ち引き … 全弾にサイン波の横揺れ(振幅20px)を加え、
-//                             画面下部からも低速の狙い弾を出して下への逃げ場を塞ぐ
-//  ・ウェーブ3(1080～1440f): 大渦の収束 … 全弾を減速(0.3)し、1°/frameで自機方向へ偏向
-
+﻿// enemyPat_tmp.cpp
+// 弾幕パターン: 「怯えた兎」
+//  - 通常フェーズ: 自機狙いリング弾を撃ちながらゆっくり浮遊
+//  - 一定ダメージ(50)ごとに逃走モードへ移行
+//    1) 尻尾撃ち   : 移動軌跡上に時限爆発弾を落とす(追うと危険)
+//    2) 振り返り撃ち: 急停止→自機狙いの扇状高速度弾→再逃走
+//    3) 角撤退     : 画面端に追い詰められると壁から内側へレーザー
+//  - 逃走後は息切れして硬直(攻撃チャンス)、復帰時に緊急回避弾
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-namespace {
-    const double SPIRAL_SPEED = 0.9;  // 渦弾の速度
-    const double AIMED_SPEED = 0.5;  // 下部からの狙い弾の速度
-    const double HOME_SPEED = 0.3;  // 収束時の速度
-    const double BEND_RAD = 0.5 * DX_PI / 180.0*0.75; // 渦弾が1フレームごとに曲がる角度
-    const double HOME_RAD = 1.0 * DX_PI / 180.0; // 収束時の偏向角(1°/frame)
-    const double SWAY_AMP = 20.0; // 横揺れの振幅(px)
-    const double SWAY_FREQ = 0.03; // 横揺れの角周波数
-    const int    CYCLE = 1440; // 1ループのフレーム数
-    const int    W1_END = 600;  // ウェーブ1終了
-    const int    W2_END = 1080; // ウェーブ2終了
-}
-
-// ----------------------------------------------------------
-// 渦弾マスターセットのパターン関数
-//  弾の param_d[0]/[1] : 横揺れの基準となる座標
-//  弾の param_i[0]     : 渦を巻く方向(+1/-1)
-//  弾の param_i[1]     : 横揺れ開始フラグ
-//  弾の param_i[2]     : 横揺れ振幅の立ち上がりカウンタ
-// ----------------------------------------------------------
-static void ShotUzushio(sEnemyShotSet* pEnemyShotSet)
+// ============================================================
+//  ヘルパー(リンクリスト処理の共通化)
+// ============================================================
+// 弾幕セットを生成して連結リストへ登録
+static sEnemyShotSet* CreateShotSet(void (*func)(sEnemyShotSet*), double x, double y, double muki)
 {
-    const int c = pEnemyShotSet->count % CYCLE;
-
-    // サイクル頭で発射音、ウェーブ3開始で予告音
-    if (c == 0) {
-        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
-        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-    }
-    if (c == W2_END) {
-        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
-        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
-    }
-
-    sEnemyShot* pEnemyShot;
-
-    // ── ウェーブ1: 渦の生成(双渦スパイラル) ──
-    // 6フレームに1回、pEnemyShotSet->param_i[0]を発射番号として
-    // 発射角を8°ずつ回転させ、180°反対の2方向から同時に発射する
-    if (c < W1_END && c % 6 == 0) {
-        double base = DX_PI / 2.0 + pEnemyShotSet->param_i[0] * 8.0 * DX_PI / 180.0;
-        for (int arm = 0; arm < 2; arm++) {
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = pEnemyShotSet->x;
-            pEnemyShot->y = pEnemyShotSet->y;
-            pEnemyShot->muki = base + arm * DX_PI;
-            pEnemyShot->speed = SPIRAL_SPEED;
-            pEnemyShot->margin = 120;
-            // シアン/青の中玉で潮のイメージ
-            pEnemyShot->kind = img_enemyShotMediumBall[(arm == 0) ? 3 : 4];
-            pEnemyShot->param_d[0] = pEnemyShot->x;
-            pEnemyShot->param_d[1] = pEnemyShot->y;
-            pEnemyShot->param_i[0] = (arm == 0) ? 1 : -1; // 2つの腕は互い違いに渦を巻く
-            // リストの末尾に追加
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-        }
-        pEnemyShotSet->param_i[0]++;
-    }
-
-    // ── 全弾の更新 ──
-    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        if (c >= W2_END) {
-            // ── ウェーブ3: 減速して自機方向へ1°/frameで偏向 ──
-            pShot->speed = HOME_SPEED;
-            double target = atan2(player.y - pShot->y, player.x - pShot->x);
-            double diff = target - pShot->muki;
-            while (diff > DX_PI) diff -= 2.0 * DX_PI;
-            while (diff < -DX_PI) diff += 2.0 * DX_PI;
-            if (diff > HOME_RAD)        pShot->muki += HOME_RAD;
-            else if (diff < -HOME_RAD)  pShot->muki -= HOME_RAD;
-            else                        pShot->muki = target;
-        }
-        else {
-            // ── ウェーブ1～2: 発射60フレーム後から渦を巻く ──
-            if (pShot->count > 60) pShot->muki += pShot->param_i[0] * BEND_RAD;
-        }
-
-        // 基準位置を移動(横揺れの影響を受けない座標)
-        pShot->param_d[0] += pShot->speed * cos(pShot->muki);
-        pShot->param_d[1] += pShot->speed * sin(pShot->muki);
-
-        // ── ウェーブ2以降: サイン波による横揺れ ──
-        if (c >= W1_END && pShot->param_i[1] == 0) pShot->param_i[1] = 1;
-        double amp = 0.0;
-        if (pShot->param_i[1] == 1) {
-            if (pShot->param_i[2] < 60) pShot->param_i[2]++; // 振幅をなめらかに立ち上げる
-            amp = SWAY_AMP * pShot->param_i[2] / 60.0;
-        }
-        pShot->x = pShot->param_d[0] + sin(pShot->count * SWAY_FREQ) * amp;
-        pShot->y = pShot->param_d[1];
-
-        pShot = pShot->next;
-    }
+    sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+    pEnemyShotSet->count = 0;
+    pEnemyShotSet->patternFunc = func;
+    pEnemyShotSet->x = x;
+    pEnemyShotSet->y = y;
+    pEnemyShotSet->muki = muki;
+    pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->prev = enemyShotSetHead.prev;
+    pEnemyShotSet->next = &enemyShotSetHead;
+    enemyShotSetHead.prev->next = pEnemyShotSet;
+    enemyShotSetHead.prev = pEnemyShotSet;
+    return pEnemyShotSet;
 }
-
-// ----------------------------------------------------------
-// ウェーブ2限定: 画面下部から自機を狙う低速直進弾(3発/2秒ごと)
-// ----------------------------------------------------------
-static void ShotAimedBottom(sEnemyShotSet* pEnemyShotSet)
+// 弾を生成してセットへ登録
+static sEnemyShot* AddShot(sEnemyShotSet* pEnemyShotSet, double x, double y, double muki, double speed, int kind)
 {
-    sEnemyShot* pEnemyShot;
-    if (pEnemyShotSet->count == 0) {
-        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
-        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-        for (int i = 0; i < 3; i++) {
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = 240.0 + (i - 1) * 40.0;
-            pEnemyShot->y = 492.0; // 画面のわずかに下(margin 20px以内)から出す
-            pEnemyShot->muki = atan2(player.y - pEnemyShot->y, player.x - pEnemyShot->x);
-            pEnemyShot->speed = AIMED_SPEED;
-            pEnemyShot->kind = img_enemyShotSmallBall[5]; // マゼンタの小玉(渦弾と区別)
-            // リストの末尾に追加
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-        }
-    }
-    // 直進のみ
+    sEnemyShot* pEnemyShot = new sEnemyShot;
+    pEnemyShot->x = x;
+    pEnemyShot->y = y;
+    pEnemyShot->muki = muki;
+    pEnemyShot->speed = speed;
+    pEnemyShot->kind = kind;
+    pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+    pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+    return pEnemyShot;
+}
+// セット内の弾を等速直線移動(共通処理)
+static void MoveShots(sEnemyShotSet* pEnemyShotSet)
+{
     sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pShot != pEnemyShotSet->pEnemyShotHead) {
         pShot->x += pShot->speed * cos(pShot->muki);
@@ -143,62 +58,213 @@ static void ShotAimedBottom(sEnemyShotSet* pEnemyShotSet)
     }
 }
 
-// 敵本体のパターン
+// ============================================================
+//  弾幕パターン
+// ============================================================
+// 通常時: 自機狙いを基準にした全方位リング弾
+static void ShotRing(sEnemyShotSet* pEnemyShotSet)
+{
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+        const int NUM = 12;
+        for (int i = 0; i < NUM; i++) {
+            AddShot(pEnemyShotSet, pEnemyShotSet->x, pEnemyShotSet->y,
+                pEnemyShotSet->muki + i * DX_PI * 2.0 / NUM,
+                2.3 + GetRand(60) / 100.0,
+                img_enemyShotSmallBall[0]); // 赤
+        }
+    }
+    MoveShots(pEnemyShotSet);
+}
+// 尻尾撃ち: しばらく漂った後、自機へ向かって高速化する時限爆発弾
+static void ShotTailBomb(sEnemyShotSet* pEnemyShotSet)
+{
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+        for (int i = 0; i < 2; i++) {
+            sEnemyShot* pShot = AddShot(pEnemyShotSet,
+                pEnemyShotSet->x + GetRand(30) - 15,
+                pEnemyShotSet->y + GetRand(30) - 15,
+                GetRand(628) / 100.0, // 0〜2πのランダムな向き
+                0.6,
+                img_enemyShotSmallBall[1]); // 黄: 爆発前の予兆弾
+            pShot->param_i[0] = 45 + GetRand(20); // 導火時間(フレーム)
+        }
+    }
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        if (pShot->param_i[0] > 0) {
+            pShot->param_i[0]--;
+            pShot->x += pShot->speed * cos(pShot->muki);
+            pShot->y += pShot->speed * sin(pShot->muki);
+            if (pShot->param_i[0] == 0) {
+                // 爆発: 自機へ向かって高速化し、見た目も変更
+                pShot->muki = atan2(player.y - pShot->y, player.x - pShot->x);
+                pShot->speed = 4.0;
+                pShot->kind = img_enemyShotMediumBall[0]; // 赤: 爆発弾
+            }
+        }
+        else {
+            pShot->x += pShot->speed * cos(pShot->muki);
+            pShot->y += pShot->speed * sin(pShot->muki);
+        }
+        pShot = pShot->next;
+    }
+}
+// 振り返り撃ち: 自機狙いの扇状高速度弾(銃弾)
+static void ShotFan(sEnemyShotSet* pEnemyShotSet)
+{
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+        const int NUM = 7;
+        for (int i = 0; i < NUM; i++) {
+            AddShot(pEnemyShotSet, pEnemyShotSet->x, pEnemyShotSet->y,
+                pEnemyShotSet->muki + (i - (NUM - 1) / 2) * 7.0 * DX_PI / 180.0,
+                5.5,
+                img_enemyShotBullet[0]); // 赤
+        }
+    }
+    MoveShots(pEnemyShotSet);
+}
+// 角撤退: 壁から内側へ押し出すように水平に走るレーザー
+static void ShotWallLaser(sEnemyShotSet* pEnemyShotSet)
+{
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+        for (int i = 0; i < 3; i++) {
+            AddShot(pEnemyShotSet,
+                pEnemyShotSet->x, pEnemyShotSet->y + (i - 1) * 40.0,
+                pEnemyShotSet->muki, 3.5,
+                img_enemyShotLaser[4]); // 青
+        }
+    }
+    MoveShots(pEnemyShotSet);
+}
+// 緊急回避弾: 硬直復帰の瞬間に全方向へゆっくりばら撒く
+static void ShotBurst(sEnemyShotSet* pEnemyShotSet)
+{
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_extreme)) StopSoundMem(sound_enemyShot_extreme);
+        PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
+        const int NUM = 16;
+        for (int i = 0; i < NUM; i++) {
+            AddShot(pEnemyShotSet, pEnemyShotSet->x, pEnemyShotSet->y,
+                i * DX_PI * 2.0 / NUM, 1.8,
+                img_enemyShotSmallBall[8]); // 橙
+        }
+    }
+    MoveShots(pEnemyShotSet);
+}
+
+// ============================================================
+//  敵本体のパターン
+// ============================================================
 void EnemyPat_Tmp()
 {
-    static sEnemyShotSet* pMaster = nullptr; // 渦弾マスターセット(常時弾を保持し続けるため空にならない)
+    // phase: 0=通常 1=逃走 2=息切れ硬直
+    static int phase;
+    static int phaseCount;
+    static int lastHp;
+    static double targetX, targetY;
 
     if (count == 1) {
         // ゲーム画面は 480x480
         enemy.x = 240.0;
-        enemy.y = 240.0;
-        enemy.maxHp = enemy.hp = 300; // 200から変更しないこと
-
-        // 渦弾マスターセットの生成(以後、消滅させず渦の中心として使い続ける)
-        pMaster = new sEnemyShotSet;
-        pMaster->count = 0;
-        pMaster->patternFunc = ShotUzushio;
-        pMaster->x = enemy.x;
-        pMaster->y = enemy.y + 10.0;
-        pMaster->muki = 0.0;
-        pMaster->kind = 0;
-        pMaster->param_i[0] = 0; // 発射番号(スパイラルの回転角に使用)
-        pMaster->pEnemyShotHead = new sEnemyShot;
-        pMaster->pEnemyShotHead->prev = pMaster->pEnemyShotHead;
-        pMaster->pEnemyShotHead->next = pMaster->pEnemyShotHead;
-        pMaster->prev = enemyShotSetHead.prev;
-        pMaster->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pMaster;
-        enemyShotSetHead.prev = pMaster;
+        enemy.y = 40.0;
+        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
+        phase = 0;
+        phaseCount = 0;
+        lastHp = enemy.hp;
+        targetX = enemy.x;
+        targetY = enemy.y;
+        return;
     }
-    else {
-        // 敵はゆっくりと漂うように移動する(=渦の中心が動き、待ち続けられなくなる)
-        enemy.x = 240.0 + sin(count * 0.010) * 100.0;
-        enemy.y = 240.0 + sin(count * 0.021) * 55.0;
 
-        // 渦の中心を敵に追従させる
-        if (pMaster != nullptr) {
-            pMaster->x = enemy.x;
-            pMaster->y = enemy.y + 10.0;
+    phaseCount++;
+
+    switch (phase) {
+    case 0: // ---------- 通常フェーズ ----------
+        // ゆっくり左右に浮遊しながらリング弾
+        enemy.x = 240.0 + sin(phaseCount * 0.03) * 60.0;
+        enemy.y = 40.0 + sin(phaseCount * 0.05) * 10.0;
+
+        if (phaseCount % 60 == 1) {
+            CreateShotSet(ShotRing, enemy.x, enemy.y + 10.0,
+                atan2(player.y - (enemy.y + 10.0), player.x - enemy.x));
         }
 
-        // ── ウェーブ2の期間だけ、下から低速の狙い弾を2秒ごとに3発 ──
-        int c2 = (count - 1) % CYCLE; // マスターセットのcountと同期した周期位置
-        if (c2 >= W1_END && c2 < W2_END && count % 120 == 0) {
-            sEnemyShotSet* pSet = new sEnemyShotSet;
-            pSet->count = 0;
-            pSet->patternFunc = ShotAimedBottom;
-            pSet->x = 240.0;
-            pSet->y = 492.0;
-            pSet->muki = 0.0;
-            pSet->kind = 0;
-            pSet->pEnemyShotHead = new sEnemyShot;
-            pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
-            pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
-            pSet->prev = enemyShotSetHead.prev;
-            pSet->next = &enemyShotSetHead;
-            enemyShotSetHead.prev->next = pSet;
-            enemyShotSetHead.prev = pSet;
+        // 一定ダメージ(50)で逃走モードへ移行
+        if (enemy.hp <= lastHp - 50) {
+            lastHp = enemy.hp;
+            phase = 1;
+            phaseCount = 0;
+            // 逃走開始の予告音
+            if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+            PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
         }
+        break;
+
+    case 1: // ---------- 逃走フェーズ ----------
+    {
+        // 60フレームごとにランダムな目標点へ方向転換(=ジグザグ移動)
+        if (phaseCount % 60 == 1) {
+            targetX = 60.0 + GetRand(360); // 60〜420
+            targetY = 40.0 + GetRand(240); // 40〜280
+        }
+        // 振り返り撃ちの前後は急停止(怯えて立ち止まる)
+        int cycle = phaseCount % 90;
+        bool stop = (cycle >= 50 && cycle < 65);
+
+        if (!stop) {
+            double dx = targetX - enemy.x;
+            double dy = targetY - enemy.y;
+            double len = sqrt(dx * dx + dy * dy);
+            if (len > 2.0) {
+                enemy.x += 4.0 * dx / len;
+                enemy.y += 4.0 * dy / len;
+            }
+            // 怯え表現の小刻みな震え
+            enemy.x += (GetRand(3) - 1) * 0.5;
+            enemy.y += (GetRand(3) - 1) * 0.5;
+        }
+
+        // 尻尾撃ち: 移動中は常に後方へ時限爆発弾を落とす
+        if (!stop && phaseCount % 8 == 0) {
+            CreateShotSet(ShotTailBomb, enemy.x, enemy.y + 10.0, 0.0);
+        }
+        // 振り返り撃ち: 急停止した瞬間に自機狙いの扇弾
+        if (cycle == 50) {
+            CreateShotSet(ShotFan, enemy.x, enemy.y + 10.0,
+                atan2(player.y - (enemy.y + 10.0), player.x - enemy.x));
+        }
+        // 角撤退: 画面端に追い詰められたら壁から内側へレーザー
+        if ((enemy.x < 70.0 || enemy.x > 410.0) && phaseCount % 40 == 0) {
+            double muki = (enemy.x < 240.0) ? 0.0 : DX_PI; // 内側へ向く水平方向
+            CreateShotSet(ShotWallLaser, enemy.x, enemy.y, muki);
+        }
+        // 逃走時間が経過したら息切れして硬直
+        if (phaseCount >= 240) {
+            phase = 2;
+            phaseCount = 0;
+        }
+        break;
+    }
+    case 2: // ---------- 息切れ硬直(最大の攻撃チャンス) ----------
+        // 息を切らしてその場で震える
+        enemy.x += (GetRand(3) - 1) * 0.3;
+        enemy.y += (GetRand(3) - 1) * 0.3;
+
+        // 約2.5秒後、復帰の瞬間に緊急回避弾を全方向へ
+        if (phaseCount >= 150) {
+            CreateShotSet(ShotBurst, enemy.x, enemy.y, 0.0);
+            phase = 0;
+            phaseCount = 0;
+            lastHp = enemy.hp; // 硬直中に削った分は次の逃走トリガーに含めない
+        }
+        break;
     }
 }
