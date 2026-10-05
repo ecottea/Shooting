@@ -1,121 +1,150 @@
-﻿#include "DxLib.h"
+﻿//----------------------------------------------------------------
+// 弾幕：針の苗木（サボテン）
+//
+// ・大玉(緑)と小玉(緑)を敵の周囲に配置してサボテンの胴体を表現
+// ・胴体は敵本体に追従して動く
+// ・プレイヤーが接近すると針（銃弾・白）を狙い撃ち（近づくと刺さる）
+// ・一定間隔で全周方向へ針を一斉発射する「開花」攻撃
+// ・頂上には白い小玉の花を飾る
+//
+// ※count / pEnemyShotSet->count / pEnemyShot->count のインクリメントと
+//   画面外の弾の消去はメインルーチンで行われる前提
+//----------------------------------------------------------------
+#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// ============================================================
-// 弾幕:マシンガン「ワイルドスイープ(荒れない掃射)」
-//
-// 1サイクルの流れ(フレーム数 / 60fps想定)
-//   2F        : ため開始(予告音)
-//   32F       : ための締め → プレイヤー狙いの大玉を1発(低速)
-//   33〜53F   : 1回目の掃射(銃弾を4F間隔で6連射、角度ランダム±10度)
-//   63〜83F   : 2回目の掃射(同6連射、狙いを少し右へ振って掃射)
-//   93F       : 締めに7方向の鱗弾を拡散
-//   150F      : サイクル終了 → リセット
-// ============================================================
+// 弾をリストに追加するヘルパー関数
+static sEnemyShot* AddShot(sEnemyShotSet* pEnemyShotSet, int kind, double x, double y, double muki, double speed)
+{
+    sEnemyShot* pEnemyShot = new sEnemyShot;
+    pEnemyShot->kind = kind;
+    pEnemyShot->x = x;
+    pEnemyShot->y = y;
+    pEnemyShot->muki = muki;
+    pEnemyShot->speed = speed;
+    pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+    pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+    return pEnemyShot;
+}
 
-#define MG_CYCLE         150+20  // 1サイクルの長さ
-#define MG_CHARGE_SHOT    32  // 大玉発射フレーム
-#define MG_BURST1_START   33  // 1回目の掃射開始
-#define MG_BURST1_END     53
-#define MG_BURST2_START   63  // 2回目の掃射開始
-#define MG_BURST2_END     83
-#define MG_SPREAD_FRAME   93  // 締めの拡散弾
-
-// 弾幕本体
-static void ShotMachineGun(sEnemyShotSet * pEnemyShotSet)
+// サボテン本体＋針のパターン
+static void ShotCactus(sEnemyShotSet* pEnemyShotSet)
 {
     sEnemyShot* pEnemyShot;
-    int c = pEnemyShotSet->count;
 
-    // サイクル終了 → カウントを戻して繰り返す
-    if (c >= MG_CYCLE) {
-        pEnemyShotSet->count = 0;
-        c = 0;
-    }
-
-    // ---- ため(予告音) ----
-    //if (c == 2) {
-    //    if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
-    //    PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
-    //}
-
-    // ---- ための締め:プレイヤー狙いの大玉(低速・プレッシャー役) ----
-    if (c == MG_CHARGE_SHOT) {
-        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
-        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-
-        pEnemyShot = new sEnemyShot;
-        pEnemyShot->x = pEnemyShotSet->x;
-        pEnemyShot->y = pEnemyShotSet->y;
-        pEnemyShot->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
-        pEnemyShot->speed = 1.8;
-        pEnemyShot->kind = img_enemyShotLargeBall[0]; // 大玉:赤
-        pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-        pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-    }
-
-    // ---- マシンガン掃射(4フレーム間隔で6連射×2バースト) ----
-    if ((c >= MG_BURST1_START && c <= MG_BURST1_END && (c - MG_BURST1_START) % 4 == 0) ||
-        (c >= MG_BURST2_START && c <= MG_BURST2_END && (c - MG_BURST2_START) % 4 == 0)) {
-
-        // バースト先頭で連射音
-        if (c == MG_BURST1_START || c == MG_BURST2_START) {
-            if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
-            PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-        }
-
-        // 毎発プレイヤー方向を狙い直し
-        double aim = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
-        // 1バースト目は左へ、2バースト目は右へ振って掃射する
-        double sweep = (c >= MG_BURST2_START) ? 4.0 : -4.0;
-        // 散布度:発射角度をランダムに±10度揺らす(集弾しつつブレる)
-        double angle = aim + sweep / 180.0 * DX_PI + (GetRand(20) - 10) / 180.0 * DX_PI;
-
-        pEnemyShot = new sEnemyShot;
-        // 銃口のブレ
-        pEnemyShot->x = pEnemyShotSet->x + GetRand(8) - 4; // -4〜4
-        pEnemyShot->y = pEnemyShotSet->y + GetRand(8) - 4;
-        pEnemyShot->muki = angle;
-        pEnemyShot->speed = 6.0 + GetRand(100) / 100.0; // 6.0〜7.0 の速い小弾
-        // 銃弾:発射ごとに白/黄を切り替えて曳光弾(トレーサー)っぽく
-        int col = (GetRand(1) == 0) ? 6 : 1; // 6:白 1:黄
-        pEnemyShot->kind = img_enemyShotBullet[col];
-        pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-        pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-    }
-
-    // ---- 締め:「ダダダッ、バラッ!」7方向の鱗弾を拡散 ----
-    if (c == MG_SPREAD_FRAME) {
+    if (pEnemyShotSet->count == 0) {
+        // 使える効果音一覧: sound_enemyShot_light, sound_enemyShot_medium, sound_enemyShot_heavy, sound_enemyShot_extreme, sound_enemyCharge(予告音)
         if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
         PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
 
-        double aim = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
-        for (int i = -3; i <= 3; i++) {
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = pEnemyShotSet->x;
-            pEnemyShot->y = pEnemyShotSet->y;
-            pEnemyShot->muki = aim + i * 4.0 / 180.0 * DX_PI; // 4度間隔で7方向
-            pEnemyShot->speed = 3.2;
-            pEnemyShot->kind = img_enemyShotScale[4]; // 鱗弾:青
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        // --- 胴体の芯：大玉(緑)を円形に配置 ---
+        const int    coreNum = 8;
+        const double coreRadius = 14.0;
+        for (int i = 0; i < coreNum; i++) {
+            double angle = i / (double)coreNum * 2.0 * DX_PI;
+            pEnemyShot = AddShot(pEnemyShotSet, img_enemyShotLargeBall[2], // 緑
+                pEnemyShotSet->x + coreRadius * cos(angle),
+                pEnemyShotSet->y + coreRadius * sin(angle),
+                0.0, 0.0);
+            pEnemyShot->param_i[0] = 1;                      // 胴体フラグ（敵に追従）
+            pEnemyShot->param_d[0] = coreRadius * cos(angle); // 敵からのオフセットX
+            pEnemyShot->param_d[1] = coreRadius * sin(angle); // 敵からのオフセットY
+        }
+
+        // --- 外周のトゲ座：小玉(緑)を円形に配置 ---
+        const int    rimNum = 14;
+        const double rimRadius = 30.0;
+        for (int i = 0; i < rimNum; i++) {
+            double angle = i / (double)rimNum * 2.0 * DX_PI;
+            pEnemyShot = AddShot(pEnemyShotSet, img_enemyShotSmallBall[2], // 緑
+                pEnemyShotSet->x + rimRadius * cos(angle),
+                pEnemyShotSet->y + rimRadius * sin(angle),
+                0.0, 0.0);
+            pEnemyShot->param_i[0] = 1;
+            pEnemyShot->param_d[0] = rimRadius * cos(angle);
+            pEnemyShot->param_d[1] = rimRadius * sin(angle);
+        }
+
+        // --- 左右の腕：大玉＋小玉 ---
+        for (int side = 0; side < 2; side++) {
+            double sx = (side == 0) ? -28.0 : 28.0;
+            pEnemyShot = AddShot(pEnemyShotSet, img_enemyShotLargeBall[2], // 緑
+                pEnemyShotSet->x + sx, pEnemyShotSet->y - 6.0,
+                0.0, 0.0);
+            pEnemyShot->param_i[0] = 1;
+            pEnemyShot->param_d[0] = sx;
+            pEnemyShot->param_d[1] = -6.0;
+
+            pEnemyShot = AddShot(pEnemyShotSet, img_enemyShotSmallBall[2], // 緑
+                pEnemyShotSet->x + sx, pEnemyShotSet->y - 20.0,
+                0.0, 0.0);
+            pEnemyShot->param_i[0] = 1;
+            pEnemyShot->param_d[0] = sx;
+            pEnemyShot->param_d[1] = -20.0;
+        }
+
+        // --- 頂上の花：小玉(白) ---
+        pEnemyShot = AddShot(pEnemyShotSet, img_enemyShotSmallBall[6], // 白
+            pEnemyShotSet->x, pEnemyShotSet->y - 44.0,
+            0.0, 0.0);
+        pEnemyShot->param_i[0] = 1;
+        pEnemyShot->param_d[0] = 0.0;
+        pEnemyShot->param_d[1] = -44.0;
+    }
+
+    // --- 弾の移動：胴体弾は敵に追従、針は直進 ---
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        if (pShot->param_i[0] == 1) {
+            pShot->x = enemy.x + pShot->param_d[0];
+            pShot->y = enemy.y + pShot->param_d[1];
+        }
+        else {
+            pShot->x += pShot->speed * cos(pShot->muki);
+            pShot->y += pShot->speed * sin(pShot->muki);
+        }
+        pShot = pShot->next;
+    }
+
+    double dx = player.x - enemy.x;
+    double dy = player.y - enemy.y;
+    double dist = sqrt(dx * dx + dy * dy);
+    double base = atan2(dy, dx);
+
+    // --- 接近警告：プレイヤーが近いと狙い針を3way連射（近づくと刺さる） ---
+    if (dist < 160.0 && pEnemyShotSet->count % 12 == 0) {
+        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+        for (int i = -1; i <= 1; i++) {
+            AddShot(pEnemyShotSet, img_enemyShotBullet[6], // 白
+                enemy.x + 40.0 * cos(base), enemy.y + 40.0 * sin(base),
+                base + i * 0.15, 3.5);
         }
     }
 
-    // ---- 既存弾の移動 ----
-    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        pShot->x += pShot->speed * cos(pShot->muki);
-        pShot->y += pShot->speed * sin(pShot->muki);
-        pShot = pShot->next;
+    // --- 開花の予告 ---
+    if (pEnemyShotSet->count % 180 == 120) {
+        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+    }
+
+    // --- 開花：全周方向へ針を一斉発射 ---
+    if (pEnemyShotSet->count % 180 == 0 && pEnemyShotSet->count > 0) {
+        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+        const int needleNum = 20;
+        // 発射ごとに回転させることで全周の隙間を変化させる
+        double rot = (pEnemyShotSet->count / 180 % 2) * (DX_PI / needleNum);
+        for (int i = 0; i < needleNum; i++) {
+            double angle = i / (double)needleNum * 2.0 * DX_PI + rot;
+            AddShot(pEnemyShotSet, img_enemyShotBullet[6], // 白
+                enemy.x + 40.0 * cos(angle), enemy.y + 40.0 * sin(angle),
+                angle, 2.5);
+        }
     }
 }
 
@@ -126,27 +155,17 @@ void EnemyPat_Tmp()
     if (count == 1) {
         // ゲーム画面は 480x480
         enemy.x = 240.0;
-        enemy.y = 40.0;
+        enemy.y = 80.0;
         enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
         muki = 1;
-    }
-    else {
-        // 掃射しながら左右に揺れる(弾道が横に舐めるイメージ)
-        enemy.x += 0.98 * (double)muki;
-        if (count % 120 == 60) muki *= -1;
-    }
 
-    // マシンガン1サイクル(150F)+ひと呼吸おいて次のサイクルを開始
-    if (count % 180 == 1) {
-        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
-        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
-
+        // サボテン本体（弾の集合）を1つだけ生成する
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotMachineGun;
+        pEnemyShotSet->patternFunc = ShotCactus;
         pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 10.0;
-        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
+        pEnemyShotSet->y = enemy.y;
+        pEnemyShotSet->muki = 0.0;
         pEnemyShotSet->kind = 0;
         pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
         pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
@@ -155,5 +174,12 @@ void EnemyPat_Tmp()
         pEnemyShotSet->next = &enemyShotSetHead;
         enemyShotSetHead.prev->next = pEnemyShotSet;
         enemyShotSetHead.prev = pEnemyShotSet;
+    }
+    else {
+        // リサジュー曲線で画面全体を動き回る
+        // X: 速い横往復、Y: ゆっくりした縦往復（周期比 3:2）
+        double t = (count - 1) * 0.005;
+        enemy.x = 240.0 + 170.0 * sin(t * 3.0);
+        enemy.y = 240.0 + 170.0 * sin(t * 2.0);
     }
 }
