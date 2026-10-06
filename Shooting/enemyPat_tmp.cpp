@@ -1,171 +1,166 @@
-﻿#include "DxLib.h"
+﻿// ============================================================
+//  enemyPat_Tmp.cpp
+//  弾幕：ミュラーリヤー・シャフト
+// ------------------------------------------------------------
+//  同じ全長の「棒」(小玉の横列)を左右交互に落下させる。
+//   A型: 両端の翼が外側に開く「>—<」 → 実際より短く見える(シアン)
+//   B型: 両端の翼が内側に被る「<—>」 → 実際より長く見える(マゼンタ)
+//  A型の先端は画面下1/3ラインに達すると、外側へ豆弾3連射。
+//  「見た目より攻撃範囲が長い」= 錯視の裏切りをギミック化。
+//
+//  ※ count / pEnemyShotSet->count / pEnemyShot->count のインクリメント、
+//    画面外の弾の消去はメインルーチンで行う前提。
+// ============================================================
+#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// ============================================================
-// 弾幕：サブタレイニアンローズ風
-// ============================================================
+static constexpr double BAR_HALF = 120.0;  // 棒の半長(全長240でA/B共通)
+static constexpr int    BAR_NUM = 17;     // 本体玉の数
+static constexpr double BAR_PITCH = 15.0;   // 本体玉の間隔
+static constexpr double WING_OFF = 10.0;   // 翼玉のオフセット(斜め45°)
+static constexpr double FIRE_LINE = 360.0;  // 隠し射撃ライン(画面480の下1/3)
 
-#define ROSE_WAY_NUM 60   // 全方位弾のway数(N)
-
-// HPが1/4削れる毎にランダムに変化するパラメータ
-static int    g_fireIntervalT;   // T: 撃つ間隔(フレーム)
-static double g_speedV;          // V: 弾速
-static double g_rotateA;         // A: 大玉帯域の回転速度(rad/frame)
-static double g_widthB;          // B: 大玉になる偏角帯域の幅(rad)
-
-// 角度を 0〜2π に正規化する
-static double NormalizeAngle(double a)
+// 玉1個をセットの弾リストへ追加
+static void AddShot(sEnemyShotSet* pSet, double x, double y,
+    double muki, double speed, int color,
+    int tipType, int dir)
 {
-    a = fmod(a, 2.0 * DX_PI);
-    if (a < 0.0) a += 2.0 * DX_PI;
-    return a;
+    sEnemyShot* p = new sEnemyShot;
+    p->x = x;
+    p->y = y;
+    p->muki = muki;
+    p->speed = speed;
+    p->kind = img_enemyShotSmallBall[color];
+    p->param_i[0] = tipType; // 0:本体/翼 1:A型先端(隠し射撃あり) 2:B型先端
+    p->param_i[1] = 0;       // 発射済み弾数
+    p->param_i[2] = 0;       // 連射用タイマー
+    p->param_i[3] = dir;     // +1:右端 -1:左端(本体/翼では未使用)
+    p->prev = pSet->pEnemyShotHead->prev;
+    p->next = pSet->pEnemyShotHead;
+    pSet->pEnemyShotHead->prev->next = p;
+    pSet->pEnemyShotHead->prev = p;
 }
 
-// 青(color==0)なら +(count*A)〜+(count*A+B)、
-// 赤(color==1)なら -(count*A)〜-(count*A+B) の帯域内か判定
-static bool IsInLargeBand(double th, double band, double width, int color)
+// 弾幕本体：横一列の「棒」を生成し、落下させながらA型の隠し射撃を処理する
+static void ShotMullerLyer(sEnemyShotSet* pSet)
 {
-    double d;
-    if (color == 0) d = NormalizeAngle(th - band);   // +方向の帯域
-    else            d = NormalizeAngle(-th - band);  // -方向の帯域(反転して同じ式になる)
-    return (d <= width);
-}
-
-// 1回分のN way全方位弾(青 or 赤)を管理する弾セットのパターン関数
-static void ShotSubterraneanRose(sEnemyShotSet* pEnemyShotSet)
-{
-    sEnemyShot* pShot;
-    if (pEnemyShotSet->count == 0) {
-        // 使える効果音一覧: sound_enemyShot_light, sound_enemyShot_medium, sound_enemyShot_heavy, sound_enemyShot_extreme, sound_enemyCharge(予告音)
+    if (pSet->count == 0) {
+        // 使える効果音一覧: sound_enemyShot_light, sound_enemyShot_medium,
+        //                   sound_enemyShot_heavy, sound_enemyShot_extreme,
+        //                   sound_enemyCharge(予告音)
         if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
         PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
 
-        int    color = pEnemyShotSet->param_i[0]; // 0:青 1:赤
-        double baseMuki = pEnemyShotSet->param_d[0]; // ランダムに決めた基準角
+        const int    type = pSet->kind % 2;    // 0:A型(短く見える) 1:B型(長く見える)
+        const double speed = pSet->param_d[0];  // 落下速度(外側から受け取る)
+        const double cx = pSet->x;
+        const double cy = pSet->y;
 
-        for (int i = 0; i < ROSE_WAY_NUM; i++) {
-            pShot = new sEnemyShot;
-            pShot->x = pEnemyShotSet->x;
-            pShot->y = pEnemyShotSet->y;
-            pShot->muki = baseMuki + i * (2.0 * DX_PI / ROSE_WAY_NUM); // 全方位に等間隔
-            pShot->speed = pEnemyShotSet->param_d[1];                   // 弾速V
-            // とりあえず中玉で生成（直後の毎フレーム分類処理で帯域内なら大玉に変化する）
-            if (color == 0) pShot->kind = img_enemyShotMediumBall[4];   // 青中玉
-            else            pShot->kind = img_enemyShotMediumBall[0];   // 赤中玉
-            // 弾の種類と半径一覧: 小玉(2.5x2.5)、中玉(7.0x7.0)、大玉(20.0x20.0)、...
-            // 弾の色一覧:   0:赤、4:青
+        // 棒本体(白): 等間隔の小玉列 ※A/Bで全長・速度とも完全に同一
+        for (int i = 0; i < BAR_NUM; i++) {
+            AddShot(pSet, cx - BAR_HALF + BAR_PITCH * i, cy,
+                DX_PI / 2.0, speed, 6, 0, 0);
+        }
 
-            // リストに追加
-            pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pShot;
+        // 両端の装飾(先端玉+斜め45°の翼玉2個ずつ)
+        for (int dir = -1; dir <= 1; dir += 2) {
+            const double ex = cx + dir * BAR_HALF;
+            // 先端玉(色と役割がA/Bで違うだけ。当たり判定・位置は同一)
+            AddShot(pSet, ex, cy, DX_PI / 2.0, speed,
+                (type == 0) ? 3 : 5, (type == 0) ? 1 : 2, dir);
+            // 翼: A型は外側へ開く(短く見える) / B型は内側へ被る(長く見える)
+            for (int k = 1; k <= 2; k++) {
+                const double wingX = (type == 0) ? ex + dir * WING_OFF * k   // 外側
+                    : ex - dir * WING_OFF * k;  // 内側
+                AddShot(pSet, wingX, cy - WING_OFF * k, DX_PI / 2.0, speed,
+                    (type == 0) ? 3 : 5, 0, 0);
+                AddShot(pSet, wingX, cy + WING_OFF * k, DX_PI / 2.0, speed,
+                    (type == 0) ? 3 : 5, 0, 0);
+            }
         }
     }
 
-    // 毎フレーム：移動 + 大玉/中玉の分類・変化
-    // (pEnemyShotSet->count / pShot->count のインクリメントと画面外の弾の消去はメインルーチンで行われる)
-    int    color = pEnemyShotSet->param_i[0];
-    double A = pEnemyShotSet->param_d[2];
-    double B = pEnemyShotSet->param_d[3];
-    double band = A * count; // グローバルcountで帯域を回転させる(青赤でずれないように同期)
-
-    pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        // 移動
+    // 毎フレーム: 全弾を移動 & A型先端の隠し射撃
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
         pShot->x += pShot->speed * cos(pShot->muki);
         pShot->y += pShot->speed * sin(pShot->muki);
 
-        // 発射中心から見た偏角
-        double th = NormalizeAngle(atan2(pShot->y - pEnemyShotSet->y, pShot->x - pEnemyShotSet->x));
-
-        if (IsInLargeBand(th, band, B, color)) {
-            pShot->kind = (color == 0) ? img_enemyShotLargeBall[4]   // 青大玉
-                : img_enemyShotLargeBall[0];  // 赤大玉
-        }
-        else {
-            pShot->kind = (color == 0) ? img_enemyShotMediumBall[4]  // 青中玉
-                : img_enemyShotMediumBall[0]; // 赤中玉
+        // A型先端(翼が外向き=短く見える棒)が発射ラインに達したら外向き3連射
+        if (pShot->param_i[0] == 1 && pShot->param_i[1] < 3
+            && pShot->y >= FIRE_LINE) {
+            if (pShot->param_i[2] == 0) {
+                // 予告音(錯視で読み違えていたプレイヤーへの警告)
+                if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+                PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+            }
+            if (pShot->param_i[2] % 8 == 0) {  // 8フレーム間隔で3発
+                AddShot(pSet,
+                    pShot->x + 6.0 * pShot->param_i[3], pShot->y,
+                    (pShot->param_i[3] > 0) ? 0.0 : DX_PI,  // 真横外向き
+                    3.5, 0, 0, 0);
+                pShot->param_i[1]++;
+            }
+            pShot->param_i[2]++;
         }
         pShot = pShot->next;
     }
 }
 
-// 敵本体のパターン
+// ============================================================
+//  敵本体のパターン
+// ============================================================
 void EnemyPat_Tmp()
 {
-    static int volleyColor;   // 次に撃つ色(0:青 1:赤) 青赤交互に撃つ
-    static int fireTimer;     // 次に撃つまでのカウンタ
-    static int pauseTimer;    // HP削り後の一時的な射撃停止時間
-    static int phase;         // 通過済みのHP区切りの数(0〜3)
+    static int muki;
+    static int shot_count;
 
     if (count == 1) {
         // ゲーム画面は 480x480
         enemy.x = 240.0;
-        enemy.y = 110.0;
-        enemy.maxHp = enemy.hp = 200; // 400から変更しないこと
-
-        // 初期パラメータ
-        g_fireIntervalT = 20;    // T
-        g_speedV = 2.5;   // V
-        g_rotateA = 0.010; // A
-        g_widthB = 0.9;   // B
-
-        volleyColor = 0;
-        fireTimer = 30;
-        pauseTimer = 0;
-        phase = 0;
+        enemy.y = 40.0;
+        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
+        muki = 1;
+        shot_count = 0;
     }
     else {
-        // ゆっくり揺れながら移動
-        enemy.x = 240.0 + 60.0 * sin(count * 0.02);
-        enemy.y = 110.0 + 16.0 * sin(count * 0.031);
-
-        // HPが1/4削れる毎にフェーズ移行(maxHp=400なので300/200/100が区切り)
-        if (phase < 3 && enemy.hp <= enemy.maxHp * (3 - phase) / 4) {
-            phase++;
-            pauseTimer = 60; // 少しだけ撃つのを止める
-            // T,V,A,Bをランダムに変化(GetRand(x)は0〜xのx+1種類の整数を返すので注意)
-            g_fireIntervalT = 12 + GetRand(18);               // T: 12〜30フレーム間隔
-            g_speedV = 2.0 + GetRand(200) / 100.0;     // V: 2.0〜4.0
-            g_rotateA = (GetRand(400) - 200) / 10000.0; // A: -0.020〜+0.020 rad/frame(回転方向もランダム)
-            if (fabs(g_rotateA) < 0.004) g_rotateA = 0.004;   // 回転が止まりすぎないように
-            g_widthB = 0.6 + GetRand(80) / 100.0;      // B: 0.6〜1.4 rad
-        }
+        enemy.x += 0.98 * (double)muki;
+        if (count % 120 == 60) muki *= -1;
     }
 
-    if (pauseTimer > 0) {
-        pauseTimer--; // 射撃停止中
+    // フェーズ別の間隔と落下速度
+    //  前半: ゆっくり交互に降り、錯視を学習させる
+    //  中盤: 速度アップ。A→B→Aの連続で幅の読み違えを誘発
+    //  後半: さらに高速+A型の隠し射撃が実質的な判定拡張として機能
+    int    interval;
+    double fallSpeed;
+    if (count <= 300) {
+        interval = 150-20; fallSpeed = 1.2;
+    }
+    else if (count <= 600) {
+        interval = 90-20; fallSpeed = 1.8;
     }
     else {
-        fireTimer--;
-        if (fireTimer <= 0) {
-            fireTimer = g_fireIntervalT;
+        interval = 65-20; fallSpeed = 2.4;
+    }
 
-            // 1回分のN way全方位弾セットを生成(青赤交互、基準角は毎回ランダム)
-            sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-            pEnemyShotSet->count = 0;
-            pEnemyShotSet->patternFunc = ShotSubterraneanRose;
-            pEnemyShotSet->x = enemy.x;
-            pEnemyShotSet->y = enemy.y;
-            pEnemyShotSet->muki = 0;
-            pEnemyShotSet->kind = volleyColor;
-            pEnemyShotSet->param_i[0] = volleyColor;                     // 0:青 1:赤
-            pEnemyShotSet->param_d[0] = GetRand(360) / 180.0 * DX_PI;    // ランダムな基準角
-            pEnemyShotSet->param_d[1] = g_speedV;                        // 弾速V
-            pEnemyShotSet->param_d[2] = g_rotateA;                       // A
-            pEnemyShotSet->param_d[3] = g_widthB;                        // B
-            pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->prev = enemyShotSetHead.prev;
-            pEnemyShotSet->next = &enemyShotSetHead;
-            enemyShotSetHead.prev->next = pEnemyShotSet;
-            enemyShotSetHead.prev = pEnemyShotSet;
-
-            volleyColor ^= 1; // 青→赤→青→…と交互に
-        }
+    if (count % interval == 1) {
+        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+        pEnemyShotSet->count = 0;
+        pEnemyShotSet->patternFunc = ShotMullerLyer;
+        pEnemyShotSet->x = enemy.x;
+        pEnemyShotSet->y = enemy.y + 20.0;
+        pEnemyShotSet->muki = DX_PI / 2.0; // 落下方向(各弾のmukiに反映)
+        pEnemyShotSet->kind = shot_count++;          // 偶数:A型 奇数:B型
+        pEnemyShotSet->param_d[0] = fallSpeed;       // 棒の落下速度
+        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+        pEnemyShotSet->prev = enemyShotSetHead.prev;
+        pEnemyShotSet->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pEnemyShotSet;
+        enemyShotSetHead.prev = pEnemyShotSet;
     }
 }
