@@ -1,121 +1,242 @@
-﻿// ============================================================
-//  enemyPat_Tmp.cpp
-//  弾幕：ミュラーリヤー・シャフト
-// ------------------------------------------------------------
-//  同じ全長の「棒」(小玉の横列)を左右交互に落下させる。
-//   A型: 両端の翼が外側に開く「>—<」 → 実際より短く見える(シアン)
-//   B型: 両端の翼が内側に被る「<—>」 → 実際より長く見える(マゼンタ)
-//  A型の先端は画面下1/3ラインに達すると、外側へ豆弾3連射。
-//  「見た目より攻撃範囲が長い」= 錯視の裏切りをギミック化。
+﻿// enemyPat_Tmp.cpp
+// 弾幕：相転移「凝結・蒸発」
+// ボスの周りに放出された"気体"(白色小弾)が、
+// 　凝結 → "液体"(シアン中弾)が波となって降り注ぐ
+// 　凍結 → "氷"(青中弾)として画面に滞留し、螺旋弾の障害物になる
+// 　融解・蒸発 → 再び雨として降り、最後は"気体"(白小弾)となって立ち昇る
+// という一連の状態変化を、同じ弾オブジェクトのパラメータ書き換えだけで表現する。
 //
-//  ※ count / pEnemyShotSet->count / pEnemyShot->count のインクリメント、
-//    画面外の弾の消去はメインルーチンで行う前提。
-// ============================================================
+// ※ count / pEnemyShotSet->count / pEnemyShot->count のインクリメント、
+//    画面外の弾の削除はメインルーチン側で行われる前提。
+
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-static constexpr double BAR_HALF = 120.0;  // 棒の半長(全長240でA/B共通)
-static constexpr int    BAR_NUM = 17;     // 本体玉の数
-static constexpr double BAR_PITCH = 15.0;   // 本体玉の間隔
-static constexpr double WING_OFF = 10.0;   // 翼玉のオフセット(斜め45°)
-static constexpr double FIRE_LINE = 360.0;  // 隠し射撃ライン(画面480の下1/3)
+// ------------------------------------------------------------------
+// 共通ヘルパ
+// ------------------------------------------------------------------
 
-// 玉1個をセットの弾リストへ追加
-static void AddShot(sEnemyShotSet* pSet, double x, double y,
-    double muki, double speed, int color,
-    int tipType, int dir)
+// 弾をセットのリストに追加して返す
+static sEnemyShot* AddShot(sEnemyShotSet* pSet)
 {
     sEnemyShot* p = new sEnemyShot;
-    p->x = x;
-    p->y = y;
-    p->muki = muki;
-    p->speed = speed;
-    p->kind = img_enemyShotSmallBall[color];
-    p->param_i[0] = tipType; // 0:本体/翼 1:A型先端(隠し射撃あり) 2:B型先端
-    p->param_i[1] = 0;       // 発射済み弾数
-    p->param_i[2] = 0;       // 連射用タイマー
-    p->param_i[3] = dir;     // +1:右端 -1:左端(本体/翼では未使用)
     p->prev = pSet->pEnemyShotHead->prev;
     p->next = pSet->pEnemyShotHead;
     pSet->pEnemyShotHead->prev->next = p;
     pSet->pEnemyShotHead->prev = p;
+    return p;
 }
 
-// 弾幕本体：横一列の「棒」を生成し、落下させながらA型の隠し射撃を処理する
-static void ShotMullerLyer(sEnemyShotSet* pSet)
+// 弾セットを生成してリストに登録して返す
+static sEnemyShotSet* AddShotSet(void (*func)(sEnemyShotSet*), double x, double y, double muki)
+{
+    sEnemyShotSet* p = new sEnemyShotSet;
+    p->count = 0;
+    p->patternFunc = func;
+    p->x = x;
+    p->y = y;
+    p->muki = muki;
+    p->pEnemyShotHead = new sEnemyShot;
+    p->pEnemyShotHead->prev = p->pEnemyShotHead;
+    p->pEnemyShotHead->next = p->pEnemyShotHead;
+    p->prev = enemyShotSetHead.prev;
+    p->next = &enemyShotSetHead;
+    enemyShotSetHead.prev->next = p;
+    enemyShotSetHead.prev = p;
+    return p;
+}
+
+// 角度差を -PI ～ PI に正規化
+static double AngleDiff(double a, double b)
+{
+    double d = a - b;
+    while (d > DX_PI) d -= 2.0 * DX_PI;
+    while (d < -DX_PI) d += 2.0 * DX_PI;
+    return d;
+}
+
+// ------------------------------------------------------------------
+// 相転移サイクル(雲)の弾幕
+//  set->count をタイムラインとして使う(ボス側のフェーズと同期させて生成する)
+//   0-119   : 気体(白小弾)をボスから噴出。ブラウン運動しながら減速(冷却)
+//   120-199 : 凝結。各弾が核(グリッド点)へ向かい、到達したら液体(シアン中弾)化
+//   200-319 : 液体。波状に揺れながら降り注ぐ(弱い追尾付き)
+//   320     : 凍結。青中弾となりその場に滞留(障害物弾)
+//   480     : 融解。再びシアン中弾としてゆっくり落下
+//   540     : 蒸発。白小弾となって立ち昇る(画面外でメインルーチンが削除)
+// ------------------------------------------------------------------
+static void ToLiquid(sEnemyShot* s)
+{
+    s->param_i[0] = 2;                              // 状態 = 液体
+    s->kind = img_enemyShotMediumBall[3];           // シアン中弾
+    s->param_d[3] = GetRand(628) / 100.0;           // 揺れの位相
+    s->param_d[4] = 0.7 + GetRand(80) / 100.0;      // 落下速度 0.7～1.5
+    s->param_d[5] = 8 + GetRand(17);                // 揺れの振幅
+    s->param_d[6] = s->x;                           // 振動の基準X
+    s->speed = 0.0;
+}
+
+static void ShotPhaseCloud(sEnemyShotSet* pSet)
+{
+    int c = pSet->count;
+
+    // 気体の噴出(毎フレーム2発)
+    if (c < 120) {
+        for (int k = 0; k < 2; k++) {
+            sEnemyShot* s = AddShot(pSet);
+            s->x = enemy.x + GetRand(30) - 15;
+            s->y = enemy.y + 10.0 + GetRand(20) - 10;
+            s->muki = GetRand(628) / 100.0;         // 全方向
+            s->speed = 3.0 + GetRand(200) / 100.0;  // 3.0～5.0
+            s->kind = img_enemyShotSmallBall[6];    // 白小弾 = 気体
+            s->param_i[0] = 0;                      // 状態 = 気体
+        }
+    }
+
+    // 凝結開始：核となる目標点(グリッド)を割り当てる
+    if (c == 120) {
+        sEnemyShot* s = pSet->pEnemyShotHead->next;
+        while (s != pSet->pEnemyShotHead) {
+            if (s->param_i[0] == 0) {
+                s->param_i[0] = 1;                          // 状態 = 凝結中
+                s->param_d[1] = 60.0 + GetRand(6) * 60.0;   // 核X: 60～420
+                s->param_d[2] = 80.0 + GetRand(4) * 60.0;   // 核Y: 80～320
+            }
+            s = s->next;
+        }
+    }
+
+    // 凍結 / 融解 / 蒸発の状態変化(潜熱的な一斉遷移)
+    if (c == 320 || c == 480 || c == 540) {
+        sEnemyShot* s = pSet->pEnemyShotHead->next;
+        while (s != pSet->pEnemyShotHead) {
+            if (c == 320 && s->param_i[0] == 2) {
+                s->param_i[0] = 3;                          // 状態 = 氷
+                s->kind = img_enemyShotMediumBall[4];       // 青中弾 = 氷
+                s->speed = 0.0;
+            }
+            if (c == 480 && s->param_i[0] == 3) {
+                s->param_i[0] = 4;                          // 状態 = 融解
+                s->kind = img_enemyShotMediumBall[3];       // シアン中弾 = 液体
+                s->param_d[4] = 1.0 + GetRand(50) / 100.0;  // 融けた分だけ速く落ちる
+            }
+            if (c == 540 && (s->param_i[0] == 4 || s->param_i[0] == 2)) {
+                s->param_i[0] = 5;                          // 状態 = 蒸気
+                s->kind = img_enemyShotSmallBall[6];        // 白小弾 = 気体へ戻る
+                s->muki = -DX_PI / 2.0 + (GetRand(120) - 60) / 180.0 * DX_PI; // 上向き±60°
+                s->speed = 2.0 + GetRand(150) / 100.0;
+            }
+            s = s->next;
+        }
+    }
+
+    // 状態ごとの移動
+    sEnemyShot* s = pSet->pEnemyShotHead->next;
+    while (s != pSet->pEnemyShotHead) {
+        switch (s->param_i[0]) {
+        case 0: // 気体：ブラウン運動しつつ冷却で減速
+            s->muki += (GetRand(21) - 10) * 0.008;
+            s->speed *= 0.995;
+            s->x += s->speed * cos(s->muki);
+            s->y += s->speed * sin(s->muki);
+            break;
+        case 1: // 凝結中：核へ誘導
+        {
+            double desired = atan2(s->param_d[2] - s->y, s->param_d[1] - s->x);
+            s->muki += AngleDiff(desired, s->muki) * 0.1;
+            s->speed = 3.0;
+            s->x += s->speed * cos(s->muki);
+            s->y += s->speed * sin(s->muki);
+            double dx = s->param_d[1] - s->x;
+            double dy = s->param_d[2] - s->y;
+            if (dx * dx + dy * dy < 100.0 || c >= 190) ToLiquid(s); // 核に到達 or 時間切れ
+            break;
+        }
+        case 2: // 液体：波状に降る(ごく緩い横追尾)
+        case 4: // 融解：同様に降る
+            s->param_d[6] += (player.x > s->param_d[6]) ? 0.12 : -0.12;
+            s->y += s->param_d[4];
+            s->x = s->param_d[6] + sin(c * 0.04 + s->param_d[3]) * s->param_d[5];
+            break;
+        case 3: // 氷：静止(障害物として滞留)
+            break;
+        case 5: // 蒸気：揺らぎながら立ち昇る
+            s->muki += sin(c * 0.3 + s->param_d[3]) * 0.05;
+            s->x += s->speed * cos(s->muki);
+            s->y += s->speed * sin(s->muki);
+            break;
+        }
+        s = s->next;
+    }
+}
+
+// ------------------------------------------------------------------
+// 単発バースト(気体・液体フェーズの攻撃)
+//  param_i[0]=弾数, param_i[1]=弾画像, param_d[0]=速度, param_d[1]=拡がり(rad)
+// ------------------------------------------------------------------
+static void ShotBurst(sEnemyShotSet* pSet)
 {
     if (pSet->count == 0) {
-        // 使える効果音一覧: sound_enemyShot_light, sound_enemyShot_medium,
-        //                   sound_enemyShot_heavy, sound_enemyShot_extreme,
-        //                   sound_enemyCharge(予告音)
-        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
-        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-
-        const int    type = pSet->kind % 2;    // 0:A型(短く見える) 1:B型(長く見える)
-        const double speed = pSet->param_d[0];  // 落下速度(外側から受け取る)
-        const double cx = pSet->x;
-        const double cy = pSet->y;
-
-        // 棒本体(白): 等間隔の小玉列 ※A/Bで全長・速度とも完全に同一
-        for (int i = 0; i < BAR_NUM; i++) {
-            AddShot(pSet, cx - BAR_HALF + BAR_PITCH * i, cy,
-                DX_PI / 2.0, speed, 6, 0, 0);
-        }
-
-        // 両端の装飾(先端玉+斜め45°の翼玉2個ずつ)
-        for (int dir = -1; dir <= 1; dir += 2) {
-            const double ex = cx + dir * BAR_HALF;
-            // 先端玉(色と役割がA/Bで違うだけ。当たり判定・位置は同一)
-            AddShot(pSet, ex, cy, DX_PI / 2.0, speed,
-                (type == 0) ? 3 : 5, (type == 0) ? 1 : 2, dir);
-            // 翼: A型は外側へ開く(短く見える) / B型は内側へ被る(長く見える)
-            for (int k = 1; k <= 2; k++) {
-                const double wingX = (type == 0) ? ex + dir * WING_OFF * k   // 外側
-                    : ex - dir * WING_OFF * k;  // 内側
-                AddShot(pSet, wingX, cy - WING_OFF * k, DX_PI / 2.0, speed,
-                    (type == 0) ? 3 : 5, 0, 0);
-                AddShot(pSet, wingX, cy + WING_OFF * k, DX_PI / 2.0, speed,
-                    (type == 0) ? 3 : 5, 0, 0);
-            }
+        int n = pSet->param_i[0];
+        for (int i = 0; i < n; i++) {
+            sEnemyShot* s = AddShot(pSet);
+            s->x = pSet->x;
+            s->y = pSet->y;
+            double t = (n > 1) ? (i / (double)(n - 1) - 0.5) : 0.0;
+            s->muki = pSet->muki + t * pSet->param_d[1];
+            s->speed = pSet->param_d[0];
+            s->kind = pSet->param_i[1];
         }
     }
-
-    // 毎フレーム: 全弾を移動 & A型先端の隠し射撃
-    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
-    while (pShot != pSet->pEnemyShotHead) {
-        pShot->x += pShot->speed * cos(pShot->muki);
-        pShot->y += pShot->speed * sin(pShot->muki);
-
-        // A型先端(翼が外向き=短く見える棒)が発射ラインに達したら外向き3連射
-        if (pShot->param_i[0] == 1 && pShot->param_i[1] < 3
-            && pShot->y >= FIRE_LINE) {
-            if (pShot->param_i[2] == 0) {
-                // 予告音(錯視で読み違えていたプレイヤーへの警告)
-                if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
-                PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
-            }
-            if (pShot->param_i[2] % 8 == 0) {  // 8フレーム間隔で3発
-                AddShot(pSet,
-                    pShot->x + 6.0 * pShot->param_i[3], pShot->y,
-                    (pShot->param_i[3] > 0) ? 0.0 : DX_PI,  // 真横外向き
-                    3.5, 0, 0, 0);
-                pShot->param_i[1]++;
-            }
-            pShot->param_i[2]++;
-        }
-        pShot = pShot->next;
+    // 直進
+    sEnemyShot* s = pSet->pEnemyShotHead->next;
+    while (s != pSet->pEnemyShotHead) {
+        s->x += s->speed * cos(s->muki);
+        s->y += s->speed * sin(s->muki);
+        s = s->next;
     }
 }
 
-// ============================================================
-//  敵本体のパターン
-// ============================================================
+// ------------------------------------------------------------------
+// 螺旋弾(凍結フェーズの攻撃)：氷の間を縫って回避させる
+// ------------------------------------------------------------------
+static void ShotSpiral(sEnemyShotSet* pSet)
+{
+    if (pSet->count < 160 && pSet->count % 2 == 0) {
+        for (int k = 0; k < 2; k++) {   // 2本の腕(反対方向)
+            sEnemyShot* s = AddShot(pSet);
+            s->x = enemy.x;
+            s->y = enemy.y + 10.0;
+            s->muki = pSet->param_d[0] + k * DX_PI;
+            s->speed = 3.0;
+            s->kind = img_enemyShotSmallBall[4];    // 青小弾 = 冷気
+        }
+        pSet->param_d[0] += 0.21;       // 回転
+    }
+    // 直進
+    sEnemyShot* s = pSet->pEnemyShotHead->next;
+    while (s != pSet->pEnemyShotHead) {
+        s->x += s->speed * cos(s->muki);
+        s->y += s->speed * sin(s->muki);
+        s = s->next;
+    }
+}
+
+// ------------------------------------------------------------------
+// 敵本体のパターン
+//  1サイクル720フレームで温度が「高温→低温→高温」と循環する
+//   phase   0-239 : 気体 … 白弾の拡散バースト
+//   phase 240-319 : 液体 … シアン弾の狙い撃ち(凍結の予告音付き)
+//   phase 320-479 : 凍結 … 氷が滞留し、螺旋弾が氷の間を抜けてくる
+//   phase 480-719 : 融解・休息 … 融けた雨と蒸発の演出、攻撃はまばら
+// ------------------------------------------------------------------
 void EnemyPat_Tmp()
 {
     static int muki;
-    static int shot_count;
+    static double spd;
+    const int CYCLE = 720;
 
     if (count == 1) {
         // ゲーム画面は 480x480
@@ -123,44 +244,69 @@ void EnemyPat_Tmp()
         enemy.y = 40.0;
         enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
         muki = 1;
-        shot_count = 0;
+        spd = 1.2;
     }
     else {
-        enemy.x += 0.98 * (double)muki;
-        if (count % 120 == 60) muki *= -1;
+        // フェーズによって移動速度が変わる(冷えると動きが鈍る)
+        enemy.x += spd * muki;
+        if (enemy.x < 80.0) { enemy.x = 80.0;  muki = 1; }
+        if (enemy.x > 400.0) { enemy.x = 400.0; muki = -1; }
+        enemy.y = 40.0 + sin((count - 1) * 0.02) * 12.0;
     }
 
-    // フェーズ別の間隔と落下速度
-    //  前半: ゆっくり交互に降り、錯視を学習させる
-    //  中盤: 速度アップ。A→B→Aの連続で幅の読み違えを誘発
-    //  後半: さらに高速+A型の隠し射撃が実質的な判定拡張として機能
-    int    interval;
-    double fallSpeed;
-    if (count <= 300) {
-        interval = 150-20; fallSpeed = 1.2;
+    int phase = (count - 1) % CYCLE;
+    double aim = atan2(player.y - enemy.y, player.x - enemy.x);
+
+    // 相転移サイクル(雲)の生成
+    if (phase == 0) {
+        // 使える効果音: sound_enemyShot_light, sound_enemyShot_medium, sound_enemyShot_heavy, sound_enemyShot_extreme, sound_enemyCharge(予告音)
+        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+        AddShotSet(ShotPhaseCloud, enemy.x, enemy.y, 0.0);
     }
-    else if (count <= 600) {
-        interval = 90-20; fallSpeed = 1.8;
+
+    if (phase < 240) {
+        // 気体フェーズ：拡散する白弾のバースト
+        spd = 1.4;
+        if (phase % 45 == 0) {
+            sEnemyShotSet* p = AddShotSet(ShotBurst, enemy.x, enemy.y + 10.0, aim);
+            p->param_i[0] = 5;                          // 5-way
+            p->param_i[1] = img_enemyShotSmallBall[6];  // 白小弾
+            p->param_d[0] = 4.5;
+            p->param_d[1] = 1.0;                        // 拡がり 約57°
+        }
+    }
+    else if (phase < 320) {
+        // 液体フェーズ：シアン弾の狙い撃ち + 凍結の予告
+        spd = 1.0;
+        if (phase == 240 || phase == 285) {
+            if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+            PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);  // 凍結の予告音
+        }
+        if (phase == 240 || phase == 270) {
+            sEnemyShotSet* p = AddShotSet(ShotBurst, enemy.x, enemy.y + 10.0, aim);
+            p->param_i[0] = 3;                              // 3-way
+            p->param_i[1] = img_enemyShotMediumBall[3];     // シアン中弾 = 液滴
+            p->param_d[0] = 2.8;
+            p->param_d[1] = 0.5;
+        }
+    }
+    else if (phase < 480) {
+        // 凍結フェーズ：氷が障害物として残り、螺旋弾が迫る
+        spd = 0.6;
+        if (phase == 320) {
+            AddShotSet(ShotSpiral, enemy.x, enemy.y, 0.0);
+        }
     }
     else {
-        interval = 65-20; fallSpeed = 2.4;
-    }
-
-    if (count % interval == 1) {
-        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotMullerLyer;
-        pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 20.0;
-        pEnemyShotSet->muki = DX_PI / 2.0; // 落下方向(各弾のmukiに反映)
-        pEnemyShotSet->kind = shot_count++;          // 偶数:A型 奇数:B型
-        pEnemyShotSet->param_d[0] = fallSpeed;       // 棒の落下速度
-        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->prev = enemyShotSetHead.prev;
-        pEnemyShotSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pEnemyShotSet;
-        enemyShotSetHead.prev = pEnemyShotSet;
+        // 融解・休息フェーズ：まばらな狙い撃ちのみ
+        spd = 1.0;
+        if (phase % 90 == 0) {
+            sEnemyShotSet* p = AddShotSet(ShotBurst, enemy.x, enemy.y + 10.0, aim);
+            p->param_i[0] = 1;
+            p->param_i[1] = img_enemyShotMediumBall[3];
+            p->param_d[0] = 2.2;
+            p->param_d[1] = 0.0;
+        }
     }
 }
