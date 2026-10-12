@@ -1,374 +1,195 @@
-﻿// 弾幕：平安京の悪夢
-// enemyPat_sampleForAI.cpp / gv.h / imgSoundLoad.h の構成に合わせた実装。
-// 弾・弾セットの count 加算、および画面外弾の消去はメインルーチンに任せる。
-
+﻿//--------------------------------------------------------------
+// 弾幕：ルーロー三角形モチーフ「境界輪廻(ルーロー・サイクル)」
+//
+//  [フェーズ1] 頂点の生成 : 3つの固定小玉(頂点砲台)を設置
+//  [フェーズ2] 輪郭の描画 : 各頂点から「他の2頂点」へ向かって扇状に小玉を発射。
+//                           減速して一辺の長さの距離で停止するので、
+//                           3つの円弧が合わさり外側に膨らんだ三角形の輪郭が浮かぶ
+//  [フェーズ3] 回転       : 輪郭ごと重心周りに回転。頂点から内側へ中玉をばら撒く
+//  [フェーズ4] 放出       : 全弾を重心から放射状に炸裂させ、次サイクルへ
+//--------------------------------------------------------------
 #include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
-#include <algorithm>
 
-namespace {
+// --- ジオメトリ定数 ---
+static const double REULEAU_RC = 70.0;                     // 中心〜頂点(外接半径)
+static const double REULEAU_L = REULEAU_RC * sqrt(3.0);   // 一辺の長さ = ルーロー三角形の幅
+static const int    ROT_START = 120;                      // 回転開始フレーム(セット内カウント)
+static const int    ROT_END = 300;                      // 放出フレーム
+static const int    CYCLE = 400-70;                      // 1サイクルの長さ
 
-    // ゲーム画面は 480x480。弾幕は画面外 60px まで広げて配置する。
-    constexpr double FIELD_MIN = -60.0;
-    constexpr double FIELD_MAX = 540.0;
-    constexpr double FIELD_SPAN = FIELD_MAX - FIELD_MIN;
-    constexpr double GRID_W = 60.0;       // 横方向の間隔 W は全ラウンドで固定
-    constexpr int    WAIT_FRAMES = 60;    // 1 秒（60 fps 想定）
-    constexpr int    PATTERN_INTERVAL = 360;
+// 弾をリスト末尾に追加するヘルパー
+static sEnemyShot* AddShot(sEnemyShotSet* pSet, double x, double y, double muki, double speed, int kind)
+{
+    sEnemyShot* pShot = new sEnemyShot;
+    pShot->x = x;
+    pShot->y = y;
+    pShot->muki = muki;
+    pShot->speed = speed;
+    pShot->kind = kind;
+    pShot->prev = pSet->pEnemyShotHead->prev;
+    pShot->next = pSet->pEnemyShotHead;
+    pSet->pEnemyShotHead->prev->next = pShot;
+    pSet->pEnemyShotHead->prev = pShot;
+    return pShot;
+}
 
-    // sEnemyShotSet をリストへ登録する。count はここでは加算しない。
-    static sEnemyShotSet* CreateShotSet(sEnemyShotSet::PatternFunc func)
-    {
-        sEnemyShotSet* set = new sEnemyShotSet;
-        set->count = 0;
-        set->patternFunc = func;
-        set->x = enemy.x;
-        set->y = enemy.y;
-        set->muki = 0.0;
-        set->kind = 0;
+// 弾幕パターン本体
+static void ShotReuleaux(sEnemyShotSet* pEnemyShotSet)
+{
+    const double CX = pEnemyShotSet->x;   // 三角形の重心
+    const double CY = pEnemyShotSet->y;
+    const double BASE = pEnemyShotSet->param_d[0];  // サイクルごとの初期角度
+    const double OMEGA = 0.008 * ((pEnemyShotSet->param_i[1] == 0) ? 1.0 : -1.0); // 回転角速度(交互に反転)
+    const bool   rotating = (pEnemyShotSet->count >= ROT_START && pEnemyShotSet->count < ROT_END);
+    const int    cnt = pEnemyShotSet->count;
 
-        set->pEnemyShotHead = new sEnemyShot;
-        set->pEnemyShotHead->prev = set->pEnemyShotHead;
-        set->pEnemyShotHead->next = set->pEnemyShotHead;
-
-        set->prev = enemyShotSetHead.prev;
-        set->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = set;
-        enemyShotSetHead.prev = set;
-        return set;
-    }
-
-    static void AppendShot(sEnemyShotSet* set, sEnemyShot* shot)
-    {
-        sEnemyShot* head = set->pEnemyShotHead;
-        shot->prev = head->prev;
-        shot->next = head;
-        head->prev->next = shot;
-        head->prev = shot;
-    }
-
-    // この弾セットに属する弾をすべて消す。count の操作は行わない。
-    static void ClearShots(sEnemyShotSet* set)
-    {
-        sEnemyShot* head = set->pEnemyShotHead;
-        sEnemyShot* shot = head->next;
-        while (shot != head) {
-            sEnemyShot* next = shot->next;
-            shot->prev->next = shot->next;
-            shot->next->prev = shot->prev;
-            delete shot;
-            shot = next;
+    // ---------- フェーズ1: 頂点砲台(固定弾)の設置 ----------
+    if (cnt == 0) {
+        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+        for (int v = 0; v < 3; v++) {
+            double ang = BASE + v * 2.0 * DX_PI / 3.0;
+            sEnemyShot* pShot = AddShot(pEnemyShotSet,
+                CX + REULEAU_RC * cos(ang), CY + REULEAU_RC * sin(ang),
+                0.0, 0.0, img_enemyShotSmallBall[6]);   // 白
+            pShot->param_i[0] = 1;  // 頂点砲台フラグ(速度0で場に残る)
         }
-        head->next = head;
-        head->prev = head;
     }
 
-    static void PlaySoundRestart(int sound)
-    {
-        if (CheckSoundMem(sound)) StopSoundMem(sound);
-        PlaySoundMem(sound, DX_PLAYTYPE_BACK);
-    }
+    // ---------- フェーズ2: 輪郭(3つの円弧)の描画 ----------
+    if (cnt == 40) {
+        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
 
-    static double LaserAngle(bool transposed)
-    {
-        // 下向きレーザーを x/y 転置すると右向きレーザーになる。
-        return transposed ? 0.0 : DX_PI / 2.0;
-    }
+        const int    FAN = 16;
+        const double V0 = 3.5;
+        const double DECEL = V0 * V0 / (2.0 * REULEAU_L);   // 一辺の長さちょうどで停止する減速度
 
-    // 0 から 1 まで、最初は加速し、中央で最大速度になり、最後は減速する進行率。
-    static double EaseAccelerateDecelerate(int elapsed, int T)
-    {
-        if (elapsed <= 0) return 0.0;
-        if (elapsed >= 2 * T) return 1.0;
-
-        if (elapsed <= T) {
-            const double u = static_cast<double>(elapsed) / T;
-            return 0.5 * u * u;
-        }
-
-        const double u = static_cast<double>(elapsed - T) / T;
-        return 0.5 + u - 0.5 * u * u;
-    }
-
-    // 1 回分の基本パターン設定。第 3 フェーズでは通常形と転置形で共有する。
-    struct GridConfig {
-        int N = 0;
-        int T = 0;
-        int rowCount = 0;
-        int colCount = 0;
-        double H = 0.0;
-        int P[8]{};
-        int R[8]{};
-        int D[8]{};
-    };
-
-    static GridConfig MakeGridConfig()
-    {
-        GridConfig cfg;
-        cfg.N = 3 + GetRand(5);             // 3～8
-        // 600 の約数から選び、-60 から 540 までを間隔 H でちょうど埋める。
-        // いずれも W=60 より狭い間隔。
-        const int hCandidates[] = { 10, 12, 15, 20, 24, 25, 30 };
-        cfg.H = static_cast<double>(hCandidates[GetRand(6)]);
-        cfg.T = 30 + GetRand(25);            // 30～55 フレーム
-        cfg.colCount = static_cast<int>(FIELD_SPAN / GRID_W) + 1;
-        cfg.rowCount = static_cast<int>(FIELD_SPAN / cfg.H) + 1;
-
-        for (int k = 0; k < cfg.N; ++k) cfg.P[k] = k;
-        // Fisher–Yates で 0..N-1 のランダム順列を作る。
-        for (int k = cfg.N - 1; k > 0; --k) {
-            const int swapIndex = GetRand(k);
-            std::swap(cfg.P[k], cfg.P[swapIndex]);
-        }
-        for (int k = 0; k < cfg.N; ++k) {
-            cfg.R[k] = GetRand(1);
-            cfg.D[k] = GetRand(1);
-        }
-        return cfg;
-    }
-
-    // 基本パターン（転置時は位置とレーザーの向きを x/y 交換する）。
-    // param_i[4] は転置フラグ、param_i[5..12] は P、param_i[13..14] は R/D のビットマスク。
-    static void PatternHeianGrid(sEnemyShotSet* set)
-    {
-        const int t = set->count;
-        const bool transposed = (set->param_i[4] != 0);
-
-        if (t == 0) {
-            const int N = set->param_i[0];
-            const double H = set->param_d[0];
-            const double W = set->param_d[1];
-            const int rowCount = set->param_i[2];
-            const int colCount = set->param_i[3];
-            const int rMask = set->param_i[13];
-            const int dMask = set->param_i[14];
-
-            int P[8]{};
-            int R[8]{};
-            int D[8]{};
-            for (int k = 0; k < N; ++k) {
-                P[k] = set->param_i[5 + k];
-                R[k] = (rMask >> k) & 1;
-                D[k] = (dMask >> k) & 1;
+        for (int v = 0; v < 3; v++) {
+            double angV = BASE + v * 2.0 * DX_PI / 3.0;
+            double vx = CX + REULEAU_RC * cos(angV);
+            double vy = CY + REULEAU_RC * sin(angV);
+            // 他の2頂点への方向(その間が60度の円弧になる)
+            double dir[2];
+            for (int k = 0; k < 2; k++) {
+                double angO = BASE + ((v + 1 + k) % 3) * 2.0 * DX_PI / 3.0;
+                dir[k] = atan2(CY + REULEAU_RC * sin(angO) - vy,
+                    CX + REULEAU_RC * cos(angO) - vx);
             }
+            // 2方向の中間角(円弧の中心方向)
+            double mid = atan2(sin(dir[0]) + sin(dir[1]), cos(dir[0]) + cos(dir[1]));
+            // ±30度の扇状に発射 → 半径Lの円弧上で静止する
+            for (int j = 0; j < FAN; j++) {
+                double t = (double)j / (FAN - 1) - 0.5;     // -0.5〜+0.5
+                sEnemyShot* pShot = AddShot(pEnemyShotSet, vx, vy,
+                    mid + t * DX_PI / 3.0, V0, img_enemyShotSmallBall[3]);  // シアン
+                pShot->param_i[1] = 1;      // 減速フラグ
+                pShot->param_d[0] = DECEL;  // 減速度
+            }
+        }
+    }
 
-            for (int i = 0; i < colCount; ++i) {
-                for (int j = 0; j < rowCount; ++j) {
-                    const int r = j % N;
-                    const int Q = (P[r] - r + N) % N;
-                    const int i2 = i + (R[r] ? 1 : -1);
-                    const int j2 = D[r] ? (j + Q) : (j + Q - N);
+    // ---------- フェーズ3: 頂点からの内側ばら撒き(回転中、50フレームごと) ----------
+    // GetRand(60)-30 は -30〜+30 の61種類を返すことに注意
+    if (cnt >= ROT_START && cnt < ROT_END && cnt % 30 == 20) {
+        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
 
-                    const double sourceX = transposed
-                        ? FIELD_MIN + j * H
-                        : FIELD_MIN + i * W;
-                    const double sourceY = transposed
-                        ? FIELD_MIN + i * W
-                        : FIELD_MIN + j * H;
-                    const double targetX = transposed
-                        ? FIELD_MIN + j2 * H
-                        : FIELD_MIN + i2 * W;
-                    const double targetY = transposed
-                        ? FIELD_MIN + i2 * W
-                        : FIELD_MIN + j2 * H;
+        double rot = BASE + pEnemyShotSet->param_d[1];  // 現在の回転角を加味した頂点位置
+        for (int v = 0; v < 3; v++) {
+            double ang = rot + v * 2.0 * DX_PI / 3.0;
+            double vx = CX + REULEAU_RC * cos(ang);
+            double vy = CY + REULEAU_RC * sin(ang);
+            // 自機狙い1発
+            AddShot(pEnemyShotSet, vx, vy,
+                atan2(player.y - vy, player.x - vx), 2.2, img_enemyShotMediumBall[0]);  // 赤
+            // 重心方向への拡散4発
+            for (int j = 0; j < 4*4; j++) {
+                double muki = atan2(CY - vy, CX - vx) + (GetRand(60) - 30) / 180.0 * DX_PI;
+                double speed = 1.5 + GetRand(100) / 100.0;
+                AddShot(pEnemyShotSet, vx, vy, muki, speed, img_enemyShotMediumBall[0]);
+            }
+        }
+    }
 
-                    sEnemyShot* shot = new sEnemyShot;
-                    shot->x = sourceX;
-                    shot->y = sourceY;
-                    shot->muki = LaserAngle(transposed);
-                    shot->speed = 0.0;
-                    shot->kind = img_enemyShotLaser[0]; // 赤レーザー
-                    shot->param_i[0] = i;
-                    shot->param_i[1] = j;
-                    shot->param_d[0] = sourceX;
-                    shot->param_d[1] = sourceY;
-                    shot->param_d[2] = targetX;
-                    shot->param_d[3] = targetY;
-                    AppendShot(set, shot);
+    // ---------- フェーズ4: 全弾放出(重心から放射状に炸裂) ----------
+    if (cnt == ROT_END) {
+        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+
+        sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+        while (pShot != pEnemyShotSet->pEnemyShotHead) {
+            pShot->muki = atan2(pShot->y - CY, pShot->x - CX);
+            pShot->speed = 3.0;
+            pShot->param_i[0] = 0;  // フラグ解除
+            pShot->param_i[1] = 0;
+            pShot = pShot->next;
+        }
+    }
+
+    // ---------- 毎フレーム: 移動 & 重心周りの回転 ----------
+    double cosW = cos(OMEGA), sinW = sin(OMEGA);
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        if (pShot->speed != 0.0) {
+            if (pShot->param_i[1] == 1) {   // 減速しながら直進(円弧になる輪郭弾)
+                pShot->speed -= pShot->param_d[0];
+                if (pShot->speed <= 0.0) {
+                    pShot->speed = 0.0;
+                    pShot->param_i[1] = 0;
                 }
             }
-            return; // 出現フレームでは初期位置に静止させる。
+            pShot->x += pShot->speed * cos(pShot->muki);
+            pShot->y += pShot->speed * sin(pShot->muki);
         }
-
-        const int T = set->param_i[1];
-        const int moveStart = WAIT_FRAMES;
-        const int moveEnd = moveStart + 2 * T;
-        const int eraseTime = moveEnd + WAIT_FRAMES;
-
-        if (t >= eraseTime) {
-            // 到着して 1 秒待った後、格子レーザーを一斉に消す。
-            ClearShots(set);
-            // 次のパターン開始までは空のまま待機する。
-            return;
+        if (rotating) { // 回転フェーズ中は全弾(頂点砲台含む)を重心周りで公転させる
+            double dx = pShot->x - CX;
+            double dy = pShot->y - CY;
+            pShot->x = CX + dx * cosW - dy * sinW;
+            pShot->y = CY + dx * sinW + dy * cosW;
+            pShot->muki += OMEGA;
         }
-
-        sEnemyShot* shot = set->pEnemyShotHead->next;
-        while (shot != set->pEnemyShotHead) {
-            if (t < moveStart) {
-                shot->x = shot->param_d[0];
-                shot->y = shot->param_d[1];
-                shot->kind = img_enemyShotLaser[0];
-                shot->muki = LaserAngle(transposed);
-                shot->speed = 0.0;
-            }
-            else if (t < moveEnd) {
-                const double progress = EaseAccelerateDecelerate(t - moveStart, T);
-                const double dx = shot->param_d[2] - shot->param_d[0];
-                const double dy = shot->param_d[3] - shot->param_d[1];
-                shot->x = shot->param_d[0] + dx * progress;
-                shot->y = shot->param_d[1] + dy * progress;
-                shot->kind = img_enemyShotMediumBall[0]; // 移動中は赤い中玉
-                shot->muki = atan2(dy, dx);
-                shot->speed = 0.0;
-            }
-            else {
-                shot->x = shot->param_d[2];
-                shot->y = shot->param_d[3];
-                shot->kind = img_enemyShotLaser[0];
-                shot->muki = LaserAngle(transposed);
-                shot->speed = 0.0;
-            }
-            shot = shot->next;
-        }
+        pShot = pShot->next;
     }
+    if (rotating) pEnemyShotSet->param_d[1] += OMEGA;   // 現在回転角を累積
+}
 
-    static sEnemyShotSet* CreateGridPattern(bool transposed, const GridConfig& cfg)
-    {
-        sEnemyShotSet* set = CreateShotSet(PatternHeianGrid);
-        set->param_i[0] = cfg.N;
-        set->param_i[1] = cfg.T;
-        set->param_i[2] = cfg.rowCount;
-        set->param_i[3] = cfg.colCount;
-        set->param_i[4] = transposed ? 1 : 0;
-        set->param_d[0] = cfg.H;
-        set->param_d[1] = GRID_W;
-
-        int rMask = 0;
-        int dMask = 0;
-        for (int k = 0; k < cfg.N; ++k) {
-            set->param_i[5 + k] = cfg.P[k];
-            rMask |= (cfg.R[k] << k);
-            dMask |= (cfg.D[k] << k);
-        }
-        set->param_i[13] = rMask;
-        set->param_i[14] = dMask;
-        return set;
-    }
-
-    // 大玉の列。axis=0 は上下方向、axis=1 は左右方向。
-    // param_i[0]=axis、param_i[1]=端の選択（0:上/左、1:下/右）。
-    static void PatternBigShotLine(sEnemyShotSet* set)
-    {
-        const int axis = set->param_i[0];
-        if (set->count == 0) {
-            set->param_i[1] = GetRand(1);
-            PlaySoundRestart(sound_enemyShot_heavy);
-        }
-
-        // 先に既存弾を動かし、今フレームに生成する弾は端から出現させる。
-        sEnemyShot* shot = set->pEnemyShotHead->next;
-        while (shot != set->pEnemyShotHead) {
-            shot->x += shot->speed * cos(shot->muki);
-            shot->y += shot->speed * sin(shot->muki);
-            shot = shot->next;
-        }
-
-        if (set->count <= 84 && set->count % 14 == 0) {
-            const int side = set->param_i[1];
-            sEnemyShot* bullet = new sEnemyShot;
-            bullet->kind = img_enemyShotLargeBall[0]; // 赤い大玉
-            bullet->speed = 3.0;
-
-            if (axis == 0) {
-                // 自機と同じ x 座標。上端から下向き、または下端から上向き。
-                bullet->x = player.x;
-                if (side == 0) {
-                    bullet->y = 0.0;
-                    bullet->muki = DX_PI / 2.0;
-                }
-                else {
-                    bullet->y = 480.0;
-                    bullet->muki = -DX_PI / 2.0;
-                }
-            }
-            else {
-                // 自機と同じ y 座標。左端から右向き、または右端から左向き。
-                bullet->y = player.y;
-                if (side == 0) {
-                    bullet->x = 0.0;
-                    bullet->muki = 0.0;
-                }
-                else {
-                    bullet->x = 480.0;
-                    bullet->muki = DX_PI;
-                }
-            }
-            AppendShot(set, bullet);
-        }
-    }
-
-    static void CreateBigShotLine(int axis)
-    {
-        sEnemyShotSet* set = CreateShotSet(PatternBigShotLine);
-        set->param_i[0] = axis;
-    }
-
-    static int GetHpPhase()
-    {
-        if (enemy.maxHp <= 0) return 1;
-        // HP がちょうど 2/3 の場合は第 1 フェーズ、1/3 は第 3 フェーズ。
-        if (enemy.hp * 3 >= enemy.maxHp * 2) return 1;
-        if (enemy.hp * 3 > enemy.maxHp) return 2;
-        return 3;
-    }
-
-} // namespace
-
-// 敵本体の弾幕パターン
+// 敵本体のパターン
 void EnemyPat_Tmp()
 {
-    static int moveDirection = 1;
-    static int activePhase = 0;
-    static int nextPatternFrame = 1;
-
+    static int shot_count;
     if (count == 1) {
+        // ゲーム画面は 480x480
         enemy.x = 240.0;
-        enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 200; // サンプル仕様に合わせ、maxHp は 200
-        moveDirection = 1;
-        activePhase = 0;
-        nextPatternFrame = 60;
+        enemy.y = 90.0;
+        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
+        shot_count = 0;
     }
-    else {
-        enemy.x += 0.98 * static_cast<double>(moveDirection);
-        if (count % 120 == 60) moveDirection *= -1;
-    }
+    // ゆっくり左右に揺れる(三角形の中心は固定なので弾幕には影響しない)
+    enemy.x = 240.0 + 30.0 * sin(count * 0.02);
 
-    const int phase = GetHpPhase();
-    if (phase != activePhase) {
-        activePhase = phase;
-        nextPatternFrame = count + 60; // フェーズ移行後、すぐに新しいパターンを開始
-    }
-
-    if (count >= nextPatternFrame) {
-        const GridConfig cfg = MakeGridConfig();
-        if (phase == 1) {
-            PlaySoundRestart(sound_enemyCharge);
-            CreateGridPattern(false, cfg);
-            CreateBigShotLine(0); // 上下方向の大玉列
-        }
-        else if (phase == 2) {
-            PlaySoundRestart(sound_enemyCharge);
-            CreateGridPattern(true, cfg); // x/y 転置
-            CreateBigShotLine(1);         // 左右方向の大玉列
-        }
-        else {
-            PlaySoundRestart(sound_enemyCharge);
-            CreateGridPattern(false, cfg);
-            CreateGridPattern(true, cfg); // 同じ設定の基本形と転置形を同時に発生
-        }
-        nextPatternFrame = count + PATTERN_INTERVAL;
+    // 1サイクルごとに新しいショットセットを生成
+    if (count % CYCLE == 1) {
+        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+        pEnemyShotSet->count = 0;
+        pEnemyShotSet->patternFunc = ShotReuleaux;
+        pEnemyShotSet->x = 240.0;               // ルーロー三角形の重心
+        pEnemyShotSet->y = 150.0+50;
+        pEnemyShotSet->muki = 0.0;
+        pEnemyShotSet->kind = shot_count;
+        pEnemyShotSet->param_i[0] = shot_count;
+        pEnemyShotSet->param_i[1] = shot_count % 2;     // 回転方向(サイクルごとに反転)
+        pEnemyShotSet->param_d[0] = shot_count * 0.35;  // 初期角度を少しずつずらす
+        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+        pEnemyShotSet->prev = enemyShotSetHead.prev;
+        pEnemyShotSet->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pEnemyShotSet;
+        enemyShotSetHead.prev = pEnemyShotSet;
+        shot_count++;
     }
 }
