@@ -278,6 +278,10 @@ namespace {
             targetX = (float)enemy.x;
             targetY = (float)enemy.y + 120;
         }
+        else if (stageData[stageNum].stageId == "MetaAI160") {
+            targetX = (float)enemy.x;
+            targetY = 480 - 50;
+        }
 
         // Œ»İˆÊ’u‚Æ‚Ì·
         const float dx = targetX - (float)player.x;
