@@ -1,231 +1,191 @@
-﻿#include "DxLib.h"
+﻿// =====================================================================
+// 銃符「ルナティックガン」再現弾幕  (enemyPat_Tmp.cpp)
+// ---------------------------------------------------------------------
+// 【原作データ】 東方紺珠伝 ～ Legacy of Lunatic Kingdom.
+//   使用者 : 1面ボス 清蘭(せいらん) … 浅葱色のEagle Rabbit(月の兎)
+//   難易度 : Easy / Normal / Hard / Lunatic 全難易度の1面2番目の符
+//   能力   : 「異次元から弾丸を飛ばす程度の能力」
+//
+// 【原作の挙動(調査結果)】
+//   1. 清蘭が画面上部を左右に移動しながら、自機を狙った高速の銃弾を
+//      バースト連射してくる(ランダムブレ付き自機狙い)。
+//   2. 能力の演出として、画面内のランダムな位置に縦一列に連なった
+//      銃弾が突然出現し、非常に速い弾速で画面下へ突き抜けていく。
+//   3. 弾速が速いため下側での回避は危険で、自機狙い弾を左右に大きく
+//      引きながら、縦列弾との交差の谷間を縫って避ける弾幕。
+//
+// 【使用素材の選定】
+//   弾 : img_enemyShotBullet(銃弾 5.0x2.0) のみを使用。
+//        - img_enemyShotBullet[4](青) … 清蘭本体の自機狙い銃撃
+//        - img_enemyShotBullet[1](黄) … 異次元から出現する縦列銃弾
+//        ※原作が「銃撃戦」であるため、玉弾やレーザー等は不使用。
+//          2色に分けて自機狙い弾と縦列弾を視認しやすくしている。
+//   音 : sound_enemyShot_extreme … 銃撃(バースト)の発射音
+//        sound_enemyCharge      … 縦列弾出現の予告音
+//        sound_enemyShot_heavy  … 縦列弾出現音
+// =====================================================================
+
+#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-static const double PHI = 1.6180339887;
-static const double GOLDEN_ANGLE = 2.3999632297; // 137.5deg in rad
-static double s_base[12][3] = {
-    {0,1,PHI},{0,-1,PHI},{0,1,-PHI},{0,-1,-PHI},
-    {1,PHI,0},{-1,PHI,0},{1,-PHI,0},{-1,-PHI,0},
-    {PHI,0,1},{-PHI,0,1},{PHI,0,-1},{-PHI,0,-1}
-};
-static double s_norm[12][3];
-static bool s_init = false;
-static void InitIcosa() {
-    if (s_init) return;
-    for (int i = 0; i < 12; i++) {
-        double x = s_base[i][0], y = s_base[i][1], z = s_base[i][2];
-        double l = sqrt(x * x + y * y + z * z);
-        s_norm[i][0] = x / l; s_norm[i][1] = y / l; s_norm[i][2] = z / l;
-    }
-    s_init = true;
-}
-static void Proj(int idx, double rotY, double rad, double& ox, double& oy, double& ang) {
-    InitIcosa();
-    double x = s_norm[idx][0], y = s_norm[idx][1], z = s_norm[idx][2];
-    double c = cos(rotY), s = sin(rotY);
-    double xr = x * c - z * s;
-    double yr = y;
-    ox = xr * rad;
-    oy = yr * rad * 0.85;
-    ang = atan2(oy, ox);
-}
-static int LoopPhase() { return (count - 1) % 480; } // 8秒ループ
-static double TargetR_TAS(int ph) {
-    if (ph < 30) return 60.0 + ph * 4.0; // 60->180
-    if (ph < 180) return 180.0;
-    if (ph < 360) return 180.0 - (ph - 180) * (102.0 / 180.0); // 180->78 TAS最終檻
-    return 78.0; // 1px隙間
+// ---------------------------------------------------------------------
+// 弾セット(sEnemyShotSet)を生成してグローバルリストに登録するヘルパー
+// ---------------------------------------------------------------------
+static sEnemyShotSet* CreateShotSet(sEnemyShotSet::PatternFunc patternFunc,
+    double x, double y, double muki, int kind)
+{
+    sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+    pEnemyShotSet->count = 0;
+    pEnemyShotSet->patternFunc = patternFunc;
+    pEnemyShotSet->x = x;
+    pEnemyShotSet->y = y;
+    pEnemyShotSet->muki = muki;
+    pEnemyShotSet->kind = kind;
+    pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->prev = enemyShotSetHead.prev;
+    pEnemyShotSet->next = &enemyShotSetHead;
+    enemyShotSetHead.prev->next = pEnemyShotSet;
+    enemyShotSetHead.prev = pEnemyShotSet;
+    return pEnemyShotSet;
 }
 
-// A: TAS結界 大玉で1px隙間
-static void ShotBarrier_TAS(sEnemyShotSet* pSet) {
-    if (pSet->count == 0) {
-        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
-        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
-        for (int i = 0; i < 12; i++) {
-            sEnemyShot* p = new sEnemyShot;
-            p->kind = img_enemyShotLargeBall[4]; // 青大玉 20x20
-            p->param_i[0] = i;
-            p->x = pSet->x; p->y = pSet->y;
-            p->muki = 0; p->speed = 0;
-            p->margin = 240;
-            p->prev = pSet->pEnemyShotHead->prev;
-            p->next = pSet->pEnemyShotHead;
-            pSet->pEnemyShotHead->prev->next = p;
-            pSet->pEnemyShotHead->prev = p;
+// ---------------------------------------------------------------------
+// 自機狙いバースト銃撃
+//   4フレームおきに左右2発ずつ(2丁拳銃のイメージ)、計6回=12発。
+//   1発ごとに ±5° のランダムブレが入り、弾速は 8.00〜9.00 と速い。
+// ---------------------------------------------------------------------
+static void ShotLunaticAim(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
+
+    if (pEnemyShotSet->count == 0) {
+        // 銃撃音(重ならないよう鳴っていたら止めてから再生)
+        if (CheckSoundMem(sound_enemyShot_extreme)) StopSoundMem(sound_enemyShot_extreme);
+        PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
+    }
+
+    // count 0,4,8,12,16,20 の6回、毎回2発 = 12発のバースト
+    if (pEnemyShotSet->count % 4 == 0 && pEnemyShotSet->count < 24) {
+        for (int i = 0; i < 2; i++) {
+            pEnemyShot = new sEnemyShot;
+            // 銃口を左右に分けて発射
+            pEnemyShot->x = pEnemyShotSet->x + (i * 2 - 1) * 10.0;
+            pEnemyShot->y = pEnemyShotSet->y;
+            // 自機狙い + ランダムブレ ±5° (GetRand(10)は0〜10なので-5で補正)
+            pEnemyShot->muki = pEnemyShotSet->muki + (GetRand(10) - 5) / 180.0 * DX_PI;
+            // 弾速 8.00〜9.00
+            pEnemyShot->speed = 8.0 + GetRand(100) / 100.0;
+            pEnemyShot->kind = img_enemyShotBullet[4]; // 青銃弾
+            // リンクリストの末尾に追加
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
         }
     }
-    pSet->x = enemy.x; pSet->y = enemy.y + 10.0;
-    int ph = LoopPhase();
-    double R = TargetR_TAS(ph);
-    double rot = pSet->count * 0.025; // 高速回転 TASは毎フレーム円運動必須
-    pSet->param_d[0] = R; pSet->param_d[1] = rot;
-    sEnemyShot* p = pSet->pEnemyShotHead->next;
-    while (p != pSet->pEnemyShotHead) {
-        int idx = p->param_i[0];
-        double px, py, ang;
-        Proj(idx, rot, R, px, py, ang);
-        p->x = pSet->x + px;
-        p->y = pSet->y + py;
-        p = p->next;
+
+    // 弾の移動
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        pShot->x += pShot->speed * cos(pShot->muki);
+        pShot->y += pShot->speed * sin(pShot->muki);
+        pShot = pShot->next;
     }
 }
 
-// B: TAS螺旋 逆回転2層 重ねて潰す
-static void ShotSpiral_TAS(sEnemyShotSet* pSet) {
-    pSet->x = enemy.x; pSet->y = enemy.y + 10.0;
-    int ph = LoopPhase();
-    if (ph >= 390) return; // 崩壊中は停止
-    double R = TargetR_TAS(ph);
-    double rot = pSet->count * 0.025;
-    double dir = (ph < 180) ? 1.0 : -2.3; // 後半逆転高速
+// ---------------------------------------------------------------------
+// 異次元縦列銃弾
+//   15フレームおきに計3列出現。各列は画面上端付近のランダムX位置に
+//   縦4連で出現し、真下(弾速11.0)へ高速で突き抜ける。
+//   50%の確率で自機の近く(±80px)に出現する(異次元からの狙撃イメージ)。
+// ---------------------------------------------------------------------
+static void ShotLunaticColumn(sEnemyShotSet* pEnemyShotSet)
+{
+    sEnemyShot* pEnemyShot;
 
-    if (pSet->count % 3 == 0) {
-        for (int i = 0; i < 12; i++) {
-            double vx, vy, va;
-            Proj(i, rot, R, vx, vy, va);
-            double sx = pSet->x + vx;
-            double sy = pSet->y + vy;
-            // 1頂点から逆回転2発
-            for (int k = 0; k < 2; k++) {
-                sEnemyShot* p = new sEnemyShot;
-                double golden = (pSet->param_i[0] % 7) * GOLDEN_ANGLE;
-                double base = va + golden + pSet->count * 0.018 * dir;
-                if (k == 1) base = va - golden - pSet->count * 0.018 * dir;
-                p->x = sx; p->y = sy;
-                p->muki = base;
-                p->speed = 3.8 + sin(pSet->count * 0.07 + i) * 1.8 + k * 0.4; // 自機速度に張り付く
-                p->kind = (k == 0) ? img_enemyShotSmallBall[6] : img_enemyShotMediumOval[6];
-                p->margin = 240;
-                p->prev = pSet->pEnemyShotHead->prev;
-                p->next = pSet->pEnemyShotHead;
-                pSet->pEnemyShotHead->prev->next = p;
-                pSet->pEnemyShotHead->prev = p;
-            }
-        }
-        pSet->param_i[0]++;
-        if (pSet->count % 45 == 0) {
-            if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
-            PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-        }
+    if (pEnemyShotSet->count == 0) {
+        // 出現の予告音
+        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
     }
-    sEnemyShot* p = pSet->pEnemyShotHead->next;
-    while (p != pSet->pEnemyShotHead) {
-        p->x += p->speed * cos(p->muki);
-        p->y += p->speed * sin(p->muki);
-        // 微加速で逃げ道を潰す
-        p->speed += 0.008;
-        p = p->next;
-    }
-}
 
-// C: TAS刈り取り 自機狙い+1ドットずらし
-static void ShotNeedle_TAS(sEnemyShotSet* pSet) {
-    pSet->x = enemy.x; pSet->y = enemy.y + 10.0;
-    int ph = LoopPhase();
-    if (ph < 180) return;
-    double rot = pSet->count * 0.025;
-
-    if (pSet->count % 5 == 0) {
-        // プレイヤー未来位置予測狙い TASは1F先読み回避必須
-        double aim = atan2(player.y - pSet->y, player.x - pSet->x);
-        for (int i = 0; i < 12; i++) {
-            double vx, vy, va;
-            Proj(i, rot, 1.0, vx, vy, va);
-            double gap = va + DX_PI / 12.0; // 隙間角度
-            // 隙間と自機狙いの中間を高速で塞ぐ
-            double muki = aim * 0.7 + gap * 0.3;
-            muki += (GetRand(20) - 10) / 1000.0; // 再現性ある極小乱数 TASは暗記必須
-            sEnemyShot* p = new sEnemyShot;
-            p->x = pSet->x; p->y = pSet->y;
-            p->muki = muki + (i * DX_PI / 6.0) * 0.05;
-            p->speed = 13.5 + GetRand(20) / 10.0; // 13.5-15.5
-            p->kind = img_enemyShotBullet[0]; // 赤銃弾
-            p->margin = 240;
-            p->prev = pSet->pEnemyShotHead->prev;
-            p->next = pSet->pEnemyShotHead;
-            pSet->pEnemyShotHead->prev->next = p;
-            pSet->pEnemyShotHead->prev = p;
+    // count 1,16,31 の3回、毎回1列(4発) = 計12発
+    if (pEnemyShotSet->count % 15 == 1 && pEnemyShotSet->count <= 31) {
+        double gx;
+        if (GetRand(1) == 0) {
+            gx = 40.0 + GetRand(400);              // 画面内 40〜440 のランダム位置
         }
+        else {
+            gx = player.x + GetRand(160) - 80;     // 自機X -80〜+80
+        }
+        // ゲート位置が画面外に暴れないようクランプ
+        if (gx < 20.0) gx = 20.0;
+        if (gx > 460.0) gx = 460.0;
+
         if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
         PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+
+        for (int j = 0; j < 4; j++) {
+            pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = gx;
+            pEnemyShot->y = -12.0 - j * 24.0;      // 画面上端の外に縦4連で並べる
+            pEnemyShot->muki = DX_PI / 2.0;        // 真下向き
+            pEnemyShot->speed = 11.0;
+            pEnemyShot->kind = img_enemyShotBullet[1]; // 黄銃弾
+            pEnemyShot->margin = 240;
+            // リンクリストの末尾に追加
+            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+        }
     }
-    sEnemyShot* p = pSet->pEnemyShotHead->next;
-    while (p != pSet->pEnemyShotHead) {
-        p->x += p->speed * cos(p->muki);
-        p->y += p->speed * sin(p->muki);
-        p = p->next;
+
+    // 弾の移動
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        pShot->x += pShot->speed * cos(pShot->muki);
+        pShot->y += pShot->speed * sin(pShot->muki);
+        pShot = pShot->next;
     }
 }
 
-// D: TAS崩壊 レーザー壁で1px回転通路
-static void ShotCollapse_TAS(sEnemyShotSet* pSet) {
-    pSet->x = enemy.x; pSet->y = enemy.y + 10.0;
-    int ph = LoopPhase();
-    if (ph < 360) return;
-    double rot = pSet->count * 0.025;
-
-    if (pSet->count % 6 == 0) {
-        for (int i = 0; i < 12; i++) {
-            double ang = rot + i * DX_PI / 6.0;
-            double sx = pSet->x + cos(ang) * 340.0;
-            double sy = pSet->y + sin(ang) * 340.0;
-            double toC = atan2(pSet->y - sy, pSet->x - sx);
-            // 双対変換の1F隙間: 偶奇で0.08radずらす
-            double muki = toC + (i % 2 == 0 ? 0.08 : -0.08);
-            sEnemyShot* p = new sEnemyShot;
-            p->x = sx; p->y = sy;
-            p->muki = muki;
-            p->speed = 5.8;
-            p->kind = img_enemyShotLaser[6]; // 白レーザー 64x4 壁
-            p->margin = 240;
-            p->prev = pSet->pEnemyShotHead->prev;
-            p->next = pSet->pEnemyShotHead;
-            pSet->pEnemyShotHead->prev->next = p;
-            pSet->pEnemyShotHead->prev = p;
-        }
-        if (pSet->count % 24 == 0) {
-            if (CheckSoundMem(sound_enemyShot_extreme)) StopSoundMem(sound_enemyShot_extreme);
-            PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
-        }
-    }
-    sEnemyShot* p = pSet->pEnemyShotHead->next;
-    while (p != pSet->pEnemyShotHead) {
-        p->x += p->speed * cos(p->muki);
-        p->y += p->speed * sin(p->muki);
-        p = p->next;
-    }
-}
-
+// =====================================================================
+// 敵本体のパターン: 銃符「ルナティックガン」
+// =====================================================================
 void EnemyPat_Tmp()
 {
+    static int muki;
+    static int shot_count;
+
     if (count == 1) {
-        enemy.x = 240.0; enemy.y = 80.0;
-        enemy.maxHp = enemy.hp = 200;
-        auto NewSet = [](auto func) {
-            sEnemyShotSet* s = new sEnemyShotSet;
-            s->count = 0; s->patternFunc = func;
-            s->x = enemy.x; s->y = enemy.y + 10.0; s->muki = 0; s->kind = 0;
-            s->alive = 9999;
-            s->pEnemyShotHead = new sEnemyShot;
-            s->pEnemyShotHead->prev = s->pEnemyShotHead;
-            s->pEnemyShotHead->next = s->pEnemyShotHead;
-            s->prev = enemyShotSetHead.prev;
-            s->next = &enemyShotSetHead;
-            enemyShotSetHead.prev->next = s;
-            enemyShotSetHead.prev = s;
-            return s;
-        };
-        NewSet(ShotBarrier_TAS);
-        NewSet(ShotSpiral_TAS);
-        NewSet(ShotNeedle_TAS);
-        NewSet(ShotCollapse_TAS);
+        // ゲーム画面は 480x480
+        enemy.x = 240.0;
+        enemy.y = 40.0;
+        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
+        muki = 1;
+        shot_count = 0;
     }
     else {
-        // TASはこの微揺れすら計算に入れる必要がある
-        enemy.x = 240.0 + sin(count * 0.015) * 35.0;
-        enemy.y = 80.0 + cos(count * 0.011) * 12.0;
+        // 清蘭は画面上部を左右に往復しながら、上下にもわずかに揺れる
+        enemy.x += 0.8 * (double)muki;
+        if (count % 120 == 60) muki *= -1;
+        enemy.y = 40.0 + 12.0 * sin(count / 40.0 * DX_PI);
+    }
+
+    // ---- 攻撃サイクル: 140フレーム周期 ----
+    // 自機狙いバースト銃撃 ×2 (周期の前半・中盤)
+    if (count % 140 == 10 || count % 140 == 60) {
+        double mx = enemy.x;
+        double my = enemy.y + 10.0;
+        double am = atan2(player.y - my, player.x - mx); // 発射時の自機狙い
+        CreateShotSet(ShotLunaticAim, mx, my, am, shot_count++);
+    }
+    // 異次元縦列銃弾 (周期の後半、バースト後の一杯おき)
+    if (count % 140 == 90) {
+        CreateShotSet(ShotLunaticColumn, enemy.x, enemy.y, DX_PI / 2.0, shot_count++);
     }
 }
