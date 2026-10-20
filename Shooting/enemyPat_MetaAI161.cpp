@@ -3,155 +3,181 @@
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// 銃符「ルナティックガン」 Seiran
-// 原作: 三角弾(自機依存)と座薬弾(大玉)がボスから半径離れた位置から出現
-static void ShotLunaticGun(sEnemyShotSet* pEnemyShotSet)
+//============================================================
+// A: 狭広交互 10way 全方位 回転弾
+//============================================================
+static void ShotA_LunaticGun(sEnemyShotSet* pSet)
 {
-    sEnemyShot* pEnemyShot;
+    // ボスに追従
+    pSet->x = enemy.x;
+    pSet->y = enemy.y + 10.0;
 
-    if (pEnemyShotSet->count == 0) {
-        // 初回発射音
-        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
-        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+    if (pSet->count == 0) {
+        pSet->param_d[0] = 0.0; // base回転角
+    }
 
-        // ---- 1. 三角弾: 自機狙い、周囲から出現 ----
-        // GetRand(x)は0～xのx+1種類なので注意
-        int triNum = 9 + GetRand(4); // 9～13発
-        double spawnRadiusTri = 45.0 + (double)GetRand(20); // 45～65
+    const int INTERVAL = 4; // 何Fごとに10wayを撃つか
+    const double NARROW = 12.0 * DX_PI / 180.0;
+    const double WIDE = 60.0 * DX_PI / 180.0; // NARROW+WIDE = 72° = 360°/5
+    const double ROT = 4.0 * DX_PI / 180.0;  // 時計回り = +方向
 
-        for (int i = 0; i < triNum; i++) {
-            pEnemyShot = new sEnemyShot;
-
-            // 出現位置をボス周囲の円周上に取る = 異次元から飛ばす能力の再現
-            // 自機方向を中心に±50度にばらつかせる
-            double spawnAng = pEnemyShotSet->muki + (GetRand(100) - 50) / 180.0 * DX_PI * 0.8;
-            // さらに少しランダムに散らす
-            spawnAng += (GetRand(20) - 10) / 180.0 * DX_PI * 0.2;
-
-            double sx = pEnemyShotSet->x + spawnRadiusTri * cos(spawnAng);
-            double sy = pEnemyShotSet->y + spawnRadiusTri * sin(spawnAng);
-
-            // 出現位置から自機へ再狙い (+-10度の誤差)
-            double aim = atan2(player.y - sy, player.x - sx);
-            aim += (GetRand(20) - 10) / 180.0 * DX_PI * 0.3;
-
-            pEnemyShot->x = sx;
-            pEnemyShot->y = sy;
-            pEnemyShot->muki = aim;
-            pEnemyShot->speed = 2.8 + GetRand(100) / 100.0; // 2.8～3.8
-
-            // 三角弾は菱形弾で代用、色は月らしいシアン(3)青(4)を交互
-            int col = (i % 2 == 0) ? 3 : 4;
-            // 8色だが橙(8)まで使えるため GetRand範囲注意、ここは固定色
-            pEnemyShot->kind = img_enemyShotDiamond[col];
-
-            // リスト連結
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+    if (pSet->count % INTERVAL == 0) {
+        if (pSet->count % (INTERVAL*2) == 0) {
+            if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+            PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
         }
 
-        // ---- 2. 座薬弾: 遅くて大きい壁弾、半径遠めから出現 ----
-        int largeNum = 5 + GetRand(2); // 5～7発
-        double spawnRadiusLarge = 75.0 + (double)GetRand(20); // 75～95
+        double base = pSet->param_d[0];
+        double cur = base;
+        for (int i = 0; i < 10; i++) {
+            sEnemyShot* p = new sEnemyShot;
+            p->x = pSet->x;
+            p->y = pSet->y;
+            p->muki = cur;
+            // 少し速度にばらつき
+            p->speed = 3.0 + GetRand(30) / 100.0;
+            // 銃符なので銃弾、黄色
+            p->kind = img_enemyShotBullet[1];
 
-        for (int i = 0; i < largeNum; i++) {
-            pEnemyShot = new sEnemyShot;
+            p->prev = pSet->pEnemyShotHead->prev;
+            p->next = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->prev->next = p;
+            pSet->pEnemyShotHead->prev = p;
 
-            // 円周上に均等+ランダム
-            double base = pEnemyShotSet->muki;
-            double ang = base + (2.0 * DX_PI / largeNum) * i + (GetRand(30) - 15) / 180.0 * DX_PI;
-
-            double sx = pEnemyShotSet->x + spawnRadiusLarge * cos(ang);
-            double sy = pEnemyShotSet->y + spawnRadiusLarge * sin(ang);
-
-            double aim = atan2(player.y - sy, player.x - sx);
-            // 壁として少し横に逸らす
-            aim += (GetRand(40) - 20) / 180.0 * DX_PI * 0.4;
-
-            pEnemyShot->x = sx;
-            pEnemyShot->y = sy;
-            pEnemyShot->muki = aim;
-            pEnemyShot->speed = 1.2 + GetRand(80) / 100.0; // 1.2～2.0 遅い
-
-            // 中楕円弾(10.5x7.0) 白(6)で座薬感、偶数は大玉で圧迫感
-            if (i % 2 == 0) {
-                pEnemyShot->kind = img_enemyShotMediumOval[6]; // 白
-            }
-            else {
-                pEnemyShot->kind = img_enemyShotLargeBall[6]; // 白大玉
-            }
-
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+            cur += (i % 2 == 0) ? NARROW : WIDE;
         }
-
-        // ---- 3. 銃弾アクセント: 中心から速射 ----
-        {
-            pEnemyShot = new sEnemyShot;
-            pEnemyShot->x = pEnemyShotSet->x;
-            pEnemyShot->y = pEnemyShotSet->y + 10.0;
-            pEnemyShot->muki = pEnemyShotSet->muki;
-            pEnemyShot->speed = 5.0 + GetRand(50) / 100.0; // 5.0～5.5
-            pEnemyShot->kind = img_enemyShotBullet[1]; // 黄 銃弾
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-        }
+        pSet->param_d[0] = base + ROT;
+        if (pSet->param_d[0] > DX_TWO_PI) pSet->param_d[0] -= DX_TWO_PI;
     }
 
     // 弾移動
-    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
         pShot->x += pShot->speed * cos(pShot->muki);
         pShot->y += pShot->speed * sin(pShot->muki);
         pShot = pShot->next;
     }
 }
 
+//============================================================
+// B: 逆三角形の密な弾列 x5 を2セット
+//============================================================
+static void ShotB_LunaticGun(sEnemyShotSet* pSet)
+{
+    pSet->x = enemy.x;
+    pSet->y = enemy.y + 10.0;
+
+    const int WAVE_INTERVAL = 8;  // 三角形同士の僅かな時間差
+    const int WAVES_PER_SET = 5;
+    const int SETS = 2;
+    const int TOTAL_WAVES = WAVES_PER_SET * SETS; // 10
+    const int PAUSE = 90; // 2セット撃った後の休み
+    const int PERIOD = TOTAL_WAVES * WAVE_INTERVAL + PAUSE; // 10*8+90=170
+
+    const double FORWARD_SPACING = 12.0;
+    const double LATERAL_SPACING = 12.0;
+    const double BASE_FORWARD = 10.0;
+
+    int phase = pSet->count % PERIOD;
+    if (phase % WAVE_INTERVAL == 0 && phase < TOTAL_WAVES * WAVE_INTERVAL) {
+        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+
+        // 自機方向へ荒く
+        double aim = atan2(player.y - pSet->y, player.x - pSet->x);
+        // GetRand(x)は0..x inclusiveなので -10..10 を作る
+        double jitter = (double)(GetRand(20) - 10) * DX_PI / 180.0*5;
+        aim += jitter;
+
+        double cosA = cos(aim);
+        double sinA = sin(aim);
+        // perp = (-sin, cos)
+        double speed = 2.8 + GetRand(30) / 100.0;
+
+        // 1辺8の逆三角形(塗りつぶし) = 36発
+        // i=0: tip 1発、i=7: base 8発
+        for (int i = 0; i < 8; i++) {
+            int n = i + 1;
+            double forward = BASE_FORWARD + (7 - i) * FORWARD_SPACING;
+            for (int j = 0; j < n; j++) {
+                double lateral = (j - (n - 1) * 0.5) * LATERAL_SPACING;
+
+                sEnemyShot* p = new sEnemyShot;
+                // 回転変換: forward*dir + lateral*perp
+                p->x = pSet->x + forward * cosA + lateral * (-sinA);
+                p->y = pSet->y + forward * sinA + lateral * cosA;
+                p->muki = aim;
+                p->speed = speed;
+                // 密なので小玉、青
+                p->kind = img_enemyShotSmallBall[4];
+
+                p->prev = pSet->pEnemyShotHead->prev;
+                p->next = pSet->pEnemyShotHead;
+                pSet->pEnemyShotHead->prev->next = p;
+                pSet->pEnemyShotHead->prev = p;
+            }
+        }
+    }
+
+    // 弾移動 (全弾同方向なので面を保ったまま進む)
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
+        pShot->x += pShot->speed * cos(pShot->muki);
+        pShot->y += pShot->speed * sin(pShot->muki);
+        pShot = pShot->next;
+    }
+}
+
+//============================================================
+// 敵本体
+//============================================================
 void EnemyPat_LunaticGun_MetaAI()
 {
-    static int dir;
-    static int shot_kind;
+    static int muki;
 
     if (count == 1) {
         enemy.x = 240.0;
-        enemy.y = 60.0;
-        enemy.maxHp = enemy.hp = 200; // 仕様固定
-        dir = 1;
-        shot_kind = 0;
+        enemy.y = 80.0;
+        enemy.maxHp = enemy.hp = 200;
+        muki = 1;
+
+        // --- ShotSet A 生成 ---
+        sEnemyShotSet* pSetA = new sEnemyShotSet;
+        pSetA->count = 0;
+        pSetA->patternFunc = ShotA_LunaticGun;
+        pSetA->x = enemy.x;
+        pSetA->y = enemy.y;
+        pSetA->muki = 0.0;
+        pSetA->kind = 0;
+        for (int i = 0; i < 16; i++) { pSetA->param_i[i] = 0; pSetA->param_d[i] = 0.0; }
+        pSetA->pEnemyShotHead = new sEnemyShot;
+        pSetA->pEnemyShotHead->prev = pSetA->pEnemyShotHead;
+        pSetA->pEnemyShotHead->next = pSetA->pEnemyShotHead;
+        pSetA->prev = enemyShotSetHead.prev;
+        pSetA->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pSetA;
+        enemyShotSetHead.prev = pSetA;
+
+        // --- ShotSet B 生成 ---
+        sEnemyShotSet* pSetB = new sEnemyShotSet;
+        pSetB->count = 0;
+        pSetB->patternFunc = ShotB_LunaticGun;
+        pSetB->x = enemy.x;
+        pSetB->y = enemy.y;
+        pSetB->muki = 0.0;
+        pSetB->kind = 0;
+        for (int i = 0; i < 16; i++) { pSetB->param_i[i] = 0; pSetB->param_d[i] = 0.0; }
+        pSetB->pEnemyShotHead = new sEnemyShot;
+        pSetB->pEnemyShotHead->prev = pSetB->pEnemyShotHead;
+        pSetB->pEnemyShotHead->next = pSetB->pEnemyShotHead;
+        pSetB->prev = enemyShotSetHead.prev;
+        pSetB->next = &enemyShotSetHead;
+        enemyShotSetHead.prev->next = pSetB;
+        enemyShotSetHead.prev = pSetB;
     }
     else {
-        // 原作はゆっくり横移動しながら撃つ。体当たりも原作の脅威
-        enemy.x += 0.6 * (double)dir;
-        enemy.y = 60.0 + sin(count * 0.02) * 8.0;
-        if (enemy.x < 90.0) dir = 1;
-        if (enemy.x > 390.0) dir = -1;
-    }
-
-    // 14Fごとに1セット発射 = 原作の連射感。count, pEnemyShotSet->count, pEnemyShot->countのインクリメントはメイン側
-    if (count % 14 == 1) {
-        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotLunaticGun;
-        pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 10.0;
-        pEnemyShotSet->muki = atan2(player.y - pEnemyShotSet->y, player.x - pEnemyShotSet->x);
-        pEnemyShotSet->kind = shot_kind++;
-
-        // ダミーヘッド生成
-        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-
-        // グローバルリストへ連結
-        pEnemyShotSet->prev = enemyShotSetHead.prev;
-        pEnemyShotSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pEnemyShotSet;
-        enemyShotSetHead.prev = pEnemyShotSet;
+        // ゆっくり左右に移動
+        enemy.x += 0.7 * (double)muki;
+        if (enemy.x < 100.0 || enemy.x > 380.0) muki *= -1;
     }
 }

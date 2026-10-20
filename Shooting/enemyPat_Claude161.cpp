@@ -1,86 +1,72 @@
-﻿// 銃符「ルナティックガン」(東方紺珠伝 清蘭)
-//
-// 調査に基づく構成:
-//   1. 銃弾列(固定の鈍足銃弾列で壁を作る)  … ボス体力ゲージ相当の半径の外側から放射状に発射
-//      ・通常は放射状の「列」、3回に1回は全方位の「リング」
-//      ・列を構成する銃弾は速度にばらつきがあり、時間とともに放射状の線に伸びる
-//   2. 自機狙い銃弾塊(逆三角形に並んだ赤い銃弾)… 壁の隙間を抜けようとする自機に上から蓋をする
-//
-// 使用素材:
-//   弾: 銃弾(5.0x2.0) の 青(4) = 壁/リング、赤(0) = 自機狙い塊
-//   音: sound_enemyShot_heavy = 壁の発射、sound_enemyShot_medium = 自機狙い塊の発射
-//
-// count / pEnemyShotSet->count / pEnemyShot->count のインクリメントと画面外の弾の消去はメインルーチン側で行う。
-
-#include "DxLib.h"
+﻿#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
 // ============================================================
-//  調整用パラメータ
+//  銃符「ルナティックガン」
+//
+//  A: ボス中心に、間隔が狭い箇所と広い箇所が交互に並ぶ10way全方位弾を、
+//     時計回りに回転させながら常時撃ち続ける。
+//  B: ボスから自機に向かって荒く狙い、1辺8発の逆三角形(頂点が自機側)の
+//     密な弾列を5つ、僅かに時間差を付けて撃つ(=1セット)。
+//     1セット撃ったら間髪空けずにもう1セット撃ち、少し間を空ける、を繰り返す。
+//
+//  使用素材
+//    A: 中玉(青) / 効果音 sound_enemyShot_light
+//    B: 銃弾(赤) / 効果音 sound_enemyShot_medium
+//       (銃弾は向きに沿って描画されるので、muki=進行方向 がそのまま見た目に合う)
 // ============================================================
-// --- 全体の流れ(1サイクル = 敵が移動して、壁を撒き、自機狙いを連射する) ---
-static const int    kLgCycle = 120;  // 1サイクルのフレーム数
-static const int    kLgWallTiming = 16;   // サイクル内で壁を撒くフレーム
-static const int    kLgClusterFirst = 36;   // 最初の自機狙い塊を撃つフレーム
-static const int    kLgClusterStep = 20;   // 自機狙い塊の発射間隔
-static const int    kLgClusterNum = 5;    // 1サイクルあたりの自機狙い塊の数
-static const int    kLgRingPeriod = 3;    // 何回に1回リングにするか
 
-// --- 銃弾列(放射状の壁) ---
-static const int    kLgRayNum = 24;   // 列の本数
-static const int    kLgRayBullets = 7;    // 1本の列を構成する弾数
-static const double kLgWallRadius = 36.0; // 発射位置(敵からの距離。ボスの近くには弾を出さない)
-static const double kLgRaySpeedMin = 0.90; // 列の最低速度
-static const double kLgRaySpeedStep = 0.13; // 列内の弾ごとの速度差
-static const int    kLgRingBullets = 36;   // リング1層の弾数(2層構成)
-static const double kLgRingSpeed = 1.15; // リング内側層の速度
-static const double kLgRingSpeedAdd = 0.50; // リング外側層の速度加算
+// ---------- 共通 ----------
+static const double LUNAGUN_ENEMY_X = 240.0;   // ボス位置(画面上部中央で固定)
+static const double LUNAGUN_ENEMY_Y = 70.0;
 
-// --- 自機狙い銃弾塊(逆三角形) ---
-static const int    kLgClusterRows = 7;    // 三角形の段数(弾数 = 1+2+...+段数)
-static const double kLgClusterLatSp = 7.0;  // 横方向の弾間隔
-static const double kLgClusterBackSp = 8.0;  // 段ごとの間隔(後ろ方向)
-static const double kLgClusterDist = 56.0; // 先頭弾の生成位置(敵からの距離)
-static const double kLgClusterSpeed0 = 1.4;  // 初速
-static const double kLgClusterAccel = 0.06; // 毎フレームの加速度
-static const double kLgClusterSpeedMax = 2.7; // 最高速度
+// ---------- A: 回転する狭広10way ----------
+static const int    LUNAGUN_A_INTERVAL = 5;     // 発射間隔(フレーム)
+static const int    LUNAGUN_A_WAY = 10;    // way数(2発1組なので偶数)
+static const double LUNAGUN_A_SPEED = 2.5;   // 弾速
+static const double LUNAGUN_A_ROTATE_DEG = 4.5;   // 1回の発射ごとの時計回り回転量(度)
+static const double LUNAGUN_A_PAIR_HALF_DEG = 9.0;   // 組の中心から各弾までの角度(度)。狭い間隔=この2倍、広い間隔=360/組数-この2倍
+static const int    LUNAGUN_A_COLOR = 4;     // 0:赤、1:黄、2:緑、3:シアン、4:青、5:マゼンタ、6:白、7:黒、8:橙
+static const int    LUNAGUN_A_SOUND_EVERY = 3;     // 何回の発射に1回効果音を鳴らすか
 
-// --- 弾の色 ---
-static const int    kLgColorRed = 0;
-static const int    kLgColorBlue = 4;
+// ---------- B: 逆三角形弾列 ----------
+static const int    LUNAGUN_B_START = 60;    // Bの開始フレーム
+static const int    LUNAGUN_B_SIDE = 8;     // 三角形の1辺の弾数(=行数)
+static const double LUNAGUN_B_SPEED = 4.0;   // 弾速
+static const double LUNAGUN_B_SPACING = 12.0;  // 横方向の弾間隔(px)
+static const int    LUNAGUN_B_ROW_INTERVAL = 3;     // 行ごとの発射間隔(フレーム)。進行方向の弾間隔 = 弾速 × これ
+static const int    LUNAGUN_B_TRI_NUM = 5;     // 1セットあたりの三角形の数
+static const int    LUNAGUN_B_TRI_INTERVAL = 6;     // 三角形同士の時間差(フレーム)
+static const int    LUNAGUN_B_SET_NUM = 2;     // 休止前に連続で撃つセット数
+static const int    LUNAGUN_B_PAUSE = 60;    // セット連射後の休止(フレーム)
+static const int    LUNAGUN_B_AIM_JITTER_DEG = 10*6;   // 狙いの荒さ。自機方向から±この角度(度)ランダムにずらす
+static const int    LUNAGUN_B_COLOR = 0;     // 弾の色(Aと同じ並び)
+
+// 1サイクル = 三角形を撃つ期間 + 休止
+static const int LUNAGUN_B_FIRE_FRAMES = LUNAGUN_B_TRI_INTERVAL * LUNAGUN_B_TRI_NUM * LUNAGUN_B_SET_NUM;
+static const int LUNAGUN_B_CYCLE = LUNAGUN_B_FIRE_FRAMES + LUNAGUN_B_PAUSE;
 
 // ============================================================
-//  ヘルパー
+//  補助関数
 // ============================================================
-// 効果音(同じ音の多重再生を避けて鳴らし直す)
-static void LgPlaySound(int handle)
+static double LunaGunDegToRad(double deg)
 {
-    if (CheckSoundMem(handle)) StopSoundMem(handle);
-    PlaySoundMem(handle, DX_PLAYTYPE_BACK);
+    return deg / 180.0 * DX_PI;
 }
 
-// ShotSet に弾を1発追加する
-static sEnemyShot* LgAddShot(sEnemyShotSet* pEnemyShotSet, double x, double y,
-    double muki, double speed, int kind)
+// 弾をShotSetの弾リスト末尾に連結する
+static void LunaGunLinkShot(sEnemyShotSet* pEnemyShotSet, sEnemyShot* pEnemyShot)
 {
-    sEnemyShot* pEnemyShot = new sEnemyShot;
-    pEnemyShot->x = x;
-    pEnemyShot->y = y;
-    pEnemyShot->muki = muki;
-    pEnemyShot->speed = speed;
-    pEnemyShot->kind = kind;
     pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
     pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
     pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
     pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-    return pEnemyShot;
 }
 
-// ShotSet を生成してリストに登録する
-static void LgAddShotSet(sEnemyShotSet::PatternFunc func, double x, double y,
-    double muki, int kind)
+// ShotSetを生成してenemyShotSetHeadのリスト末尾に連結する
+static sEnemyShotSet* LunaGunCreateShotSet(sEnemyShotSet::PatternFunc func, double x, double y, double muki)
 {
     sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
     pEnemyShotSet->count = 0;
@@ -88,7 +74,7 @@ static void LgAddShotSet(sEnemyShotSet::PatternFunc func, double x, double y,
     pEnemyShotSet->x = x;
     pEnemyShotSet->y = y;
     pEnemyShotSet->muki = muki;
-    pEnemyShotSet->kind = kind;
+    pEnemyShotSet->kind = 0;
     pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
     pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
     pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
@@ -96,48 +82,37 @@ static void LgAddShotSet(sEnemyShotSet::PatternFunc func, double x, double y,
     pEnemyShotSet->next = &enemyShotSetHead;
     enemyShotSetHead.prev->next = pEnemyShotSet;
     enemyShotSetHead.prev = pEnemyShotSet;
+    return pEnemyShotSet;
 }
 
 // ============================================================
-//  弾幕：銃弾列(放射状の壁) / 全方位リング
-//    kind == 0 : 放射状の銃弾列
-//    kind == 1 : 全方位リング(2層)
-//    muki      : 基準角(ランダム)
+//  弾幕A: 狭広10way全方位弾(1回分)
+//    pEnemyShotSet->muki    : 今回の基準角(これを時計回りに回していく)
+//    pEnemyShotSet->param_i[0] : 0以外なら効果音を鳴らす
 // ============================================================
-static void ShotLunaticWall(sEnemyShotSet* pEnemyShotSet)
+static void ShotLunaticRing(sEnemyShotSet* pEnemyShotSet)
 {
     if (pEnemyShotSet->count == 0) {
-        LgPlaySound(sound_enemyShot_heavy);
-
-        if (pEnemyShotSet->kind == 0) {
-            // 放射状の列: 同じ向きに速度違いの銃弾を並べ、時間とともに線状に伸ばす
-            for (int i = 0; i < kLgRayNum; i++) {
-                double ang = pEnemyShotSet->muki + DX_PI * 2.0 / kLgRayNum * i;
-                for (int k = 0; k < kLgRayBullets; k++) {
-                    double speed = kLgRaySpeedMin + kLgRaySpeedStep * k + GetRand(15) / 100.0;
-                    LgAddShot(pEnemyShotSet,
-                        pEnemyShotSet->x + cos(ang) * kLgWallRadius,
-                        pEnemyShotSet->y + sin(ang) * kLgWallRadius,
-                        ang, speed, img_enemyShotBullet[kLgColorBlue]);
-                }
-            }
+        if (pEnemyShotSet->param_i[0] != 0) {
+            if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+            PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
         }
-        else {
-            // 全方位リング: 内側層と外側層を半ピッチずらして重ねる
-            for (int layer = 0; layer < 2; layer++) {
-                for (int i = 0; i < kLgRingBullets; i++) {
-                    double ang = pEnemyShotSet->muki + DX_PI * 2.0 / kLgRingBullets * (i + 0.5 * layer);
-                    double speed = kLgRingSpeed + kLgRingSpeedAdd * layer;
-                    LgAddShot(pEnemyShotSet,
-                        pEnemyShotSet->x + cos(ang) * kLgWallRadius,
-                        pEnemyShotSet->y + sin(ang) * kLgWallRadius,
-                        ang, speed, img_enemyShotBullet[kLgColorBlue]);
-                }
-            }
+        const int pairNum = LUNAGUN_A_WAY / 2;
+        for (int i = 0; i < LUNAGUN_A_WAY; i++) {
+            int pair = i / 2;                           // 何組目か
+            double side = (i % 2 == 0) ? -1.0 : 1.0;    // 組の中心から見て反時計側(-)か時計側(+)か
+            sEnemyShot* pEnemyShot = new sEnemyShot;
+            pEnemyShot->x = pEnemyShotSet->x;
+            pEnemyShot->y = pEnemyShotSet->y;
+            // 組の中心を等間隔に並べ、その両側に振り分ける → 狭い間隔と広い間隔が交互に並ぶ
+            pEnemyShot->muki = pEnemyShotSet->muki
+                + 2.0 * DX_PI * pair / pairNum
+                + side * LunaGunDegToRad(LUNAGUN_A_PAIR_HALF_DEG);
+            pEnemyShot->speed = LUNAGUN_A_SPEED;
+            pEnemyShot->kind = img_enemyShotMediumBall[LUNAGUN_A_COLOR];
+            LunaGunLinkShot(pEnemyShotSet, pEnemyShot);
         }
     }
-
-    // 壁は固定の鈍足弾: 等速直進のみ
     sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pShot != pEnemyShotSet->pEnemyShotHead) {
         pShot->x += pShot->speed * cos(pShot->muki);
@@ -147,38 +122,38 @@ static void ShotLunaticWall(sEnemyShotSet* pEnemyShotSet)
 }
 
 // ============================================================
-//  弾幕：自機狙い銃弾塊(先頭が自機を向く三角形の赤い銃弾)
-//    muki : 発射時の自機方向
+//  弾幕B: 逆三角形弾列(1つ分)
+//    pEnemyShotSet->muki    : 三角形の進行方向(自機狙い+ブレ)
+//    pEnemyShotSet->param_i[0] : 0以外なら効果音を鳴らす
+//
+//  頂点(1発)を先頭に、ROW_INTERVAL フレームごとに 2発, 3発, ... 8発 の行を
+//  同じ地点から同じ速度で撃ち出す。進行方向に対して横にだけ位置をずらすので、
+//  弾は等速直進のまま、頂点が自機側を向いた三角形(=逆三角形)になる。
 // ============================================================
-static void ShotLunaticCluster(sEnemyShotSet* pEnemyShotSet)
+static void ShotLunaticTriangle(sEnemyShotSet* pEnemyShotSet)
 {
-    if (pEnemyShotSet->count == 0) {
-        LgPlaySound(sound_enemyShot_medium);
-
-        double cosM = cos(pEnemyShotSet->muki);
-        double sinM = sin(pEnemyShotSet->muki);
-        for (int r = 0; r < kLgClusterRows; r++) {
-            for (int j = 0; j <= r; j++) {
-                double lat = (j - r * 0.5) * kLgClusterLatSp; // 進行方向に対して横のずれ
-                double back = r * kLgClusterBackSp;           // 先頭から後ろへのずれ
-                sEnemyShot* pEnemyShot = LgAddShot(
-                    pEnemyShotSet,
-                    pEnemyShotSet->x - cosM * back - sinM * lat,
-                    pEnemyShotSet->y - sinM * back + cosM * lat,
-                    pEnemyShotSet->muki, kLgClusterSpeed0,
-                    img_enemyShotBullet[kLgColorRed]);
-                pEnemyShot->param_d[0] = kLgClusterSpeedMax;
+    if (pEnemyShotSet->count % LUNAGUN_B_ROW_INTERVAL == 0) {
+        int row = pEnemyShotSet->count / LUNAGUN_B_ROW_INTERVAL; // 0:頂点 〜 SIDE-1:底辺
+        if (row < LUNAGUN_B_SIDE) {
+            if (row == 0 && pEnemyShotSet->param_i[0] != 0) {
+                if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+                PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+            }
+            for (int j = 0; j <= row; j++) {
+                // 進行方向に対して垂直な向き (-sin, cos) に中央揃えでずらす
+                double lateral = (j - row / 2.0) * LUNAGUN_B_SPACING;
+                sEnemyShot* pEnemyShot = new sEnemyShot;
+                pEnemyShot->x = pEnemyShotSet->x - lateral * sin(pEnemyShotSet->muki);
+                pEnemyShot->y = pEnemyShotSet->y + lateral * cos(pEnemyShotSet->muki);
+                pEnemyShot->muki = pEnemyShotSet->muki;  // 銃弾は進行方向に向ける
+                pEnemyShot->speed = LUNAGUN_B_SPEED;
+                pEnemyShot->kind = img_enemyShotBullet[LUNAGUN_B_COLOR];
+                LunaGunLinkShot(pEnemyShotSet, pEnemyShot);
             }
         }
     }
-
-    // 加速しながら直進(全弾が同じ加速度なので三角形の形は保たれる)
     sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        if (pShot->speed < pShot->param_d[0]) {
-            pShot->speed += kLgClusterAccel;
-            if (pShot->speed > pShot->param_d[0]) pShot->speed = pShot->param_d[0];
-        }
         pShot->x += pShot->speed * cos(pShot->muki);
         pShot->y += pShot->speed * sin(pShot->muki);
         pShot = pShot->next;
@@ -190,52 +165,37 @@ static void ShotLunaticCluster(sEnemyShotSet* pEnemyShotSet)
 // ============================================================
 void EnemyPat_LunaticGun_Claude()
 {
-    static int    wall_count;          // 壁を撒いた回数
-    static double target_x, target_y;  // 敵の移動目標
+    static double ringAngle; // Aの基準角(増える方向が画面上での時計回り: y軸が下向きのため)
+    static int    ringCount; // Aの発射回数
 
     if (count == 1) {
         // ゲーム画面は 480x480
-        enemy.x = 240.0;
-        enemy.y = 40.0;
+        enemy.x = LUNAGUN_ENEMY_X;
+        enemy.y = LUNAGUN_ENEMY_Y;
         enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
-        wall_count = 0;
-        target_x = enemy.x;
-        target_y = enemy.y;
+        ringAngle = DX_PI / 2.0;      // 最初の基準角は真下
+        ringCount = 0;
     }
 
-    int t = (count - 1) % kLgCycle; // サイクル内フレーム
-
-    // サイクルの頭で次の移動先を決める(画面端寄りなら内側へ、中央付近ならランダムな側へ)
-    if (t == 0) {
-        int dir;
-        if (enemy.x < 150.0)      dir = 1;
-        else if (enemy.x > 330.0) dir = -1;
-        else                      dir = GetRand(1) ? 1 : -1;
-        target_x = enemy.x + dir * (90.0 + GetRand(90));
-        if (target_x < 60.0)  target_x = 60.0;
-        if (target_x > 420.0) target_x = 420.0;
-        target_y = 40.0 + GetRand(60);
+    // ---- A: 常時撃ち続ける ----
+    if (count % LUNAGUN_A_INTERVAL == 1) {
+        sEnemyShotSet* pEnemyShotSet = LunaGunCreateShotSet(ShotLunaticRing, enemy.x, enemy.y, ringAngle);
+        pEnemyShotSet->param_i[0] = (ringCount % LUNAGUN_A_SOUND_EVERY == 0) ? 1 : 0;
+        ringAngle += LunaGunDegToRad(LUNAGUN_A_ROTATE_DEG); // 時計回りに回転
+        ringCount++;
     }
 
-    // 目標へ減速しながら移動
-    enemy.x += (target_x - enemy.x) * 0.07;
-    enemy.y += (target_y - enemy.y) * 0.07;
-
-    // 銃弾列(壁): 通常は放射状の列、kLgRingPeriod回に1回は全方位リング
-    if (t == kLgWallTiming) {
-        int kind = (wall_count % kLgRingPeriod == kLgRingPeriod - 1) ? 1 : 0;
-        double baseAngle = GetRand(359) / 180.0 * DX_PI;
-        LgAddShotSet(ShotLunaticWall, enemy.x, enemy.y, baseAngle, kind);
-        wall_count++;
-    }
-
-    // 自機狙い銃弾塊: 壁の隙間を抜けようとする自機に連続で撃ち込む
-    if (t >= kLgClusterFirst && (t - kLgClusterFirst) % kLgClusterStep == 0
-        && (t - kLgClusterFirst) / kLgClusterStep < kLgClusterNum) {
-        double aim = atan2(player.y - enemy.y, player.x - enemy.x);
-        LgAddShotSet(ShotLunaticCluster,
-            enemy.x + cos(aim) * kLgClusterDist,
-            enemy.y + sin(aim) * kLgClusterDist,
-            aim, 0);
+    // ---- B: (三角形×5)×2セットを連続で撃つ → 休止 を繰り返す ----
+    int bTime = count - LUNAGUN_B_START;
+    if (bTime >= 0) {
+        int cycleTime = bTime % LUNAGUN_B_CYCLE;
+        if (cycleTime < LUNAGUN_B_FIRE_FRAMES && cycleTime % LUNAGUN_B_TRI_INTERVAL == 0) {
+            int triIndex = cycleTime / LUNAGUN_B_TRI_INTERVAL; // サイクル内で何個目の三角形か
+            // 自機狙い。GetRand(2*J) は 0〜2J の 2J+1 通りなので、-J 〜 +J の対称なブレになる。
+            double aim = atan2(player.y - enemy.y, player.x - enemy.x);
+            aim += LunaGunDegToRad(GetRand(LUNAGUN_B_AIM_JITTER_DEG * 2) - LUNAGUN_B_AIM_JITTER_DEG);
+            sEnemyShotSet* pEnemyShotSet = LunaGunCreateShotSet(ShotLunaticTriangle, enemy.x, enemy.y, aim);
+            pEnemyShotSet->param_i[0] = (triIndex % LUNAGUN_B_TRI_NUM == 0) ? 1 : 0; // セットの先頭だけ効果音
+        }
     }
 }
