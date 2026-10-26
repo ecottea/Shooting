@@ -8,6 +8,7 @@
 //   - 被弾したらその候補を破棄
 //   - クリア（Win）したら探索成功
 //   - 最大フレーム数はデフォルト1500
+//   - 100局面探索して進展がなければ、何も調べず5フレーム分戻る
 
 #include "tasAutoMaker.h"
 #include "tasController.h"   // iniGameForTas()
@@ -43,6 +44,21 @@ namespace {
 
     // 探索局面数（DFSノード数）
     static int s_dfsNodeCount = 0;
+
+    // 「進展なし」と判定するまでの探索局面数
+    const int kStuckThreshold = 100;
+
+    // 進展なし時に一気に戻るフレーム数
+    const int kSkipBackFrames = 5;
+
+    // 直近で進展があったときの探索局面数
+    static int s_lastProgressNodeCount = 0;
+
+    // これまでに到達した最大深度（= replayKeyHistory.size() の最大値）
+    static int s_maxDepthReached = 0;
+
+    // スキップバックの残りフレーム数（>0 の間は何も調べずに戻る）
+    static int s_skipBackCounter = 0;
 
     // 9方向の候補を作成する
     uint8_t makeDirInput(bool left, bool up, bool right, bool down)
@@ -282,6 +298,10 @@ namespace {
             targetX = (float)enemy.x;
             targetY = 480 - 50;
         }
+        else if (stageData[stageNum].stageId == "handmade15") {
+            targetX = (float)enemy.x;
+            targetY = 480 - 50;
+        }
 
         // 現在位置との差
         const float dx = targetX - (float)player.x;
@@ -394,10 +414,33 @@ namespace {
 
         const int parentLen = (int)replayKeyHistory.size();
 
+        // 進展の判定：これまでで最も深い階層に到達したら「進展あり」とみなす
+        if (parentLen > s_maxDepthReached) {
+            s_maxDepthReached = parentLen;
+            s_lastProgressNodeCount = s_dfsNodeCount;
+        }
+
+        // 100局面探索して進展がなければ、何も調べず5フレーム分スキップバックする
+        // （現在の深さが 5 以上の場合のみ。浅すぎると戻れないため）
+        if ((s_dfsNodeCount - s_lastProgressNodeCount) >= kStuckThreshold
+            && parentLen >= kSkipBackFrames)
+        {
+            // 現フレーム(1) + 残り(4) = 5フレーム分戻る
+            s_skipBackCounter = kSkipBackFrames - 1;
+            s_lastProgressNodeCount = s_dfsNodeCount; // カウンタリセット
+            return false;
+        }
+
         // 親状態で方向の優先順位を計算
         std::vector<uint8_t> order = generateDirectionOrder();
 
         for (uint8_t input : order) {
+            // スキップバック中なら残りの兄弟は試さず即戻る
+            if (s_skipBackCounter > 0) {
+                s_skipBackCounter--;
+                return false;
+            }
+
             // 毎回、親状態からやり直す
             restoreToFrame(parentLen);
 
@@ -458,6 +501,11 @@ void TAS_AutoSearchStart()
 
     // 探索局面数カウンタをリセット
     s_dfsNodeCount = 0;
+
+    // 進展追跡・スキップバック用変数をリセット
+    s_lastProgressNodeCount = 0;
+    s_maxDepthReached = 0;
+    s_skipBackCounter = 0;
 
     bool success = dfsAutoTas(kDefaultMaxDepth);
 
