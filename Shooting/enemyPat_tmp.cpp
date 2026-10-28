@@ -1,394 +1,481 @@
-﻿#include "DxLib.h"
+﻿// ============================================================
+//  弾幕パターン:「顔書弾幕『へのへのもへじ』」
+//  ------------------------------------------------------------
+//  敵本体関数 : void EnemyPat_Tmp()
+//
+//  コンセプト:
+//    ボスが画面上に自らの顔「へのへのもへじ」を弾で描いていく
+//    5ストローク構成の弾幕。全て既存の弾種の組み合わせで表現する。
+//
+//  フェーズ構成 (1周期 CYCLE=1020f / 約17秒):
+//    t=  60  フェーズ1  額と両目の「へ」: 山形カーテンが降ってくる
+//    t= 240  フェーズ2  口の「の」    : 渦巻弾(途中で回転反転=笑う口)
+//    t= 450  フェーズ3  輪郭の「も」  : 大型弾の四角い枠が回転しながら収縮
+//    t= 780  フェーズ4  顔の完成      : 文字弾で描かれた顔が出現→瞬き→
+//                                        にこにこ→爆散
+//
+//  使用素材(抜粋):
+//    弾  : 中玉[0]赤=へカーテン / 小玉[5]マゼンタ=の渦巻 /
+//          大玉[4]青=も枠 / 小玉[6]白=顔の線画
+//          (銃弾・鱗弾・菱形弾・中楕円弾・短レーザーは不使用)
+//    音  : sound_enemyCharge(予告) / medium / heavy / extreme
+//
+//  実装メモ:
+//    - 専用素材の代わりに、サンプルの GDI+ 文字ピクセル化技術を流用し
+//      「へ」「の」「も」を20pxフォントで描画→白ピクセル座標→
+//      拡大配置することで小玉だけで顔の線画を作る。
+//    - 同時最大弾数は約800(顔約650+他フェーズ)。プール4096に余裕あり。
+//    - count / pEnemyShotSet->count / pEnemyShot->count のインクリメント、
+//      画面外弾の消去はメインルーチン側で行われる前提。
+//      → このファイルでは増加参照のみ行い、リスト要素の削除はしない。
+//    - GetRand(x) は 0〜x の x+1 種類を返す点に注意(使用箇所には注記あり)。
+// ============================================================
+
+#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
-#include <math.h>
+#include <windows.h>
+#include <gdiplus.h>
+#include <vector>
+#include <map>
+#include <string>
+#include <cmath>
+
+#pragma comment(lib, "gdiplus.lib")
+using namespace Gdiplus;
 
 // ============================================================
-//  弾幕：マスゲーム「集団演技・四季の波」（難易度アップ版）
-//
-//  改訂ポイント：
-//    1. グリッドを 11列×4行×2組=88発 に拡張（旧 7×2×2=28発）
-//       → 画面横幅ほぼ全面を覆盖、サイドの安全地帯をほぼ消滅
-//    2. 全フェーズを通じてボスから自機方向へ3弾ファンを定期発射
-//       → 20フレームごと（約3回/秒）、計213発の自機狙い弾
-//    3. 第3演技の交差ピークで大弾3発発射（既存、時刻だけ更新）
-//    4. 総弾数 約305発/演技、画面内同時 約110発前後
-//
-//  構成（約24.7秒＝1480フレーム）：
-//    第1演技 入場行進 (0-240)     : 上下端から進軍 ＋ ボスからのファン
-//    第2演技 第一波   (240-640)   : 左→右→左 5往復 ＋ ファン
-//    第3演技 交差波   (640-940)   : 双方向同時波、中央ピークで大弾 ＋ ファン
-//    第4演技 分裂回転 (940-1300)  : 左右半分が逆回転 ＋ ファン
-//    第5演技 退場行進 (1300-1480) : 整列退場 ＋ ボスからのファン（お見舞い）
+//  GDI+ 初期化
 // ============================================================
-
-// --- グリッド定義 ---
-static const int GRID_COLUMNS = 13;
-static const int GRID_ROWS = 10;
-static const double HOME_X[GRID_COLUMNS] = {
-    0.0, 40.0, 80.0, 120.0, 160.0, 200.0, 240.0, 280.0, 320.0, 360.0, 400.0, 440.0, 480.0
-};
-static const double HOME_RED_Y[GRID_ROWS] = { 220.0, 200.0, 180.0, 160.0, 140.0, 120.0, 100.0, 80.0, 60.0, 40.0 };
-static const double HOME_BLUE_Y[GRID_ROWS] = { 260.0, 280.0, 300.0, 320.0, 340.0, 360.0, 380.0, 400.0, 420.0, 440.0 };
-
-// 旗手（中央・大玉）のホーム位置
-static const double FLAG_HOME_X = 240.0;
-static const double FLAG_HOME_Y = 240.0;
-
-// ボス位置（ファン発射元）
-static const double BOSS_X = 240.0;
-static const double BOSS_Y = 40.0;
-
-// フェーズ境界（フレーム）
-static const int PHASE1_END = 240;     // 入場行進
-static const int PHASE2_END = 640;     // 第一波（5 legs × 80）
-static const int PHASE3_END = 940;     // 交差波（3 rounds × 100）
-static const int PHASE4_END = 1300;   // 分裂回転（360）
-static const int PHASE5_END = 1480;   // 退場行進（180）
-
-// 波のパラメータ
-static const double JUMP_H_WAVE = 20.0;   // 第2演技の跳ね幅
-static const double JUMP_H_CROSS = 15.0;   // 第3演技の跳ね幅（1波あたり）
-static const int    WAVE_JUMP_FRAMES = 30;  // 1弾の跳ね持続時間
-static const int    WAVE_COL_OFFSET = 4;   // 列ごとの伝播オフセット
-static const int    WAVE_LEG_FRAMES = 80;  // 1 leg の長さ（11列を伝播しきるため拡張）
-
-// 交差ピーク時刻（ローカル）
-static const int CROSS_PEAK_LOCAL =
-(GRID_COLUMNS / 2) * WAVE_COL_OFFSET + WAVE_JUMP_FRAMES / 2;
-//   11列の場合: 5*4 + 15 = 35
-
-// ファン発射パラメータ
-static const int    FAN_INTERVAL = 20;        // 発射間隔（フレーム）
-static const int    FAN_BULLETS = 3;         // 1回の弾数
-static const double FAN_SPREAD = 0.1745;    // ±10度（ラジアン）
-static const double FAN_SPEED = 3.0;
-
-// ループ周期
-static const int LOOP_FRAMES = 1600;          // 1480演技 + 120休止
-
-// グループID（pShot->param_i[0] に格納）
-enum GroupID {
-    GRP_RED = 0,
-    GRP_BLUE = 1,
-    GRP_FLAG = 2,   // 中央旗手（静止）
-    GRP_FREE = 3,   // 自由飛翔弾（速度で動く）
-};
-
-// ============================================================
-//  マスゲーム演技パターン
-// ============================================================
-static void ShotMassGame(sEnemyShotSet* pEnemyShotSet)
+static void InitGdiplusOnce()
 {
-    int t = pEnemyShotSet->count;
-
-    // ---------- 生成 ----------
-    if (t == 0) {
-        // 予告音（演技開始のファンファーレ）
-        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
-        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
-
-        // 赤組 (44発)
-        for (int c = 0; c < GRID_COLUMNS; ++c) {
-            for (int r = 0; r < GRID_ROWS; ++r) {
-                sEnemyShot* pShot = new sEnemyShot;
-                pShot->param_i[0] = GRP_RED;
-                pShot->param_i[1] = c;
-                pShot->param_i[2] = r;
-                pShot->kind = img_enemyShotSmallBall[0]; // 0:赤
-                pShot->x = HOME_X[c];
-                pShot->y = 10.0;                       // 画面上端（安全位置）
-                pShot->speed = 0.0;
-                pShot->muki = 0.0;
-                pShot->margin = 480;
-                pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-                pShot->next = pEnemyShotSet->pEnemyShotHead;
-                pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
-                pEnemyShotSet->pEnemyShotHead->prev = pShot;
-            }
-        }
-        // 青組 (44発)
-        for (int c = 0; c < GRID_COLUMNS; ++c) {
-            for (int r = 0; r < GRID_ROWS; ++r) {
-                sEnemyShot* pShot = new sEnemyShot;
-                pShot->param_i[0] = GRP_BLUE;
-                pShot->param_i[1] = c;
-                pShot->param_i[2] = r;
-                pShot->kind = img_enemyShotSmallBall[4]; // 4:青
-                pShot->x = HOME_X[c];
-                pShot->y = 470.0;                      // 画面下端（安全位置）
-                pShot->speed = 0.0;
-                pShot->muki = 0.0;
-                pShot->margin = 480;
-                pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-                pShot->next = pEnemyShotSet->pEnemyShotHead;
-                pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
-                pEnemyShotSet->pEnemyShotHead->prev = pShot;
-            }
-        }
-        // 旗手（中央・大玉）
-        {
-            sEnemyShot* pShot = new sEnemyShot;
-            pShot->param_i[0] = GRP_FLAG;
-            pShot->param_i[1] = GRID_COLUMNS / 2;
-            pShot->param_i[2] = 0;
-            pShot->kind = img_enemyShotLargeBall[6]; // 6:白
-            pShot->x = FLAG_HOME_X;
-            pShot->y = FLAG_HOME_Y;               // 最初から中央
-            pShot->speed = 0.0;
-            pShot->muki = 0.0;
-            pShot->margin = 480;
-            pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pShot;
-        }
-    }
-
-    // ---------- ファン発射（全フェーズ共通：t=60〜PHASE5_END） ----------
-    // ボス位置から自機方向へ3弾ファンを発射。演技中は常に飛んでくる。
-    if (t >= 60 && t < PHASE5_END && (t - 60) % FAN_INTERVAL == 0) {
-        double base_muki = atan2(player.y - BOSS_Y, player.x - BOSS_X);
-        for (int i = 0; i < FAN_BULLETS; ++i) {
-            double offset = ((double)i - (double)(FAN_BULLETS - 1) / 2.0) * FAN_SPREAD;
-            sEnemyShot* pShot = new sEnemyShot;
-            pShot->param_i[0] = GRP_FREE;
-            pShot->param_i[1] = 0;
-            pShot->param_i[2] = 0;
-            pShot->kind = img_enemyShotSmallBall[1]; // 1:黄
-            pShot->x = BOSS_X;
-            pShot->y = BOSS_Y;
-            pShot->muki = base_muki + offset;
-            pShot->speed = FAN_SPEED;
-            pShot->margin = 480;
-            pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pShot;
-        }
-        // 軽発射音
-        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
-        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-    }
-
-    // ---------- 第3演技：中央交差ピークで大弾発射 ----------
-    // 各ラウンドの中央列跳ねピーク時刻で、旗手から自機方向へ大弾
-    if (t == PHASE2_END + CROSS_PEAK_LOCAL ||
-        t == PHASE2_END + CROSS_PEAK_LOCAL + 100 ||
-        t == PHASE2_END + CROSS_PEAK_LOCAL + 200) {
-        sEnemyShot* pShot = new sEnemyShot;
-        pShot->param_i[0] = GRP_FREE;
-        pShot->param_i[1] = 0;
-        pShot->param_i[2] = 0;
-        pShot->kind = img_enemyShotLargeBall[8]; // 8:橙
-        pShot->x = FLAG_HOME_X;
-        pShot->y = FLAG_HOME_Y;
-        pShot->muki = atan2(player.y - pShot->y, player.x - pShot->x);
-        pShot->speed = 3.0;
-        pShot->margin = 480;
-        pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-        pShot->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pShot;
-
-        // 重発射音
-        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
-        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
-    }
-
-    // ---------- 配置更新 ----------
-    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        int group = pShot->param_i[0];
-
-        if (group == GRP_FREE) {
-            // 自由飛翔弾：速度で動かす（画面外でメインルーチンが消去）
-            pShot->x += pShot->speed * cos(pShot->muki);
-            pShot->y += pShot->speed * sin(pShot->muki);
-        }
-        else {
-            // 演技弾：フェーズに応じて位置を直接制御
-            int col = pShot->param_i[1];
-            int row = pShot->param_i[2];
-
-            // ホーム位置
-            double hx, hy;
-            if (group == GRP_RED) {
-                hx = HOME_X[col];
-                hy = HOME_RED_Y[row];
-            }
-            else if (group == GRP_BLUE) {
-                hx = HOME_X[col];
-                hy = HOME_BLUE_Y[row];
-            }
-            else { // GRP_FLAG
-                hx = FLAG_HOME_X;
-                hy = FLAG_HOME_Y;
-            }
-
-            if (t < PHASE1_END) {
-                // === 第1演技：入場行進 ===
-                double progress = (double)t / (double)PHASE1_END;
-                double init_y;
-                if (group == GRP_RED)        init_y = 10.0;
-                else if (group == GRP_BLUE) init_y = 470.0;
-                else                         init_y = hy;   // 旗手は最初からホーム
-                pShot->x = hx;
-                pShot->y = init_y + (hy - init_y) * progress;
-            }
-            else if (t < PHASE2_END) {
-                // === 第2演技：第一波（左→右→左 を5往復） ===
-                pShot->x = hx;
-                pShot->y = hy;
-
-                if (group != GRP_FLAG) {
-                    int local_t = t - PHASE1_END;
-                    int leg = local_t / WAVE_LEG_FRAMES;
-                    int leg_local = local_t % WAVE_LEG_FRAMES;
-
-                    if (leg < 5) {
-                        // 偶数leg=左→右、奇数leg=右→左
-                        int col_off;
-                        if (leg % 2 == 0) col_off = col * WAVE_COL_OFFSET;
-                        else              col_off = (GRID_COLUMNS - 1 - col) * WAVE_COL_OFFSET;
-
-                        if (leg_local >= col_off && leg_local < col_off + WAVE_JUMP_FRAMES) {
-                            double jt = (double)(leg_local - col_off) / (double)WAVE_JUMP_FRAMES;
-                            double jh = sin(jt * DX_PI) * JUMP_H_WAVE;
-                            if (group == GRP_RED)  pShot->y = hy - jh;
-                            else                   pShot->y = hy + jh;
-                        }
-                    }
-                }
-            }
-            else if (t < PHASE3_END) {
-                // === 第3演技：交差波（双方向同時、3ラウンド） ===
-                pShot->x = hx;
-                pShot->y = hy;
-
-                if (group != GRP_FLAG) {
-                    int local_t = t - PHASE2_END;
-                    int round = local_t / 100;     // 3ラウンド × 100フレーム
-                    int r_local = local_t % 100;
-
-                    if (round < 3) {
-                        // 双方向の波を足し合わせる（中央列は両波同時到達 → 跳ね幅2倍）
-                        double total = 0.0;
-
-                        int offA = col * WAVE_COL_OFFSET;
-                        if (r_local >= offA && r_local < offA + WAVE_JUMP_FRAMES) {
-                            double jt = (double)(r_local - offA) / (double)WAVE_JUMP_FRAMES;
-                            total += sin(jt * DX_PI) * JUMP_H_CROSS;
-                        }
-                        int offB = (GRID_COLUMNS - 1 - col) * WAVE_COL_OFFSET;
-                        if (r_local >= offB && r_local < offB + WAVE_JUMP_FRAMES) {
-                            double jt = (double)(r_local - offB) / (double)WAVE_JUMP_FRAMES;
-                            total += sin(jt * DX_PI) * JUMP_H_CROSS;
-                        }
-
-                        if (group == GRP_RED)  pShot->y = hy - total;
-                        else                   pShot->y = hy + total;
-                    }
-                }
-            }
-            else if (t < PHASE4_END) {
-                // === 第4演技：分裂回転 ===
-                int centerCol = GRID_COLUMNS / 2;   // 11列なら5（中央列=静止軸）
-                if (group == GRP_FLAG || col == centerCol) {
-                    pShot->x = hx;
-                    pShot->y = hy;
-                }
-                else {
-                    int local_t = t - PHASE3_END;
-                    // 1回転（2π）を第4演技期間で行う。最終フレームで theta=2π となりホームへ戻る
-                    double theta = (double)local_t * 2.0 * DX_PI
-                        / (double)(PHASE4_END - PHASE3_END - 1);
-
-                    bool   isLeft = (col < centerCol);
-                    // 左半分の重心=(40+80+120+160+200)/5=120
-                    // 右半分の重心=(280+320+360+400+440)/5=360
-                    double pivotX = isLeft ? 120.0 : 360.0;
-                    double pivotY = 240.0;
-
-                    // 各グループの回転方向（スクリーン座標系では数学的正回転=画面時計回り）
-                    //   赤・左 = +theta (画面 時計回り)
-                    //   赤・右 = -theta (画面 反時計回り)
-                    //   青・左 = -theta
-                    //   青・右 = +theta
-                    double sign = 0.0;
-                    if (group == GRP_RED)  sign = isLeft ? +1.0 : -1.0;
-                    else                    sign = isLeft ? -1.0 : +1.0;
-                    double ang = sign * theta;
-
-                    // ピボットからの相対ベクトルを回転
-                    double rx = hx - pivotX;
-                    double ry = hy - pivotY;
-                    double ca = cos(ang);
-                    double sa = sin(ang);
-                    double nx = ca * rx - sa * ry;
-                    double ny = sa * rx + ca * ry;
-                    pShot->x = pivotX + nx;
-                    pShot->y = pivotY + ny;
-                }
-            }
-            else if (t < PHASE5_END) {
-                // === 第5演技：退場行進 ===
-                int local_t = t - PHASE4_END;
-
-                if (local_t < 30) {
-                    // ホーム位置で一拍静止
-                    pShot->x = hx;
-                    pShot->y = hy;
-                }
-                else {
-                    // 行進で画面外へ
-                    int    march_t = local_t - 30;
-                    double march_speed = 3.0;
-                    pShot->x = hx;
-                    if (group == GRP_RED)        pShot->y = hy - march_speed * (double)march_t;
-                    else if (group == GRP_BLUE)  pShot->y = hy + march_speed * (double)march_t;
-                    else                          pShot->y = hy - march_speed * (double)march_t;
-                }
-            }
-            else {
-                // === 演技終了後：画面外へ流す（メインルーチンが消去） ===
-                if (group == GRP_RED)        pShot->y -= 3.0;
-                else if (group == GRP_BLUE)  pShot->y += 3.0;
-                else                          pShot->y -= 3.0;
-            }
-        }
-
-        pShot = pShot->next;
+    static bool initialized = false;
+    if (!initialized) {
+        GdiplusStartupInput gdiInput;
+        ULONG_PTR token;
+        GdiplusStartup(&token, &gdiInput, nullptr);
+        initialized = true;
     }
 }
 
 // ============================================================
-//  敵本体パターン
+//  指定文字を20pxで描画し、白ピクセルの座標を返す
+//  (サンプルの SampleTextPixelsStr と同手法・1文字専用版)
+// ============================================================
+static std::vector<std::pair<double, double>> RenderCharPixels(wchar_t ch)
+{
+    std::vector<std::pair<double, double>> result;
+    InitGdiplusOnce();
+
+    const int SIZE = 20;   // フォントサイズ(ピクセル)
+    const int W = SIZE * 2;
+    const int H = SIZE * 2;
+
+    Bitmap bitmap(W, H, PixelFormat32bppARGB);
+    Graphics g(&bitmap);
+    g.Clear(Color(0, 0, 0, 0));
+
+    // アンチエイリアスOFF(単色描画)
+    g.SetTextRenderingHint(TextRenderingHintSingleBitPerPixelGridFit);
+
+    SolidBrush whiteBrush(Color(255, 255, 255, 255));
+    FontFamily fontFamily(L"Yu Gothic UI Light");
+    Font font(&fontFamily, (REAL)SIZE, FontStyleRegular, UnitPixel);
+
+    std::wstring str(1, ch);
+    g.DrawString(str.c_str(), (INT)str.length(), &font, PointF(0, 0), &whiteBrush);
+
+    // ピクセルデータ取得
+    BitmapData bmpData;
+    Rect rect(0, 0, W, H);
+    bitmap.LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bmpData);
+    BYTE* argb = (BYTE*)bmpData.Scan0;
+
+    std::vector<std::pair<int, int>> pixels;
+    int minX = W, maxX = -1, minY = H, maxY = -1;
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            int idx = y * bmpData.Stride + x * 4;
+            BYTE a = argb[idx + 3];
+            if (a == 255) {
+                pixels.emplace_back(x, y);
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+    bitmap.UnlockBits(&bmpData);
+
+    // バウンディングボックスの中心を原点に変換
+    if (!pixels.empty()) {
+        double cx = (minX + maxX) / 2.0;
+        double cy = (minY + maxY) / 2.0;
+        result.reserve(pixels.size());
+        for (const auto& p : pixels) {
+            result.emplace_back(p.first - cx, p.second - cy);
+        }
+    }
+    return result;
+}
+
+// ============================================================
+//  文字ピクセル座標のキャッシュ(初回アクセス時に自動生成)
+// ============================================================
+static const std::vector<std::pair<double, double>>& GetCharOffsets(wchar_t ch)
+{
+    static std::map<wchar_t, std::vector<std::pair<double, double>>> cache;
+    auto it = cache.find(ch);
+    if (it == cache.end()) {
+        it = cache.emplace(ch, RenderCharPixels(ch)).first;
+    }
+    return it->second;
+}
+
+// ============================================================
+//  弾を1発追加する共通ヘルパー
+//  (countのインクリメントと画面外消去はメインルーチン側の仕様)
+// ============================================================
+static sEnemyShot* AddShot(sEnemyShotSet* pEnemyShotSet,
+    double x, double y, double muki, double speed, int kind)
+{
+    sEnemyShot* p = new sEnemyShot;
+    p->x = x;
+    p->y = y;
+    p->muki = muki;
+    p->speed = speed;
+    p->kind = kind;
+    p->margin = 240;
+
+    p->prev = pEnemyShotSet->pEnemyShotHead->prev;
+    p->next = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->pEnemyShotHead->prev->next = p;
+    pEnemyShotSet->pEnemyShotHead->prev = p;
+    return p;
+}
+
+// ============================================================
+//  弾幕セットを1つ生成する共通ヘルパー
+// ============================================================
+static void SpawnSet(sEnemyShotSet::PatternFunc func,
+    double x, double y, double muki, int kind)
+{
+    sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
+    pEnemyShotSet->count = 0;
+    pEnemyShotSet->patternFunc = func;
+    pEnemyShotSet->x = x;
+    pEnemyShotSet->y = y;
+    pEnemyShotSet->muki = muki;
+    pEnemyShotSet->kind = kind;
+
+    pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
+    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
+    pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
+
+    pEnemyShotSet->prev = enemyShotSetHead.prev;
+    pEnemyShotSet->next = &enemyShotSetHead;
+    enemyShotSetHead.prev->next = pEnemyShotSet;
+    enemyShotSetHead.prev = pEnemyShotSet;
+}
+
+// ============================================================
+//  フェーズ1:額と両目の「へ」
+//  山形(へ字型 ︿)に並んだ中玉のカーテンが上から降ってくる。
+//  端が開いているので、左右の裾を狙って抜けるのが基本の避け方。
+// ============================================================
+static void ShotHeCurtain(sEnemyShotSet* pEnemyShotSet)
+{
+    // 45f間隔で5波(T=0,45,90,135,180)
+    if (pEnemyShotSet->count <= 180 && pEnemyShotSet->count % 45 == 0) {
+        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+
+        const int    N = 17;       // 1波の弾数
+        const double WIDTH = 220.0;   // 横幅
+        const double HEIGHT = 70.0;   // 山の高さ
+
+        // プレイヤー周辺を狙う。GetRand(120)は0〜120の121種なので
+        // -60すると揺らぎは-60〜+60
+        double cx = player.x + (GetRand(120) - 60);
+
+        for (int i = 0; i < N; i++) {
+            double u = -1.0 + 2.0 * i / (N - 1);            // -1.0〜1.0
+            double x = cx + u * (WIDTH / 2.0);
+            double y = -20.0 - (1.0 - fabs(u)) * HEIGHT;    // 中央が山頂(上)
+            AddShot(pEnemyShotSet, x, y, DX_PI / 2.0, 2.2, img_enemyShotMediumBall[0]);
+        }
+    }
+
+    // 共通の直線移動
+    sEnemyShot* p = pEnemyShotSet->pEnemyShotHead->next;
+    while (p != pEnemyShotSet->pEnemyShotHead) {
+        p->x += p->speed * cos(p->muki);
+        p->y += p->speed * sin(p->muki);
+        p = p->next;
+    }
+}
+
+// ============================================================
+//  フェーズ2:口の「の」
+//  「の」はそのまま渦巻。口の位置から2方向の渦を巻く。
+//  count==90で回転方向が反転し「口が動いて笑っている」ように見せる。
+// ============================================================
+static void ShotNoSpiral(sEnemyShotSet* pEnemyShotSet)
+{
+    // 渦の現在角度(param_d[0]は生成時に0初期化済み)
+    double dir = (pEnemyShotSet->count < 90) ? 1.0 : -1.0;   // 反転=にっこり
+    pEnemyShotSet->param_d[0] += dir * 0.22;
+
+    if (pEnemyShotSet->count < 180) {
+        double a = pEnemyShotSet->muki + pEnemyShotSet->param_d[0];
+        for (int k = 0; k < 2; k++) {
+            AddShot(pEnemyShotSet,
+                pEnemyShotSet->x, pEnemyShotSet->y,
+                a + k * DX_PI, 2.6, img_enemyShotSmallBall[5]);
+        }
+    }
+
+    // 共通の直線移動
+    sEnemyShot* p = pEnemyShotSet->pEnemyShotHead->next;
+    while (p != pEnemyShotSet->pEnemyShotHead) {
+        p->x += p->speed * cos(p->muki);
+        p->y += p->speed * sin(p->muki);
+        p = p->next;
+    }
+}
+
+// ============================================================
+//  フェーズ3:輪郭の「も」
+//  大型弾で作った四角い枠(輪郭)が画面の周上を流れながら
+//  ゆっくり収縮してプレイヤーを締め付け、外側へ爆散して終わる。
+//  弾は画面内(枠 20〜460px)に生成するので消去と競合しない。
+// ============================================================
+static void ShotMoFrame(sEnemyShotSet* pEnemyShotSet)
+{
+    const double CX = 240.0, CY = 240.0;   // 画面中心
+    const int    N = 24;                    // 枠の弾数
+    const double START_WH = 440.0;          // 初期の一辺の長さ
+    const double SHRINK = 0.8;              // 収縮速度(px/f)
+    const double MIN_WH = 240.0;            // 収縮の下限
+    const int    BURST = 300;               // 爆散フレーム
+
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+
+        for (int i = 0; i < N; i++) {
+            // param_d[0] = 枠の周上の位置(ペリメータ距離)
+            sEnemyShot* p = AddShot(pEnemyShotSet, CX, CY, 0.0, 0.0, img_enemyShotLargeBall[4]);
+            p->param_d[0] = (4.0 * START_WH) * i / N;
+        }
+    }
+
+    if (pEnemyShotSet->count == BURST) {
+        if (CheckSoundMem(sound_enemyShot_extreme)) StopSoundMem(sound_enemyShot_extreme);
+        PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
+    }
+
+    sEnemyShot* p = pEnemyShotSet->pEnemyShotHead->next;
+    while (p != pEnemyShotSet->pEnemyShotHead) {
+        if (pEnemyShotSet->count <= BURST) {
+            // 枠の上を流れる(公転)＋収縮
+            double wh = START_WH - SHRINK * pEnemyShotSet->count;
+            if (wh < MIN_WH) wh = MIN_WH;
+
+            p->param_d[0] += 1.5;                       // 枠に沿って流れる
+            double s = fmod(p->param_d[0], 4.0 * wh);
+            double x0 = CX - wh / 2.0, y0 = CY - wh / 2.0;
+
+            if (s < wh) {                       // 上辺(左→右)
+                p->x = x0 + s;
+                p->y = y0;
+            }
+            else if (s < 2.0 * wh) {            // 右辺(上→下)
+                p->x = x0 + wh;
+                p->y = y0 + (s - wh);
+            }
+            else if (s < 3.0 * wh) {            // 下辺(右→左)
+                p->x = x0 + wh - (s - 2.0 * wh);
+                p->y = y0 + wh;
+            }
+            else {                              // 左辺(下→上)
+                p->x = x0;
+                p->y = y0 + wh - (s - 3.0 * wh);
+            }
+
+            if (pEnemyShotSet->count == BURST) {
+                p->muki = atan2(p->y - CY, p->x - CX) + DX_PI;
+                p->speed = 4.5;
+            }
+        }
+        else {
+            // 爆散後の直線移動
+            p->x += p->speed * cos(p->muki);
+            p->y += p->speed * sin(p->muki);
+        }
+        p = p->next;
+    }
+}
+
+// ============================================================
+//  フェーズ4:顔の完成(フィニッシュ)
+//  GDI+でドット化した「へのへのもへじ」を小玉(白)で再現し
+//  画面中央下に浮かび上がらせる。
+//    出現(45f 縮小表示から拡大) → 息づかい → 瞬き(目) →
+//    にこにこ(口が弧を描いて動く) → 全弾爆散
+// ============================================================
+
+// 顔のレイアウト(FC=顔中心からのオフセットpx / 拡大率 / 役割)
+// role: 0=その他 1=目(瞬きする) 2=口(にこにこ動く)
+struct FacePart {
+    wchar_t ch;
+    double  ox, oy;
+    double  scale;
+    int     role;
+};
+static const FacePart kFaceParts[] = {
+    { L'へ',   0.0, -58.0, 1.2, 0 },   // 額の「へ」:輪郭の上にちょこん
+    { L'へ', -32.0, -12.0, 1.6, 1 },   // 左目
+    { L'へ',  32.0, -12.0, 1.6, 1 },   // 右目
+    { L'の',   0.0,  18.0, 1.6, 2 },   // 口
+    { L'も',   0.0,  -4.0, 4.0, 0 },   // 顔の輪郭
+};
+
+static void ShotFaceFinish(sEnemyShotSet* pEnemyShotSet)
+{
+    const double FCX = pEnemyShotSet->x;   // 顔中心(生成時に240,250を指定)
+    const double FCY = pEnemyShotSet->y;
+    const int    APPEAR_END = 45;          // 出現アニメの終了フレーム
+    const int    BLINK_BEGIN = 90;          // 瞬き開始
+    const int    BLINK_END = 106;         // 瞬き終了
+    const int    BURST = 150;          // 爆散フレーム
+
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_extreme)) StopSoundMem(sound_enemyShot_extreme);
+        PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
+
+        for (const auto& part : kFaceParts) {
+            const auto& offsets = GetCharOffsets(part.ch);
+            for (const auto& off : offsets) {
+                double hx = FCX + part.ox * part.scale*2 + off.first * part.scale*2;
+                double hy = FCY + part.oy * part.scale*2 + off.second * part.scale*2;
+
+                sEnemyShot* p = AddShot(pEnemyShotSet, hx, hy, 0.0, 0.0,
+                    img_enemyShotSmallBall[6]);
+                p->param_i[0] = part.role;
+                p->param_d[4] = hx;   // ホームポジション
+                p->param_d[5] = hy;
+
+                if (part.role == 1) {  // 目:瞬きの収縮中心
+                    p->param_d[2] = FCX + part.ox * part.scale*2;
+                    p->param_d[3] = FCY + part.oy * part.scale*2;
+                }
+                if (part.role == 2) {  // 口:顔中心回りの角度と半径
+                    double dx = hx - FCX, dy = hy - FCY;
+                    p->param_d[0] = atan2(dy, dx);
+                    p->param_d[1] = sqrt(dx * dx + dy * dy);
+                }
+            }
+        }
+    }
+
+    if (pEnemyShotSet->count == BURST) {
+        if (CheckSoundMem(sound_enemyShot_heavy)) StopSoundMem(sound_enemyShot_heavy);
+        PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+    }
+
+    sEnemyShot* p = pEnemyShotSet->pEnemyShotHead->next;
+    while (p != pEnemyShotSet->pEnemyShotHead) {
+        if (pEnemyShotSet->count < BURST) {
+            // 出現:15%の大きさから45fかけて浮かび上がる
+            double appear = 1.0;
+            if (pEnemyShotSet->count < APPEAR_END) {
+                appear = 0.15 + 0.85 * pEnemyShotSet->count / APPEAR_END;
+            }
+            // 息づかい:ふわふわと膨らむ
+            double breathe = 1.0 + 0.03 * sin(pEnemyShotSet->count * 0.12);
+
+            double hx = p->param_d[4];
+            double hy = p->param_d[5];
+
+            if (p->param_i[0] == 2) {
+                // 口:顔中心回りにゆっくり弧を描いて動く(にこにこ)
+                double a = p->param_d[0] + 0.35 * sin(pEnemyShotSet->count * 0.15);
+                hx = FCX + p->param_d[1] * cos(a);
+                hy = FCY + p->param_d[1] * sin(a);
+            }
+            else if (p->param_i[0] == 1) {
+                // 目:瞬きで目の中心に向かって閉じる
+                double k = 1.0;
+                if (pEnemyShotSet->count >= BLINK_BEGIN && pEnemyShotSet->count < BLINK_END) {
+                    double t = (pEnemyShotSet->count - BLINK_BEGIN)
+                        / (double)(BLINK_END - BLINK_BEGIN) * DX_PI;
+                    k = 1.0 - 0.85 * sin(t);
+                }
+                hx = p->param_d[2] + (hx - p->param_d[2]) * k;
+                hy = p->param_d[3] + (hy - p->param_d[3]) * k;
+            }
+
+            p->x = FCX + (hx - FCX) * appear * breathe;
+            p->y = FCY + (hy - FCY) * appear * breathe;
+        }
+        else if (pEnemyShotSet->count == BURST) {
+            // 顔が爆散!全弾が顔中心から放射状に飛ぶ
+            p->muki = atan2(p->y - FCY, p->x - FCX);
+            p->speed = 4.0;
+        }
+        else {
+            // 爆散後の直線移動
+            p->x += p->speed * cos(p->muki);
+            p->y += p->speed * sin(p->muki);
+        }
+        p = p->next;
+    }
+}
+
+// ============================================================
+//  敵本体のパターン(エントリポイント)
 // ============================================================
 void EnemyPat_Tmp()
 {
+    static int muki;
+    const int CYCLE = 1020-200;   // 1周期 約17秒
+
     if (count == 1) {
         // ゲーム画面は 480x480
-        enemy.x = BOSS_X;
-        enemy.y = BOSS_Y;
-        enemy.maxHp = enemy.hp = 300; // 200から変更しないこと
+        enemy.x = 240.0;
+        enemy.y = 40.0;
+        enemy.maxHp = enemy.hp = 200;   // 200で固定
+        muki = 1;
+    }
+    else {
+        enemy.x += 0.98 * (double)muki;
+        if (count % 120 == 60) muki *= -1;
     }
 
-    // 演技を LOOP_FRAMES 周期で生成
-    if (count >= 60 && (count - 60) % LOOP_FRAMES == 0) {
-        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotMassGame;
-        pEnemyShotSet->x = BOSS_X;
-        pEnemyShotSet->y = BOSS_Y;
-        pEnemyShotSet->muki = 0.0;
-        pEnemyShotSet->kind = 0;
-        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->prev = enemyShotSetHead.prev;
-        pEnemyShotSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pEnemyShotSet;
-        enemyShotSetHead.prev = pEnemyShotSet;
+    int t = (count - 1) % CYCLE;
+
+    // 周期の頭と顔出現直前に予告音
+    if (t == 0)   PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+    if (t == 720) PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+
+    // フェーズ1:「へ」カーテン
+    if (t == 60) {
+        SpawnSet(ShotHeCurtain, enemy.x, enemy.y + 10.0,
+            atan2(player.y - enemy.y, player.x - enemy.x), 0);
+    }
+    // フェーズ2:「の」渦巻(口の位置から)
+    if (t == 240) {
+        SpawnSet(ShotNoSpiral, enemy.x, enemy.y + 20.0,
+            atan2(player.y - enemy.y, player.x - enemy.x), 1);
+    }
+    // フェーズ3:「も」輪郭の枠(画面中心固定)
+    if (t == 450) {
+        SpawnSet(ShotMoFrame, 240.0, 240.0, 0.0, 2);
+    }
+    // フェーズ4:完成した「へのへのもへじ」(画面中央下・プレイヤー側)
+    if (t == 780) {
+        SpawnSet(ShotFaceFinish, 240.0, 250.0, 0.0, 3);
     }
 }
