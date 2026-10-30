@@ -1,523 +1,356 @@
-﻿//==========================================================================
-//  enemyPat_tmp.cpp
-//
-//  「ステージ道中」風の高難度弾幕
-//  ボスは自機ショットの届かない画面外上部(y = -80.0)に隠れており、
-//  大玉のザコ隊列を次々と送り込んでくる。ザコ(大玉)を撃破することでのみ
-//  ボスにダメージが通る。
-//
-//  [動作仕様]
-//   ・ボスは自機ショットの届かない画面外上部 enemy.y = -80.0 に配置する。
-//   ・大玉をザコ敵代わりに使用し、param_i[15] をHP代わりにする(最大6)。
-//   ・自機ショットが大玉に当たるとHPを減らし、残HPに応じた色に変わる。
-//       6:赤 → 5:橙 → 4:黄 → 3:緑 → 2:シアン → 1:青 (被弾直後は一瞬白くフラッシュ)
-//   ・HPが0になった大玉は消滅し、ボスに1ダメージ入る。
-//   ・大玉と自機ショットの当たり判定はフレームワークに用意されていないため
-//     ZakoDamageCheck() で自前実装する(当たった自機ショットは消滅する)。
-//   ・ザコが撃つ弾は大玉以外(中玉/銃弾/菱形弾/鱗弾/中楕円弾)を使用。
-//   ・ザコは3種類の隊列で画面外から飛来する(ローテーション+時間経過で難易度上昇)。
-//       0:V字編隊  上方からV字で突入 → 陣形を組んで狙い撃ち → 加速して離脱
-//       1:蛇行縦隊 横方向から縦隊で飛来 → サインカーブ上を隊列のまま通過
-//       2:両翼包囲 左右から同時突入 → 画面両端に展開し狙い弾と環状弾で圧迫
-//   ・ザコとして用いる大玉の margin は 240.0(画面外からの進入・待機を許すため)。
-//
-//  [素材の選定]
-//   ・弾種: 大玉=ザコ本体 / 中玉=3-way狙い弾 / 銃弾=高速狙撃弾 / 菱形弾=蛇行隊の2-way弾 /
-//           鱗弾=環状弾と撃破時の散弾 / 中楕円弾=包囲隊の狙い弾。
-//           小玉と短レーザーは視認性・判定の煩雑さを考慮して不採用。
-//   ・色:   弾は役割ごとに色を固定して見分けやすくする
-//           (中玉=マゼンタ / 銃弾=白 / 菱形弾=黄 / 鱗弾=シアンと橙 / 中楕円弾=橙)。
-//   ・効果音: sound_enemyCharge=隊列来襲の予告 / sound_enemyShot_medium=V字隊の射撃 /
-//            sound_enemyShot_light=蛇行隊の射撃 / sound_enemyShot_heavy=包囲隊の射撃と撃破 /
-//            sound_enemyShot_extreme=高速狙撃弾。
-//
-//  [ザコ(大玉)のパラメータ使用表]
-//       param_i[15] : HP(仕様)
-//       param_i[14] : 被弾フラッシュの残りフレーム
-//       param_i[13] : 隊列スロット番号
-//       param_i[12] : 状態 (0:移入中 1:展開・攻撃 2:離脱)
-//       param_i[10] : サブ識別子(包囲隊の左右など)
-//       param_i[9]  : ザコフラグ (1=ザコ本体 / 0=通常弾)
-//       param_d[0]～param_d[2] : 隊列ごとの基準座標・方向などの保持
-//       param_d[3]  : 射撃タイマー
-//       param_d[4]  : 特殊射撃(狙撃/環状弾)タイマー
-//       param_d[5]  : 離脱時の加速量
-//
-//  ※ count / pEnemyShotSet->count / pEnemyShot->count のインクリメントと
-//    画面外の弾の消去はメインルーチン側で行われる前提で実装している。
-//  ※ GetRand(x) は 0～x の x+1 種類の整数を返す。全ての使用箇所はその前提で記述。
-//==========================================================================
-#include "DxLib.h"
+﻿#include "DxLib.h"
 #include "gv.h"
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// ============================================================
-//  定数
-// ============================================================
-static const int    ZAKO_HP_MAX = 6;      // ザコ(大玉)のHP
-static const double ZAKO_HIT_RANGE = 14.0;   // 大玉(半径10)+自機ショット(半径4想定)の当たり距離
-static const double ZAKO_HIT_RANGE_SQ = ZAKO_HIT_RANGE * ZAKO_HIT_RANGE;
-static const int    ZAKO_FLASH_FRAMES = 4;      // 被弾時の白フラッシュ長(フレーム)
-
-// 残HP → 大玉の色インデックス (0:赤 1:黄 2:緑 3:シアン 4:青 5:マゼンタ 6:白 7:黒 8:橙)
-// HP6=赤 → 5=橙 → 4=黄 → 3=緑 → 2=シアン → 1=青 と段階的に変化する
-static int ZakoColorForHp(int hp)
-{
-    static const int tbl[ZAKO_HP_MAX] = { 4, 3, 2, 1, 8, 0 }; // 添字は hp-1
-    if (hp < 1) hp = 1;
-    if (hp > ZAKO_HP_MAX) hp = ZAKO_HP_MAX;
-    return tbl[hp - 1];
-}
-
-// 効果音再生(鳴っていたら止めてから鳴らす: sampleと同じ手法)
-static void PlayEnemySound(int soundHandle)
-{
-    if (CheckSoundMem(soundHandle)) StopSoundMem(soundHandle);
-    PlaySoundMem(soundHandle, DX_PLAYTYPE_BACK);
-}
-
-// 難易度上昇率(0.0～1.0)を得る。countが進むほど1に近づく(約2分で最大)
-static double GetRamp()
-{
-    double r = count / 7200.0;
-    if (r > 1.0) r = 1.0;
-    if (r < 0.0) r = 0.0;
-    return r;
-}
+// スプラトゥーン風カラーパレット (3:シアン, 5:マゼンタ, 1:黄, 2:緑)
+static const int INK_COLORS[] = { 3, 5, 1, 2 };
+static const int NUM_INK_COLORS = 4;
 
 // ============================================================
-//  生成・共通処理
+// 弾幕パターン関数群（高難易度版）
 // ============================================================
 
-// 隊列管理用のShotSetを1つ作ってリストに繋ぐ
-static sEnemyShotSet* CreateWaveSet(sEnemyShotSet::PatternFunc patternFunc, int kind)
+// フェーズ1: インクローラー（高密度・着弾拡散）
+static void ShotNawabariHard(sEnemyShotSet* pEnemyShotSet)
 {
-    sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-    pEnemyShotSet->count = 0;
-    pEnemyShotSet->patternFunc = patternFunc;
-    pEnemyShotSet->x = enemy.x;
-    pEnemyShotSet->y = enemy.y;
-    pEnemyShotSet->muki = 0.0;
-    pEnemyShotSet->kind = kind;
-    pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-    pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-    pEnemyShotSet->prev = enemyShotSetHead.prev;
-    pEnemyShotSet->next = &enemyShotSetHead;
-    enemyShotSetHead.prev->next = pEnemyShotSet;
-    enemyShotSetHead.prev = pEnemyShotSet;
-    return pEnemyShotSet;
-}
-
-// ザコが撃つ通常弾を1発セットに追加する(直線移動)
-static void FireWaveShot(sEnemyShotSet* pEnemyShotSet, double x, double y, double muki,
-    double speed, int kindImg)
-{
-    sEnemyShot* pEnemyShot = new sEnemyShot;
-    pEnemyShot->x = x;
-    pEnemyShot->y = y;
-    pEnemyShot->muki = muki;
-    pEnemyShot->speed = speed;
-    pEnemyShot->kind = kindImg;
-    pEnemyShot->margin = 20.0;   // 通常弾は既定値(画面外の消去はメインルーチン)
-    pEnemyShot->param_i[9] = 0;  // ザコフラグ OFF
-    pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-    pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-    pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-}
-
-// ザコ(大玉)を1機セットに追加する
-static sEnemyShot* SpawnZako(sEnemyShotSet* pEnemyShotSet, double x, double y)
-{
-    sEnemyShot* pEnemyShot = new sEnemyShot;
-    pEnemyShot->x = x;
-    pEnemyShot->y = y;
-    pEnemyShot->muki = 0.0;
-    pEnemyShot->speed = 0.0;
-    pEnemyShot->margin = 240.0;                // 仕様: 画面外でも生存できるようにする
-    pEnemyShot->param_i[15] = ZAKO_HP_MAX;     // 仕様: HP代わり
-    pEnemyShot->param_i[14] = 0;               // 被弾フラッシュ
-    pEnemyShot->param_i[13] = 0;               // 隊列スロット
-    pEnemyShot->param_i[12] = 0;               // 状態 0:移入 1:展開 2:離脱
-    pEnemyShot->param_i[10] = 0;               // サブ識別子
-    pEnemyShot->param_i[9] = 1;               // ザコフラグ ON
-    pEnemyShot->kind = img_enemyShotLargeBall[ZakoColorForHp(ZAKO_HP_MAX)];
-    pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-    pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-    pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-    pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
-    return pEnemyShot;
-}
-
-// ザコの見た目を更新: 被弾フラッシュ中は白、それ以外は残HPに応じた色
-static void ZakoUpdateVisual(sEnemyShot* pZako)
-{
-    if (pZako->param_i[14] > 0) {
-        pZako->param_i[14]--;
-        pZako->kind = img_enemyShotLargeBall[6];   // 白フラッシュ(不要ならここを削除)
-    }
-    else {
-        pZako->kind = img_enemyShotLargeBall[ZakoColorForHp(pZako->param_i[15])];
-    }
-}
-
-// ザコ(大玉)と自機ショットの当たり判定+被弾処理
-// フレームワークに当たり判定機能が無いためここで自前実装する。
-// 当たった自機ショットは消滅し、ザコのHPを1減らす。HPが0になったら
-// 大玉を消してボスに1ダメージ。
-// 戻り値: 1=ザコは撃破された(リストから削除済み) / 0=生存
-static int ZakoDamageCheck(sEnemyShotSet* pEnemyShotSet, sEnemyShot* pZako)
-{
-    sPlayerShot* pPlayerShot = playerShotHead.next;
-    while (pPlayerShot != &playerShotHead) {
-        double dx = pPlayerShot->x - pZako->x;
-        double dy = pPlayerShot->y - pZako->y;
-        if (dx * dx + dy * dy <= ZAKO_HIT_RANGE_SQ) {
-            // 自機ショットをリストから外して消す
-            sPlayerShot* pPlayerShotNext = pPlayerShot->next;
-            pPlayerShot->prev->next = pPlayerShot->next;
-            pPlayerShot->next->prev = pPlayerShot->prev;
-            delete pPlayerShot;
-            pPlayerShot = pPlayerShotNext;
-
-            // ザコのHPを減らす
-            pZako->param_i[15]--;
-            pZako->param_i[14] = ZAKO_FLASH_FRAMES;
-            if (pZako->param_i[15] <= 0) {
-                // 撃破: 周囲へ散弾(鱗弾)をばら撒く
-                for (int i = 0; i < 8; i++) {
-                    FireWaveShot(pEnemyShotSet, pZako->x, pZako->y,
-                        i * DX_PI / 4.0, 1.6, img_enemyShotScale[8]);
-                }
-                PlayEnemySound(sound_enemyShot_heavy);
-                // ボスに1ダメージ
-                if (enemy.hp > 0) enemy.hp--;
-                // 大玉を消す
-                pZako->prev->next = pZako->next;
-                pZako->next->prev = pZako->prev;
-                delete pZako;
-                return 1;
-            }
-        }
-        else {
-            pPlayerShot = pPlayerShot->next;
-        }
-    }
-    return 0;
-}
-
-// ============================================================
-//  隊列その0: V字編隊
-//  画面外上部から5機がV字を組んだまま突入し、陣形で停止して
-//  狙い撃ちを行い、その後加速して画面下へ離脱する。
-// ============================================================
-static void ShotWave_VFormation(sEnemyShotSet* pEnemyShotSet)
-{
-    double ramp = GetRamp();
-
     if (pEnemyShotSet->count == 0) {
-        // 5機がV字を組んで画面外上部から飛来する
-        double anchorX = 150.0 + GetRand(180);   // 150～330
-        for (int i = -2; i <= 2; i++) {
-            int ai = (i < 0) ? -i : i;
-            sEnemyShot* pZako = SpawnZako(pEnemyShotSet, anchorX + i * 58.0,
-                -45.0 - ai * 36.0);
-            pZako->param_i[13] = i;                     // スロット
-            pZako->param_d[0] = anchorX + i * 58.0;    // 滞空X座標
-            pZako->param_d[1] = 118.0 - ai * 36.0;     // 停止Y座標(先頭が最も深い)
-        }
-        pEnemyShotSet->param_i[0] = 330 + GetRand(50);  // 離脱開始フレーム(set count)
-        return;
+        if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+        PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+
+        int color = INK_COLORS[GetRand(NUM_INK_COLORS - 1)];
+
+        // インクの塊を落とす
+        sEnemyShot* pDrop = new sEnemyShot;
+        pDrop->x = pEnemyShotSet->x;
+        pDrop->y = pEnemyShotSet->y;
+        pDrop->muki = pEnemyShotSet->muki + (GetRand(40) - 20) / 180.0 * DX_PI;
+        pDrop->speed = 4.5 + GetRand(100) / 50.0;
+        pDrop->kind = img_enemyShotLargeBall[color];
+        pDrop->param_i[0] = 1; // 着弾拡散フラグ
+
+        pDrop->prev = pEnemyShotSet->pEnemyShotHead->prev;
+        pDrop->next = pEnemyShotSet->pEnemyShotHead;
+        pEnemyShotSet->pEnemyShotHead->prev->next = pDrop;
+        pEnemyShotSet->pEnemyShotHead->prev = pDrop;
     }
 
     sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        sEnemyShot* pShotNext = pShot->next;
-        if (pShot->param_i[9] == 1) {
-            if (ZakoDamageCheck(pEnemyShotSet, pShot) == 0) {
-                int slot = pShot->param_i[13];
-                switch (pShot->param_i[12]) {
-                case 0: // 突入中
-                    pShot->y += 2.3;
-                    if (pShot->y >= pShot->param_d[1]) {
-                        pShot->y = pShot->param_d[1];
-                        pShot->param_i[12] = 1;
-                        pShot->param_d[3] = 26.0 + (slot + 2) * 9.0;  // 射撃タイマー(スロットでずらす)
-                        pShot->param_d[4] = 66.0 + GetRand(30);       // 狙撃タイマー
-                    }
-                    break;
-                case 1: // 滞空して攻撃
-                    pShot->x = pShot->param_d[0]
-                        + sin((pEnemyShotSet->count + slot * 40) * 0.018) * 12.0;
-                    // 3-way狙い弾(中玉)
-                    pShot->param_d[3] -= 1.0;
-                    if (pShot->param_d[3] <= 0.0) {
-                        double aim = atan2(player.y - pShot->y, player.x - pShot->x);
-                        for (int j = -1; j <= 1; j++) {
-                            FireWaveShot(pEnemyShotSet, pShot->x, pShot->y + 8.0,
-                                aim + j * 0.21, 2.6 + ramp * 0.4,
-                                img_enemyShotMediumBall[5]);   // マゼンタ
-                        }
-                        if (slot == 0) PlayEnemySound(sound_enemyShot_medium);
-                        pShot->param_d[3] = (52.0 - ramp * 16.0) * (0.85 + GetRand(30) / 100.0);
-                    }
-                    // 先頭機は高速銃弾で狙撃
-                    if (slot == 0) {
-                        pShot->param_d[4] -= 1.0;
-                        if (pShot->param_d[4] <= 0.0) {
-                            double aim = atan2(player.y - pShot->y, player.x - pShot->x);
-                            FireWaveShot(pEnemyShotSet, pShot->x, pShot->y + 8.0, aim,
-                                5.4 + ramp * 0.4, img_enemyShotBullet[6]);   // 白
-                            PlayEnemySound(sound_enemyShot_extreme);
-                            pShot->param_d[4] = (104.0 - ramp * 30.0) * (0.85 + GetRand(30) / 100.0);
-                        }
-                    }
-                    // 離脱開始
-                    if (pEnemyShotSet->count >= pEnemyShotSet->param_i[0]) pShot->param_i[12] = 2;
-                    break;
-                case 2: // 加速して画面下へ離脱(画面外の消去はメインルーチン)
-                    pShot->param_d[5] += 0.07;
-                    pShot->y += 1.0 + pShot->param_d[5];
-                    pShot->x += slot * 0.4;
-                    break;
-                }
-                ZakoUpdateVisual(pShot);
+        // 画面下部に到達したら着弾拡散
+        if (pShot->param_i[0] == 1 && pShot->y > 470.0) {
+            pShot->param_i[0] = 0; // 拡散済み
+            pShot->speed = 0.0;
+            pShot->kind = img_enemyShotMediumOval[INK_COLORS[GetRand(NUM_INK_COLORS - 1)]]; // リングに変化
+
+            // 着弾点から全方位に飛び散るインク（小玉）を生成
+            for (int i = 0; i < 12; i++) {
+                sEnemyShot* pSub = new sEnemyShot;
+                pSub->x = pShot->x;
+                pSub->y = pShot->y;
+                pSub->muki = (double)i / 12.0 * DX_PI * 2.0;
+                pSub->speed = 3.0 + GetRand(150) / 100.0;
+                pSub->kind = img_enemyShotSmallBall[INK_COLORS[GetRand(NUM_INK_COLORS - 1)]];
+
+                pSub->prev = pEnemyShotSet->pEnemyShotHead->prev;
+                pSub->next = pEnemyShotSet->pEnemyShotHead;
+                pEnemyShotSet->pEnemyShotHead->prev->next = pSub;
+                pEnemyShotSet->pEnemyShotHead->prev = pSub;
             }
         }
         else {
-            // 通常弾の直線移動
             pShot->x += pShot->speed * cos(pShot->muki);
             pShot->y += pShot->speed * sin(pShot->muki);
         }
-        pShot = pShotNext;
+        pShot = pShot->next;
     }
 }
 
-// ============================================================
-//  隊列その1: 蛇行縦隊
-//  画面外の左右どちらかから6機が縦隊で飛来し、全機が同じ
-//  サインカーブを通ることで隊列のまま蛇行しながら画面を横断する。
-//  画面内にいる間だけ攻撃する。
-// ============================================================
-static void ShotWave_Column(sEnemyShotSet* pEnemyShotSet)
+// フェーズ2: イカジャンプ（自機狙い＋壁反射＋複雑な波打ち）
+static void ShotIkaJumpHard(sEnemyShotSet* pEnemyShotSet)
 {
-    double ramp = GetRamp();
-
     if (pEnemyShotSet->count == 0) {
-        pEnemyShotSet->param_i[0] = GetRand(2) * 2 - 1;        // 進行方向 (-1 or +1)
-        pEnemyShotSet->param_d[0] = 95.0 + GetRand(75);        // 蛇行の基準Y
-        pEnemyShotSet->param_d[1] = 2.4 + GetRand(50) / 100.0; // 移動速度
-        for (int k = 0; k < 6; k++) {
-            // 先頭から30px間隔で画面外に縦隊を組ませる
-            double sx = (pEnemyShotSet->param_i[0] > 0) ? (-35.0 - k * 30.0)
-                : (515.0 + k * 30.0);
-            sEnemyShot* pZako = SpawnZako(pEnemyShotSet, sx, pEnemyShotSet->param_d[0]);
-            pZako->param_i[13] = k;
-            pZako->param_i[12] = 1;                    // 最初から行動状態
-            pZako->param_d[3] = 34.0 + k * 8.0;       // 射撃タイマー
-            pZako->param_d[4] = 100.0 + k * 24.0;     // 狙撃タイマー(先頭機のみ使用)
+        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
+        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+
+        int color = INK_COLORS[GetRand(NUM_INK_COLORS - 1)];
+
+        // 5wayで発射し、密度を上げる
+        for (int i = 0; i < 5; i++) {
+            sEnemyShot* pShot = new sEnemyShot;
+            pShot->x = pEnemyShotSet->x;
+            pShot->y = pEnemyShotSet->y;
+            pShot->muki = pEnemyShotSet->muki + (i - 2) * 0.25;
+            pShot->speed = 4.0;
+            pShot->kind = img_enemyShotScale[color];
+            pShot->param_d[0] = (double)GetRand(100) / 100.0 * DX_PI * 2.0; // 波打ちの初期位相
+            pShot->param_i[0] = 0; // 反射カウンタ
+
+            pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+            pShot->next = pEnemyShotSet->pEnemyShotHead;
+            pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
+            pEnemyShotSet->pEnemyShotHead->prev = pShot;
         }
     }
 
     sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        sEnemyShot* pShotNext = pShot->next;
-        if (pShot->param_i[9] == 1) {
-            if (ZakoDamageCheck(pEnemyShotSet, pShot) == 0) {
-                int k = pShot->param_i[13];
-                // 全機が同じサインカーブを通ることで縦隊の蛇行になる
-                pShot->x += pEnemyShotSet->param_i[0] * pEnemyShotSet->param_d[1];
-                pShot->y = pEnemyShotSet->param_d[0] + sin(pShot->x * 0.018) * 44.0;
-                // 画面内にいる間だけ攻撃
-                if (pShot->x > 15.0 && pShot->x < 465.0) {
-                    // 2-way狙い弾(菱形弾)
-                    pShot->param_d[3] -= 1.0;
-                    if (pShot->param_d[3] <= 0.0) {
-                        double aim = atan2(player.y - pShot->y, player.x - pShot->x);
-                        FireWaveShot(pEnemyShotSet, pShot->x, pShot->y, aim - 0.22,
-                            2.2 + GetRand(50) / 100.0 + ramp * 0.3,
-                            img_enemyShotDiamond[1]);   // 黄
-                        FireWaveShot(pEnemyShotSet, pShot->x, pShot->y, aim + 0.22,
-                            2.2 + GetRand(50) / 100.0 + ramp * 0.3,
-                            img_enemyShotDiamond[1]);   // 黄
-                        if (k == 0) PlayEnemySound(sound_enemyShot_light);
-                        pShot->param_d[3] = (46.0 - ramp * 14.0) * (0.85 + GetRand(30) / 100.0);
-                    }
-                    // 先頭機は時々高速銃弾
-                    if (k == 0) {
-                        pShot->param_d[4] -= 1.0;
-                        if (pShot->param_d[4] <= 0.0) {
-                            double aim = atan2(player.y - pShot->y, player.x - pShot->x);
-                            FireWaveShot(pEnemyShotSet, pShot->x, pShot->y, aim,
-                                5.4, img_enemyShotBullet[6]);   // 白
-                            PlayEnemySound(sound_enemyShot_extreme);
-                            pShot->param_d[4] = (138.0 - ramp * 40.0) * (0.85 + GetRand(30) / 100.0);
-                        }
-                    }
-                }
-                ZakoUpdateVisual(pShot);
-            }
+        // 基本移動 ＋ 激しい正弦波による横揺れ（ぬるぬるした軌道）
+        double move_x = pShot->speed * cos(pShot->muki) + sin(pShot->count * 0.25 + pShot->param_d[0]) * 3.5;
+        double move_y = pShot->speed * sin(pShot->muki);
+
+        pShot->x += move_x;
+        pShot->y += move_y;
+
+        // 画面左右端での反射（最大2回まで）
+        if ((pShot->x < 20.0 || pShot->x > 460.0) && pShot->param_i[0] < 2) {
+            pShot->muki = DX_PI - pShot->muki;
+            pShot->param_d[0] = (double)GetRand(100) / 100.0 * DX_PI * 2.0; // 反射で位相をリセットして軌道を変化させる
+            pShot->param_i[0]++;
         }
-        else {
-            // 通常弾の直線移動
-            pShot->x += pShot->speed * cos(pShot->muki);
-            pShot->y += pShot->speed * sin(pShot->muki);
-        }
-        pShot = pShotNext;
+        pShot = pShot->next;
     }
 }
 
-// ============================================================
-//  隊列その2: 両翼包囲
-//  左右の画面外から3機ずつ同時突入し、画面両端に縦に展開して
-//  ゆっくりした狙い弾と環状弾(鱗弾)で挟み込む。その後画面外へ撤収。
-// ============================================================
-static void ShotWave_Pincer(sEnemyShotSet* pEnemyShotSet)
+// フェーズ3: キューバンボム（高密度・時間差爆発）
+static void ShotCubeBombHard(sEnemyShotSet* pEnemyShotSet)
 {
-    double ramp = GetRamp();
-
     if (pEnemyShotSet->count == 0) {
-        pEnemyShotSet->param_i[0] = 360 + GetRand(50);   // 撤収開始フレーム(set count)
-        pEnemyShotSet->param_d[0] = GetRand(40);         // 展開位置のYずらし
-        for (int s = 0; s < 2; s++) {
-            for (int j = 0; j < 3; j++) {
-                double side = (s == 0) ? -1.0 : 1.0;
-                double hx = (j == 1) ? 52.0 : 74.0;    // 中央機がやや内側へ
-                double hy = 122.0 + j * 62.0 + pEnemyShotSet->param_d[0];
-                double sx = (s == 0) ? -45.0 : 525.0;
-                sEnemyShot* pZako = SpawnZako(pEnemyShotSet, sx, hy);
-                pZako->param_i[13] = j;
-                pZako->param_i[10] = s;                          // 0:左翼 1:右翼
-                pZako->param_i[12] = 0;                          // 移入状態から開始
-                pZako->param_d[0] = (s == 0) ? hx : 480.0 - hx; // 展開X座標
-                pZako->param_d[1] = hy;                         // 展開Y座標
-                pZako->param_d[2] = side;                       // 撤収方向
+        if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+        PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+
+        int color = INK_COLORS[GetRand(NUM_INK_COLORS - 1)];
+
+        // 3x3 のキューブ状に配置
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                sEnemyShot* pShot = new sEnemyShot;
+                pShot->x = pEnemyShotSet->x + dx * 20.0;
+                pShot->y = pEnemyShotSet->y + dy * 20.0;
+                pShot->muki = 0.0;
+                pShot->speed = 0.0;
+                pShot->kind = img_enemyShotDiamond[color];
+                pShot->param_i[0] = 0; // 0:待機中, 1:爆発中
+                pShot->param_i[1] = 30 + GetRand(40); // 爆発までの時間を各弾でズラす
+
+                pShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
+                pShot->next = pEnemyShotSet->pEnemyShotHead;
+                pEnemyShotSet->pEnemyShotHead->prev->next = pShot;
+                pEnemyShotSet->pEnemyShotHead->prev = pShot;
             }
         }
     }
 
     sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        sEnemyShot* pShotNext = pShot->next;
-        if (pShot->param_i[9] == 1) {
-            if (ZakoDamageCheck(pEnemyShotSet, pShot) == 0) {
-                int j = pShot->param_i[13];
-                int s = pShot->param_i[10];
-                switch (pShot->param_i[12]) {
-                case 0: // 展開位置へ移動
-                {
-                    double dx = pShot->param_d[0] - pShot->x;
-                    double dy = pShot->param_d[1] - pShot->y;
-                    double dist = sqrt(dx * dx + dy * dy);
-                    double step = 3.1;
-                    if (dist <= step) {
-                        pShot->x = pShot->param_d[0];
-                        pShot->y = pShot->param_d[1];
-                        pShot->param_i[12] = 1;
-                        pShot->param_d[3] = 44.0 + j * 22.0 + s * 11.0;  // 狙い弾タイマー
-                        pShot->param_d[4] = 96.0 + s * 77.0;             // 環状弾タイマー(j==1のみ)
+        if (pShot->param_i[0] == 0) {
+            pShot->param_i[1]--;
+            if (pShot->param_i[1] <= 0) {
+                pShot->param_i[0] = 1;
+                pShot->kind = img_enemyShotMediumBall[INK_COLORS[GetRand(NUM_INK_COLORS - 1)]];
+
+                // 爆発時に8方向＋自機狙い1方向の計9方向へ拡散
+                for (int i = 0; i < 9; i++) {
+                    sEnemyShot* pSub = new sEnemyShot;
+                    pSub->x = pShot->x;
+                    pSub->y = pShot->y;
+                    if (i == 8) {
+                        pSub->muki = atan2(player.y - pShot->y, player.x - pShot->x);
                     }
                     else {
-                        pShot->x += dx / dist * step;
-                        pShot->y += dy / dist * step;
+                        pSub->muki = (double)i / 8.0 * DX_PI * 2.0;
                     }
-                    break;
+                    pSub->speed = 4.0 + GetRand(100) / 100.0;
+                    pSub->kind = img_enemyShotSmallBall[INK_COLORS[GetRand(NUM_INK_COLORS - 1)]];
+                    pSub->param_i[0] = 2;
+
+                    pSub->prev = pEnemyShotSet->pEnemyShotHead->prev;
+                    pSub->next = pEnemyShotSet->pEnemyShotHead;
+                    pEnemyShotSet->pEnemyShotHead->prev->next = pSub;
+                    pEnemyShotSet->pEnemyShotHead->prev = pSub;
                 }
-                case 1: // 展開して攻撃
-                    pShot->y = pShot->param_d[1]
-                        + sin((pEnemyShotSet->count + j * 50 + s * 25) * 0.02) * 7.0;
-                    // ゆっくりした狙い弾(中楕円弾)
-                    pShot->param_d[3] -= 1.0;
-                    if (pShot->param_d[3] <= 0.0) {
-                        double aim = atan2(player.y - pShot->y, player.x - pShot->x);
-                        FireWaveShot(pEnemyShotSet, pShot->x, pShot->y, aim,
-                            2.1 + ramp * 0.4, img_enemyShotMediumOval[8]);   // 橙
-                        if (j == 0 && s == 0) PlayEnemySound(sound_enemyShot_heavy);
-                        pShot->param_d[3] = (88.0 - ramp * 24.0) * (0.85 + GetRand(30) / 100.0);
-                    }
-                    // 中央機は自機位置を通る鱗弾の環
-                    if (j == 1) {
-                        pShot->param_d[4] -= 1.0;
-                        if (pShot->param_d[4] <= 0.0) {
-                            for (int i = 0; i < 10; i++) {
-                                FireWaveShot(pEnemyShotSet, pShot->x, pShot->y,
-                                    i * DX_PI * 2.0 / 10.0
-                                    + pEnemyShotSet->count * 0.01,
-                                    2.4, img_enemyShotScale[3]);   // シアン
-                            }
-                            PlayEnemySound(sound_enemyShot_heavy);
-                            pShot->param_d[4] = (154.0 - ramp * 40.0) * (0.85 + GetRand(30) / 100.0);
-                        }
-                    }
-                    // 撤収開始
-                    if (pEnemyShotSet->count >= pEnemyShotSet->param_i[0]) pShot->param_i[12] = 2;
-                    break;
-                case 2: // 画面外へ撤収(消去はメインルーチン)
-                {
-                    double v = 1.2 + (pEnemyShotSet->count - pEnemyShotSet->param_i[0]) * 0.05;
-                    pShot->x += pShot->param_d[2] * v;
-                    break;
-                }
-                }
-                ZakoUpdateVisual(pShot);
             }
         }
+        else if (pShot->param_i[0] == 1) {
+            // 爆発済みの親弾は画面外へ飛ばしてメインルーチンに消去させる
+            pShot->y = -1000.0;
+        }
         else {
-            // 通常弾の直線移動
             pShot->x += pShot->speed * cos(pShot->muki);
             pShot->y += pShot->speed * sin(pShot->muki);
         }
-        pShot = pShotNext;
+        pShot = pShot->next;
+    }
+}
+
+// フェーズ4: ウルトラショット（高速回転レーザー＋螺旋弾）
+static void ShotUltraShotHard(sEnemyShotSet* pEnemyShotSet)
+{
+    if (pEnemyShotSet->count == 0) {
+        if (CheckSoundMem(sound_enemyShot_extreme)) StopSoundMem(sound_enemyShot_extreme);
+        PlaySoundMem(sound_enemyShot_extreme, DX_PLAYTYPE_BACK);
+
+        int color = INK_COLORS[GetRand(NUM_INK_COLORS - 1)];
+
+        sEnemyShot* pLaser = new sEnemyShot;
+        pLaser->x = pEnemyShotSet->x;
+        pLaser->y = pEnemyShotSet->y;
+        pLaser->muki = DX_PI * 0.8; // 初期角度（左上から右下へ）
+        pLaser->speed = 0.0;
+        pLaser->kind = img_enemyShotLaser[color];
+        pLaser->param_d[0] = 0.06; // 高速回転速度
+        pLaser->param_i[0] = 1;
+
+        pLaser->prev = pEnemyShotSet->pEnemyShotHead->prev;
+        pLaser->next = pEnemyShotSet->pEnemyShotHead;
+        pEnemyShotSet->pEnemyShotHead->prev->next = pLaser;
+        pEnemyShotSet->pEnemyShotHead->prev = pLaser;
+    }
+
+    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        // レーザーの回転に連動して、螺旋状に巻き込むように弾を放出
+        if (pShot->param_i[0] == 1) {
+            // レーザーを高速で回転させる
+            pShot->muki += pShot->param_d[0];
+            pShot->x = pEnemyShotSet->x;
+            pShot->y = pEnemyShotSet->y;
+
+            if (pEnemyShotSet->count % 3 == 0) {
+                sEnemyShot* pSub = new sEnemyShot;
+                pSub->x = pEnemyShotSet->x;
+                pSub->y = pEnemyShotSet->y;
+                pSub->muki = pShot->muki + DX_PI / 2.0; // レーザーの進行方向に対して垂直に飛ばす
+                pSub->speed = 4.5;
+                pSub->kind = img_enemyShotBullet[INK_COLORS[GetRand(NUM_INK_COLORS - 1)]];
+
+                pSub->prev = pEnemyShotSet->pEnemyShotHead->prev;
+                pSub->next = pEnemyShotSet->pEnemyShotHead;
+                pEnemyShotSet->pEnemyShotHead->prev->next = pSub;
+                pEnemyShotSet->pEnemyShotHead->prev = pSub;
+            }
+        }
+        else {
+            pShot->x += pShot->speed * cos(pShot->muki);
+            pShot->y += pShot->speed * sin(pShot->muki);
+        }
+        pShot = pShot->next;
     }
 }
 
 // ============================================================
-//  敵本体のパターン
-//  画面外上部に隠れたボスが、3種類のザコ隊列をローテーションで
-//  送り込み続ける。ザコを1機撃破するごとにボスが1ダメージを受ける。
+// 敵本体のパターン制御（600フレーム周期でループ）
 // ============================================================
 void EnemyPat_Tmp()
 {
-    static int waveTimer;   // 次の隊列を送るまでのフレーム数
-    static int waveNum;     // これまでに送り込んだ隊列の総数
+    static int cycle_count = 0;
+    static int shot_count = 0;
+    static int enemy_muki = 1;
 
-    if (count == 1) {
-        // ボスは自機ショットの届かない画面外上部に配置する(直接は倒せない)
+    // 600フレーム(約10秒)周期でループさせる
+    cycle_count = count % 600;
+
+    if (cycle_count == 1) {
+        // ゲーム画面は 480x480
         enemy.x = 240.0;
-        enemy.y = -80.0;
-        enemy.maxHp = enemy.hp = 20; // 200から変更しないこと
-        waveTimer = 80;
-        waveNum = 0;
-    }
-    else {
-        // 画面外でゆっくり揺れて隊列の出現位置に変化をつける
-        enemy.x = 240.0 + sin(count * 0.008) * 60.0;
+        enemy.y = 60.0;
+        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
+        shot_count = 0;
+        enemy_muki = 1;
     }
 
-    // ボス撃破後は新しい隊列を送らない
-    if (enemy.hp <= 0) return;
+    // Phase 1: ナワバリインクローラー (cycle: 1 ~ 150)
+    if (cycle_count >= 1 && cycle_count <= 150) {
+        enemy.x += 2.5 * (double)enemy_muki;
+        if (enemy.x > 400.0 || enemy.x < 80.0) enemy_muki *= -1;
 
-    waveTimer--;
-    if (waveTimer <= 0) {
-        // 隊列来襲の予告音
-        PlayEnemySound(sound_enemyCharge);
-
-        // 隊列をローテーションで選んで生成
-        sEnemyShotSet* pEnemyShotSet;
-        switch (waveNum % 3) {
-        case 0:  pEnemyShotSet = CreateWaveSet(ShotWave_VFormation, 0); break;
-        case 1:  pEnemyShotSet = CreateWaveSet(ShotWave_Column, 1); break;
-        default: pEnemyShotSet = CreateWaveSet(ShotWave_Pincer, 2); break;
+        if (cycle_count % 12 == 1) { // 発射頻度を上げて密度を高める
+            sEnemyShotSet* pSet = new sEnemyShotSet;
+            pSet->count = 0;
+            pSet->patternFunc = ShotNawabariHard;
+            pSet->x = enemy.x;
+            pSet->y = enemy.y + 10.0;
+            pSet->muki = DX_PI / 2.0;
+            pSet->kind = shot_count++;
+            pSet->pEnemyShotHead = new sEnemyShot;
+            pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+            pSet->prev = enemyShotSetHead.prev;
+            pSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pSet;
+            enemyShotSetHead.prev = pSet;
         }
-        pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y;
-        waveNum++;
+    }
+    // Phase 2: イカジャンプ (cycle: 151 ~ 300)
+    else if (cycle_count >= 151 && cycle_count <= 300) {
+        enemy.x = 240.0 + sin(cycle_count * 0.08) * 70.0;
+        enemy.y = 80.0 + cos(cycle_count * 0.1) * 30.0;
 
-        // 進行に応じて隊列の間隔を詰めていく(難易度上昇)
-        int period = 215 - waveNum * 4;
-        if (period < 145) period = 145;
-        waveTimer = period + GetRand(45);
+        if (cycle_count % 25 == 1) {
+            sEnemyShotSet* pSet = new sEnemyShotSet;
+            pSet->count = 0;
+            pSet->patternFunc = ShotIkaJumpHard;
+            pSet->x = enemy.x;
+            pSet->y = enemy.y + 10.0;
+            pSet->muki = atan2(player.y - pSet->y, player.x - pSet->x);
+            pSet->kind = shot_count++;
+            pSet->pEnemyShotHead = new sEnemyShot;
+            pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+            pSet->prev = enemyShotSetHead.prev;
+            pSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pSet;
+            enemyShotSetHead.prev = pSet;
+        }
+    }
+    // Phase 3: キューバンボム (cycle: 301 ~ 450)
+    else if (cycle_count >= 301 && cycle_count <= 450) {
+        enemy.x = 240.0;
+        enemy.y = 80.0;
+
+        // 周期内に2回発動して間断なく攻める
+        if (cycle_count == 301 || cycle_count == 380) {
+            sEnemyShotSet* pSet = new sEnemyShotSet;
+            pSet->count = 0;
+            pSet->patternFunc = ShotCubeBombHard;
+            pSet->x = enemy.x;
+            pSet->y = enemy.y + 10.0;
+            pSet->muki = atan2(player.y - pSet->y, player.x - pSet->x);
+            pSet->kind = shot_count++;
+            pSet->pEnemyShotHead = new sEnemyShot;
+            pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+            pSet->prev = enemyShotSetHead.prev;
+            pSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pSet;
+            enemyShotSetHead.prev = pSet;
+        }
+    }
+    // Phase 4: ウルトラショット (cycle: 451 ~ 600)
+    else if (cycle_count >= 451 && cycle_count <= 600) {
+        enemy.x = 240.0;
+        enemy.y = 40.0;
+
+        if (cycle_count == 451) {
+            if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+            PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+        }
+
+        if (cycle_count == 511) {
+            sEnemyShotSet* pSet = new sEnemyShotSet;
+            pSet->count = 0;
+            pSet->patternFunc = ShotUltraShotHard;
+            pSet->x = enemy.x;
+            pSet->y = enemy.y + 10.0;
+            pSet->muki = DX_PI * 0.7;
+            pSet->kind = shot_count++;
+            pSet->pEnemyShotHead = new sEnemyShot;
+            pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+            pSet->prev = enemyShotSetHead.prev;
+            pSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pSet;
+            enemyShotSetHead.prev = pSet;
+        }
     }
 }
