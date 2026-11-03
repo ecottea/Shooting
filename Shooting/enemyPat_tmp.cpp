@@ -4,118 +4,245 @@
 #include <math.h>
 
 // ============================================================
-// 弾幕：ヘリンボーン・ストリーム（綾織り模様）
+//  弾幕：五線のアリア
+//
+//  画面中央を、右から左へ流れる五線にする。
+//  その上を一小節ぶんの音符が同じ速度で流れ、
+//  画面幅の 55% 地点で 0.15 秒ためてから符頭だけが自機を狙う。
+//  符幹は曲がらず、休符の 1 拍がレーンを移る隙間になる。
+//
+//  使う弾（一覧から譜面に必要なものだけ）:
+//    五線 … 小玉・白 (半径 2.5)。細く、点を並べると譜線に見える。
+//    符頭 … 中楕円弾・青 (半径 10.5 x 7.0)。符頭の形に近い。発音で赤。
+//    符幹 … 銃弾・青 (半径 5.0 x 2.0)。muki を縦にして細い幹にする。
+//  使わない理由:
+//    大玉は半径 20 で線間を埋める。
+//    短レーザーは長さ方向の半径 64 で、譜線にすると通れない。
+//    中玉は円なので符頭らしくない。鱗弾・菱形弾は譜面の形に合わない。
+//
+//  効果音: light = 五線が引かれるとき、charge = ため、medium = 発音。
+//  count / pEnemyShotSet->count / pEnemyShot->count の加算と、
+//  画面外の弾の消去はメインルーチン。ここではやらない。
+//  旋律は固定。GetRand は使わない。
+//
+//  60fps 想定。ゲーム画面は 480x480。
 // ============================================================
-static void ShotHerringboneStream(sEnemyShotSet* pEnemyShotSet)
+
+static const double kStaffSpeed = 2.0;
+static const double kTelegraphSpeed = 0.5;
+static const double kAimSpeed = kStaffSpeed * 4.0;
+static const double kStaffSpawnX = 494.0;
+static const double kNoteSpawnX = 486.0;
+static const double kTriggerX = 480.0 * 0.55;
+static const int kStaffInterval = 3;     // 中心間隔 = 2.0 * 3 = 6
+static const int kIntroFrames = 90;      // 五線だけ 1.5 秒
+static const int kBeatFrames = 42/7;       // 1 拍 0.7 秒
+static const int kTelegraphFrames = 9;   // ため 0.15 秒
+static const double kLineSpacing = 56.0;
+static const double kStaffCenterY = 240.0;
+
+// 添字 0 が第1線（低い音、画面下）。
+static const double kLineY[5] = {
+    kStaffCenterY + kLineSpacing * 2.0,
+    kStaffCenterY + kLineSpacing,
+    kStaffCenterY,
+    kStaffCenterY - kLineSpacing,
+    kStaffCenterY - kLineSpacing * 2.0,
+};
+
+// 上昇 4 拍、休符、下降 4 拍。
+// line < 0 は休符。stemDown: 0 = 上向き（符頭の右）、1 = 下向き（符頭の左）。
+// 第3線から上は楽譜どおり下向き。
+struct ScoreNote {
+    int line;
+    int stemDown;
+};
+
+static const ScoreNote kMelody[] = {
+    { 0, 0 },
+    { 1, 0 },
+    { 2, 1 },
+    { 3, 1 },
+    { -1, 0 },
+    { 4, 1 },
+    { 3, 1 },
+    { 2, 1 },
+    { 1, 0 },
+};
+static const int kMelodyLen = sizeof(kMelody) / sizeof(kMelody[0]);
+
+// 弾の param:
+//   param_i[0] 役割  0:五線  1:符頭  2:符幹
+//   param_i[1] 符頭の状態  0:流れる  1:ため  2:発音後
+//   param_i[3] ために入ったときの pEnemyShot->count
+//   param_i[4] 音符グループ ID（五線は 0）
+//   param_d[0], param_d[1]  移動量。符幹は muki を見た目の向きに使うので、
+//                            サンプルのように muki では動かさない。
+// ショットセットの param_i[0] は次に振る音符 ID。
+
+static void AddShot(sEnemyShotSet* pSet, double x, double y, double muki,
+    double vx, double vy, int kind, int role, int groupId)
 {
-    // pEnemyShotSet->count はメインルーチンで自動インクリメントされる
-    // 初回(count == 0)のみ、帯状に並んだ弾をまとめて生成する
+    sEnemyShot* pShot = new sEnemyShot;
+    pShot->x = x;
+    pShot->y = y;
+    pShot->muki = muki;
+    pShot->speed = fabs(vx) + fabs(vy);
+    pShot->kind = kind;
+    pShot->param_i[0] = role;
+    pShot->param_i[1] = 0;
+    pShot->param_i[3] = 0;
+    pShot->param_i[4] = groupId;
+    pShot->param_d[0] = vx;
+    pShot->param_d[1] = vy;
+    pShot->prev = pSet->pEnemyShotHead->prev;
+    pShot->next = pSet->pEnemyShotHead;
+    pSet->pEnemyShotHead->prev->next = pShot;
+    pSet->pEnemyShotHead->prev = pShot;
+}
+
+static void SpawnStaffLine(sEnemyShotSet* pSet)
+{
+    for (int i = 0; i < 5; i++) {
+        AddShot(pSet, kStaffSpawnX, kLineY[i], DX_PI,
+            -kStaffSpeed, 0.0, img_enemyShotSmallBall[6], 0, 0);
+    }
+}
+
+static void SpawnScoreNote(sEnemyShotSet* pSet, int line, int stemDown)
+{
+    int groupId = pSet->param_i[0] + 1;
+    pSet->param_i[0] = groupId;
+
+    double x = kNoteSpawnX;
+    double y = kLineY[line];
+    AddShot(pSet, x, y, DX_PI, -kStaffSpeed, 0.0,
+        img_enemyShotMediumOval[4], 1, groupId);
+
+    // 縦向きの銃弾。中心を符頭から 10 と 18 に置き、先端は線から 23 まで。
+    // 線間隔 56 なので、隣の譜線とのあいだに約 30 残る。
+    double side = stemDown ? -1.0 : 1.0;
+    double dir = stemDown ? 1.0 : -1.0;
+    double stemMuki = stemDown ? (DX_PI * 0.5) : (-DX_PI * 0.5);
+    double stemX = x + side * 8.5;
+    int stemKind = img_enemyShotBullet[4];
+    AddShot(pSet, stemX, y + dir * 10.0, stemMuki, -kStaffSpeed, 0.0, stemKind, 2, groupId);
+    AddShot(pSet, stemX, y + dir * 18.0, stemMuki, -kStaffSpeed, 0.0, stemKind, 2, groupId);
+}
+
+static int IsGroupSlow(const int* ids, int n, int id)
+{
+    for (int i = 0; i < n; i++) {
+        if (ids[i] == id) return 1;
+    }
+    return 0;
+}
+
+static void ShotGosenAria(sEnemyShotSet* pEnemyShotSet)
+{
     if (pEnemyShotSet->count == 0) {
-        // 使える効果音一覧から軽量なものを選択
         if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
         PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
+    }
 
-        int streamLength = 40;          // 帯を構成する弾の数
-        double angle = pEnemyShotSet->muki;
-        double widthOffset = pEnemyShotSet->param_d[0]; // 帯の幅方向へのオフセット値
-        double spacing = 10.0;          // 弾同士の配置間隔
+    if (pEnemyShotSet->count % kStaffInterval == 0) {
+        SpawnStaffLine(pEnemyShotSet);
+    }
 
-        for (int i = 0; i < streamLength; i++) {
-            sEnemyShot* pEnemyShot = new sEnemyShot;
-
-            // 帯の進行方向に沿った距離
-            double dist = i * spacing;
-
-            // 帯の幅方向（進行方向に対して垂直）のオフセットベクトル
-            // ヘリンボーンの「噛み合い」を表現するためにこの値をずらす
-            double perpX = cos(angle + DX_PI / 2.0) * widthOffset;
-            double perpY = sin(angle + DX_PI / 2.0) * widthOffset;
-
-            // 初期位置の計算
-            pEnemyShot->x = pEnemyShotSet->x + dist * cos(angle) + perpX;
-            pEnemyShot->y = pEnemyShotSet->y + dist * sin(angle) + perpY;
-
-            pEnemyShot->muki = angle;
-            pEnemyShot->speed = 2.5; // やや遅めで模様が画面に定着しやすくする
-
-            // 【使用素材】銃弾(5.0x2.0)を「米弾」として使用
-            // 細長い形状が方向性を強調し、帯として並んだときに織物のような質感を出す
-            // 色は pEnemyShotSet->kind に格納されたインデックス(3:シアン, 5:マゼンタ)を使用
-            pEnemyShot->kind = img_enemyShotBullet[pEnemyShotSet->kind];
-            pEnemyShot->margin = 500;
-
-            // 両方向リストに追加
-            pEnemyShot->prev = pEnemyShotSet->pEnemyShotHead->prev;
-            pEnemyShot->next = pEnemyShotSet->pEnemyShotHead;
-            pEnemyShotSet->pEnemyShotHead->prev->next = pEnemyShot;
-            pEnemyShotSet->pEnemyShotHead->prev = pEnemyShot;
+    if (pEnemyShotSet->count >= kIntroFrames) {
+        int t = pEnemyShotSet->count - kIntroFrames;
+        if (t % kBeatFrames == 0) {
+            int step = (t / kBeatFrames) % kMelodyLen;
+            if (kMelody[step].line >= 0) {
+                SpawnScoreNote(pEnemyShotSet, kMelody[step].line, kMelody[step].stemDown);
+            }
         }
     }
 
-    // 弾の移動処理
+    int slowGroup[8];
+    int slowNum = 0;
     sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
     while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        pShot->x += pShot->speed * cos(pShot->muki);
-        pShot->y += pShot->speed * sin(pShot->muki);
-        if (pShot->y > 500) pShot->margin = -9999;
+        if (pShot->param_i[0] == 1) {
+            if (pShot->param_i[1] == 0 && pShot->x <= kTriggerX) {
+                pShot->param_i[1] = 1;
+                pShot->param_i[3] = pShot->count;
+                if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
+                PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+            }
+            if (pShot->param_i[1] == 1
+                && pShot->count - pShot->param_i[3] >= kTelegraphFrames) {
+                double ang = atan2(player.y - pShot->y, player.x - pShot->x);
+                pShot->param_i[1] = 2;
+                pShot->muki = ang;
+                pShot->speed = kAimSpeed;
+                pShot->param_d[0] = kAimSpeed * cos(ang);
+                pShot->param_d[1] = kAimSpeed * sin(ang);
+                pShot->kind = img_enemyShotMediumOval[0];
+                if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
+                PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
+            }
+            if (pShot->param_i[1] == 1 && slowNum < 8) {
+                slowGroup[slowNum] = pShot->param_i[4];
+                slowNum++;
+            }
+        }
+        pShot = pShot->next;
+    }
+
+    pShot = pEnemyShotSet->pEnemyShotHead->next;
+    while (pShot != pEnemyShotSet->pEnemyShotHead) {
+        int role = pShot->param_i[0];
+        if (role == 1 && pShot->param_i[1] == 1) {
+            pShot->param_d[0] = -kTelegraphSpeed;
+            pShot->param_d[1] = 0.0;
+            pShot->speed = kTelegraphSpeed;
+        }
+        else if (role == 2) {
+            if (IsGroupSlow(slowGroup, slowNum, pShot->param_i[4])) {
+                pShot->param_d[0] = -kTelegraphSpeed;
+                pShot->speed = kTelegraphSpeed;
+            }
+            else {
+                pShot->param_d[0] = -kStaffSpeed;
+                pShot->speed = kStaffSpeed;
+            }
+            pShot->param_d[1] = 0.0;
+        }
+        pShot->x += pShot->param_d[0];
+        pShot->y += pShot->param_d[1];
         pShot = pShot->next;
     }
 }
 
-// ============================================================
-// 敵本体のパターン：ヘリンボーン・ストリーム
-// ============================================================
+// 敵本体。名前は指定どおり EnemyPat_Tmp。
 void EnemyPat_Tmp()
 {
-    static int phase = 0; // 0: 45度帯発射フェーズ, 1: 135度帯発射フェーズ
-
+    static int muki;
     if (count == 1) {
-        // ゲーム画面は 480x480
+        // ゲーム画面は 480x480。五線の最上段は y=128 なので、その上に置く。
         enemy.x = 240.0;
-        enemy.y = 60.0;
+        enemy.y = 40.0;
         enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
-        phase = 0;
-    }
-    else {
-        // 敵は画面中央上部でゆっくりと左右に揺れる
-        enemy.x = 240.0 + sin(count * 0.015) * 120.0;
-    }
-
-    // 30フレームごとに帯状の弾幕を発射（角度とオフセットを交互に切り替え）
-    if (count % 30 == 1) for (int i = -5; i <= 5; i++) {
-        phase = (phase + 1) % 2;
+        muki = 1;
 
         sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
         pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotHerringboneStream;
-        pEnemyShotSet->x = enemy.x + i * 70;
+        pEnemyShotSet->patternFunc = ShotGosenAria;
+        pEnemyShotSet->x = enemy.x;
         pEnemyShotSet->y = enemy.y + 10.0;
-
-        if (phase == 0) {
-            // 【右斜め下の帯】 (\)
-            pEnemyShotSet->muki = DX_PI / 4.0;       // 45度
-            pEnemyShotSet->kind = 3;                 // 色: 3(シアン)
-            pEnemyShotSet->param_d[0] = 0.0;         // 幅方向オフセット: なし
-        }
-        else {
-            // 【左斜め下の帯】 (/)
-            pEnemyShotSet->muki = DX_PI * 3.0 / 4.0; // 135度
-            pEnemyShotSet->kind = 5;                 // 色: 5(マゼンタ)
-            // 帯の間隔(spacing=10.0)の約半分(6.0)だけ垂直方向にずらす
-            // これにより、V字の頂点が一直線に並ぶのではなく、斜めに段差ができる
-            // 「本格的なヘリンボーン（綾織り）」の噛み合いが表現される
-            pEnemyShotSet->param_d[0] = 6.0;
-        }
-
-        // 弾リストのヘッダ初期化
+        pEnemyShotSet->muki = 0.0;
+        pEnemyShotSet->kind = 0;
         pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
         pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
         pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-
-        // 弾幕セットリストに追加
         pEnemyShotSet->prev = enemyShotSetHead.prev;
         pEnemyShotSet->next = &enemyShotSetHead;
         enemyShotSetHead.prev->next = pEnemyShotSet;
         enemyShotSetHead.prev = pEnemyShotSet;
+    }
+    else {
+        enemy.x += 0.6 * (double)muki;
+        if (count % 180 == 90) muki *= -1;
     }
 }
