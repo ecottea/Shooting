@@ -3,246 +3,223 @@
 #include "imgSoundLoad.h"
 #include <math.h>
 
-// ============================================================
-//  弾幕：五線のアリア
-//
-//  画面中央を、右から左へ流れる五線にする。
-//  その上を一小節ぶんの音符が同じ速度で流れ、
-//  画面幅の 55% 地点で 0.15 秒ためてから符頭だけが自機を狙う。
-//  符幹は曲がらず、休符の 1 拍がレーンを移る隙間になる。
-//
-//  使う弾（一覧から譜面に必要なものだけ）:
-//    五線 … 小玉・白 (半径 2.5)。細く、点を並べると譜線に見える。
-//    符頭 … 中楕円弾・青 (半径 10.5 x 7.0)。符頭の形に近い。発音で赤。
-//    符幹 … 銃弾・青 (半径 5.0 x 2.0)。muki を縦にして細い幹にする。
-//  使わない理由:
-//    大玉は半径 20 で線間を埋める。
-//    短レーザーは長さ方向の半径 64 で、譜線にすると通れない。
-//    中玉は円なので符頭らしくない。鱗弾・菱形弾は譜面の形に合わない。
-//
-//  効果音: light = 五線が引かれるとき、charge = ため、medium = 発音。
-//  count / pEnemyShotSet->count / pEnemyShot->count の加算と、
-//  画面外の弾の消去はメインルーチン。ここではやらない。
-//  旋律は固定。GetRand は使わない。
-//
-//  60fps 想定。ゲーム画面は 480x480。
-// ============================================================
+// 飛鉢「伝説の飛空円盤」再現
+// ・4つの巨大リング(各32x2重=64発) = UFOの縁
+// ・リングは中心に追従して回転、中心は安全
+// ・自機がボスを撃つとHP減少を検知して自機狙い反撃弾
 
-static const double kStaffSpeed = 2.0;
-static const double kTelegraphSpeed = 0.5;
-static const double kAimSpeed = kStaffSpeed * 4.0;
-static const double kStaffSpawnX = 494.0;
-static const double kNoteSpawnX = 486.0;
-static const double kTriggerX = 480.0 * 0.55;
-static const int kStaffInterval = 3;     // 中心間隔 = 2.0 * 3 = 6
-static const int kIntroFrames = 90;      // 五線だけ 1.5 秒
-static const int kBeatFrames = 42/7;       // 1 拍 0.7 秒
-static const int kTelegraphFrames = 9;   // ため 0.15 秒
-static const double kLineSpacing = 56.0;
-static const double kStaffCenterY = 240.0;
-
-// 添字 0 が第1線（低い音、画面下）。
-static const double kLineY[5] = {
-    kStaffCenterY + kLineSpacing * 2.0,
-    kStaffCenterY + kLineSpacing,
-    kStaffCenterY,
-    kStaffCenterY - kLineSpacing,
-    kStaffCenterY - kLineSpacing * 2.0,
-};
-
-// 上昇 4 拍、休符、下降 4 拍。
-// line < 0 は休符。stemDown: 0 = 上向き（符頭の右）、1 = 下向き（符頭の左）。
-// 第3線から上は楽譜どおり下向き。
-struct ScoreNote {
-    int line;
-    int stemDown;
-};
-
-static const ScoreNote kMelody[] = {
-    { 0, 0 },
-    { 1, 0 },
-    { 2, 1 },
-    { 3, 1 },
-    { -1, 0 },
-    { 4, 1 },
-    { 3, 1 },
-    { 2, 1 },
-    { 1, 0 },
-};
-static const int kMelodyLen = sizeof(kMelody) / sizeof(kMelody[0]);
-
-// 弾の param:
-//   param_i[0] 役割  0:五線  1:符頭  2:符幹
-//   param_i[1] 符頭の状態  0:流れる  1:ため  2:発音後
-//   param_i[3] ために入ったときの pEnemyShot->count
-//   param_i[4] 音符グループ ID（五線は 0）
-//   param_d[0], param_d[1]  移動量。符幹は muki を見た目の向きに使うので、
-//                            サンプルのように muki では動かさない。
-// ショットセットの param_i[0] は次に振る音符 ID。
-
-static void AddShot(sEnemyShotSet* pSet, double x, double y, double muki,
-    double vx, double vy, int kind, int role, int groupId)
+// リング弾幕用
+static void ShotSaucerRing(sEnemyShotSet* pSet)
 {
-    sEnemyShot* pShot = new sEnemyShot;
-    pShot->x = x;
-    pShot->y = y;
-    pShot->muki = muki;
-    pShot->speed = fabs(vx) + fabs(vy);
-    pShot->kind = kind;
-    pShot->param_i[0] = role;
-    pShot->param_i[1] = 0;
-    pShot->param_i[3] = 0;
-    pShot->param_i[4] = groupId;
-    pShot->param_d[0] = vx;
-    pShot->param_d[1] = vy;
-    pShot->prev = pSet->pEnemyShotHead->prev;
-    pShot->next = pSet->pEnemyShotHead;
-    pSet->pEnemyShotHead->prev->next = pShot;
-    pSet->pEnemyShotHead->prev = pShot;
-}
+    if (pSet->count == 0) {
+        // 生成時演出
+        if (CheckSoundMem(sound_enemyCharge) == 0) {
+            PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
+        }
+        // param_d[0]=centerX, [1]=centerY, [2]=radius1, [3]=rotation, [4]=rotSpeed, [5]=bulletNum
+        double radius1 = pSet->param_d[2];
+        double radius2 = radius1 + 8.0; // UFOの厚みを出す2重リング
+        int n = (int)pSet->param_d[5]; // 片側の弾数 24~36
 
-static void SpawnStaffLine(sEnemyShotSet* pSet)
-{
-    for (int i = 0; i < 5; i++) {
-        AddShot(pSet, kStaffSpawnX, kLineY[i], DX_PI,
-            -kStaffSpeed, 0.0, img_enemyShotSmallBall[6], 0, 0);
-    }
-}
+        for (int r = 0; r < 2; r++) {
+            double rad = (r == 0) ? radius1 : radius2;
+            for (int i = 0; i < n; i++) {
+                sEnemyShot* pShot = new sEnemyShot;
+                double baseAng = 2.0 * DX_PI * i / n;
+                if (r == 1) baseAng += DX_PI / n; // 2重目は半分ずらして隙間を埋める
 
-static void SpawnScoreNote(sEnemyShotSet* pSet, int line, int stemDown)
-{
-    int groupId = pSet->param_i[0] + 1;
-    pSet->param_i[0] = groupId;
+                pShot->param_d[0] = baseAng; // 基準角度
+                pShot->param_d[1] = rad;      // 自身の半径
 
-    double x = kNoteSpawnX;
-    double y = kLineY[line];
-    AddShot(pSet, x, y, DX_PI, -kStaffSpeed, 0.0,
-        img_enemyShotMediumOval[4], 1, groupId);
+                pShot->x = pSet->param_d[0] + rad * cos(baseAng);
+                pShot->y = pSet->param_d[1] + rad * sin(baseAng);
+                pShot->muki = 0.0;
+                pShot->speed = 0.0;
+                // 青～シアンでHard/Lunatic版の色。kind %8の仕様に合わせ色番号で指定
+                // 小玉 2.5x2.5
+                int col = pSet->param_i[1]; // 0:赤 3:シアン 4:青
+                pShot->kind = img_enemyShotSmallBall[col];
+                pShot->margin = 120;
 
-    // 縦向きの銃弾。中心を符頭から 10 と 18 に置き、先端は線から 23 まで。
-    // 線間隔 56 なので、隣の譜線とのあいだに約 30 残る。
-    double side = stemDown ? -1.0 : 1.0;
-    double dir = stemDown ? 1.0 : -1.0;
-    double stemMuki = stemDown ? (DX_PI * 0.5) : (-DX_PI * 0.5);
-    double stemX = x + side * 8.5;
-    int stemKind = img_enemyShotBullet[4];
-    AddShot(pSet, stemX, y + dir * 10.0, stemMuki, -kStaffSpeed, 0.0, stemKind, 2, groupId);
-    AddShot(pSet, stemX, y + dir * 18.0, stemMuki, -kStaffSpeed, 0.0, stemKind, 2, groupId);
-}
-
-static int IsGroupSlow(const int* ids, int n, int id)
-{
-    for (int i = 0; i < n; i++) {
-        if (ids[i] == id) return 1;
-    }
-    return 0;
-}
-
-static void ShotGosenAria(sEnemyShotSet* pEnemyShotSet)
-{
-    if (pEnemyShotSet->count == 0) {
-        if (CheckSoundMem(sound_enemyShot_light)) StopSoundMem(sound_enemyShot_light);
-        PlaySoundMem(sound_enemyShot_light, DX_PLAYTYPE_BACK);
-    }
-
-    if (pEnemyShotSet->count % kStaffInterval == 0) {
-        SpawnStaffLine(pEnemyShotSet);
-    }
-
-    if (pEnemyShotSet->count >= kIntroFrames) {
-        int t = pEnemyShotSet->count - kIntroFrames;
-        if (t % kBeatFrames == 0) {
-            int step = (t / kBeatFrames) % kMelodyLen;
-            if (kMelody[step].line >= 0) {
-                SpawnScoreNote(pEnemyShotSet, kMelody[step].line, kMelody[step].stemDown);
+                pShot->prev = pSet->pEnemyShotHead->prev;
+                pShot->next = pSet->pEnemyShotHead;
+                pSet->pEnemyShotHead->prev->next = pShot;
+                pSet->pEnemyShotHead->prev = pShot;
             }
         }
-    }
-
-    int slowGroup[8];
-    int slowNum = 0;
-    sEnemyShot* pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        if (pShot->param_i[0] == 1) {
-            if (pShot->param_i[1] == 0 && pShot->x <= kTriggerX) {
-                pShot->param_i[1] = 1;
-                pShot->param_i[3] = pShot->count;
-                if (CheckSoundMem(sound_enemyCharge)) StopSoundMem(sound_enemyCharge);
-                PlaySoundMem(sound_enemyCharge, DX_PLAYTYPE_BACK);
-            }
-            if (pShot->param_i[1] == 1
-                && pShot->count - pShot->param_i[3] >= kTelegraphFrames) {
-                double ang = atan2(player.y - pShot->y, player.x - pShot->x);
-                pShot->param_i[1] = 2;
-                pShot->muki = ang;
-                pShot->speed = kAimSpeed;
-                pShot->param_d[0] = kAimSpeed * cos(ang);
-                pShot->param_d[1] = kAimSpeed * sin(ang);
-                pShot->kind = img_enemyShotMediumOval[0];
-                if (CheckSoundMem(sound_enemyShot_medium)) StopSoundMem(sound_enemyShot_medium);
-                PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
-            }
-            if (pShot->param_i[1] == 1 && slowNum < 8) {
-                slowGroup[slowNum] = pShot->param_i[4];
-                slowNum++;
-            }
+        if (CheckSoundMem(sound_enemyShot_medium) == 0) {
+            PlaySoundMem(sound_enemyShot_medium, DX_PLAYTYPE_BACK);
         }
-        pShot = pShot->next;
     }
+    else {
+        // 回転と中心の微移動
+        pSet->param_d[3] += pSet->param_d[4]; // rotation += rotSpeed
 
-    pShot = pEnemyShotSet->pEnemyShotHead->next;
-    while (pShot != pEnemyShotSet->pEnemyShotHead) {
-        int role = pShot->param_i[0];
-        if (role == 1 && pShot->param_i[1] == 1) {
-            pShot->param_d[0] = -kTelegraphSpeed;
-            pShot->param_d[1] = 0.0;
-            pShot->speed = kTelegraphSpeed;
+        // ごくゆっくり中心を揺らす(原作の漂い)
+        pSet->param_d[0] += sin(pSet->count * 0.008 + pSet->param_i[0]) * 0.15;
+        pSet->param_d[1] += cos(pSet->count * 0.006 + pSet->param_i[0]) * 0.12;
+
+        // 半径をじわじわ縮めて圧迫(伝説の飛空円盤は徐々に詰まる)
+        if (pSet->count > 120 && pSet->param_d[2] > -42.0) {
+            pSet->param_d[2] -= -0.03;
         }
-        else if (role == 2) {
-            if (IsGroupSlow(slowGroup, slowNum, pShot->param_i[4])) {
-                pShot->param_d[0] = -kTelegraphSpeed;
-                pShot->speed = kTelegraphSpeed;
+
+        sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+        while (pShot != pSet->pEnemyShotHead) {
+            double baseAng = pShot->param_d[0];
+            double curAng = baseAng + pSet->param_d[3];
+            double rad = pShot->param_d[1];
+            // 内側リングは縮小に追従
+            if (rad > 60.0) {
+                // 外側リングも少し縮む
+                rad = pSet->param_d[2] + 8.0;
+                pShot->param_d[1] = rad;
             }
             else {
-                pShot->param_d[0] = -kStaffSpeed;
-                pShot->speed = kStaffSpeed;
+                rad = pSet->param_d[2];
+                pShot->param_d[1] = rad;
             }
-            pShot->param_d[1] = 0.0;
+            pShot->x = pSet->param_d[0] + rad * cos(curAng);
+            pShot->y = pSet->param_d[1] + rad * sin(curAng);
+            pShot = pShot->next;
         }
-        pShot->x += pShot->param_d[0];
-        pShot->y += pShot->param_d[1];
+    }
+}
+
+// 反撃弾幕用 : ボス被弾時に自機狙いをばら撒く
+static void ShotRetaliation(sEnemyShotSet* pSet)
+{
+    if (pSet->count == 0) {
+        int num = pSet->param_i[0]; // 発射数
+        if (num < 3) num = 3;
+        if (num > 10) num = 10;
+        double baseSpeed = pSet->param_d[0];
+
+        for (int i = 0; i < num; i++) {
+            sEnemyShot* pShot = new sEnemyShot;
+            pShot->x = pSet->x;
+            pShot->y = pSet->y;
+            // GetRand(x)は0..x inclusiveなので注意。-10..10を作るならGetRand(20)-10
+            double spread = (GetRand(20) - 10) / 180.0 * DX_PI;
+            if (num > 1) {
+                spread += (i - num / 2) * 0.18; // 扇状に広げる
+            }
+            pShot->muki = pSet->muki + spread;
+            pShot->speed = baseSpeed + GetRand(80) / 100.0; // 3.0~4.5程度
+            // 反撃は赤小玉で目立たせる 5x2の銃弾だと速く見えるので小玉のまま赤に
+            pShot->kind = img_enemyShotSmallBall[0]; // 0:赤
+
+            pShot->prev = pSet->pEnemyShotHead->prev;
+            pShot->next = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->prev->next = pShot;
+            pSet->pEnemyShotHead->prev = pShot;
+        }
+        if (CheckSoundMem(sound_enemyShot_heavy) == 0) {
+            PlaySoundMem(sound_enemyShot_heavy, DX_PLAYTYPE_BACK);
+        }
+    }
+
+    sEnemyShot* pShot = pSet->pEnemyShotHead->next;
+    while (pShot != pSet->pEnemyShotHead) {
+        pShot->x += pShot->speed * cos(pShot->muki);
+        pShot->y += pShot->speed * sin(pShot->muki);
         pShot = pShot->next;
     }
 }
 
-// 敵本体。名前は指定どおり EnemyPat_Tmp。
 void EnemyPat_Tmp()
 {
     static int muki;
-    if (count == 1) {
-        // ゲーム画面は 480x480。五線の最上段は y=128 なので、その上に置く。
-        enemy.x = 240.0;
-        enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
-        muki = 1;
+    static int prevHp;
+    static int retaliationCool;
+    static int ringsCreated;
 
-        sEnemyShotSet* pEnemyShotSet = new sEnemyShotSet;
-        pEnemyShotSet->count = 0;
-        pEnemyShotSet->patternFunc = ShotGosenAria;
-        pEnemyShotSet->x = enemy.x;
-        pEnemyShotSet->y = enemy.y + 10.0;
-        pEnemyShotSet->muki = 0.0;
-        pEnemyShotSet->kind = 0;
-        pEnemyShotSet->pEnemyShotHead = new sEnemyShot;
-        pEnemyShotSet->pEnemyShotHead->prev = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->pEnemyShotHead->next = pEnemyShotSet->pEnemyShotHead;
-        pEnemyShotSet->prev = enemyShotSetHead.prev;
-        pEnemyShotSet->next = &enemyShotSetHead;
-        enemyShotSetHead.prev->next = pEnemyShotSet;
-        enemyShotSetHead.prev = pEnemyShotSet;
+    if (count == 1) {
+        enemy.x = 240.0;
+        enemy.y = 60.0;
+        enemy.maxHp = enemy.hp = 200;
+        muki = 1;
+        prevHp = enemy.hp;
+        retaliationCool = 0;
+        ringsCreated = 0;
+
+        // --- 4つのUFOリングを生成 (Hard/Lunatic版 伝説の飛空円盤) ---
+        struct RingDef { double cx, cy, r, rotSpd; int col; };
+        RingDef defs[4] = {
+            {120.0, 160.0, 68.0,  0.008, 4}, // 左上 青
+            {360.0, 160.0, 68.0, -0.009, 3}, // 右上 シアン
+            {120.0, 340.0, 68.0, -0.007, 4}, // 左下
+            {360.0, 340.0, 68.0,  0.010, 3}, // 右下
+        };
+
+        for (int k = 0; k < 4; k++) {
+            sEnemyShotSet* pSet = new sEnemyShotSet;
+            pSet->count = 0;
+            pSet->patternFunc = ShotSaucerRing;
+            pSet->x = defs[k].cx;
+            pSet->y = defs[k].cy;
+            pSet->muki = 0.0;
+            pSet->param_d[0] = defs[k].cx; // centerX
+            pSet->param_d[1] = defs[k].cy; // centerY
+            pSet->param_d[2] = defs[k].r*1.5;  // radius1
+            pSet->param_d[3] = GetRand(360) / 180.0 * DX_PI; // 初期回転ランダム
+            pSet->param_d[4] = defs[k].rotSpd;
+            pSet->param_d[5] = 28; // 片側28発、2重で56発。原作Hard 24, Lunatic 36の中間
+            pSet->param_i[0] = k * 2; // 揺れ位相ずれ用
+            pSet->param_i[1] = defs[k].col; // 色 3 or 4
+
+            pSet->pEnemyShotHead = new sEnemyShot;
+            pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+            pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+
+            pSet->prev = enemyShotSetHead.prev;
+            pSet->next = &enemyShotSetHead;
+            enemyShotSetHead.prev->next = pSet;
+            enemyShotSetHead.prev = pSet;
+        }
+        ringsCreated = 1;
     }
     else {
-        enemy.x += 0.6 * (double)muki;
-        if (count % 180 == 90) muki *= -1;
+        // ボス本体はゆっくり左右に動く(原作はほぼ中央固定だが少し揺れる)
+        enemy.x += 0.45 * (double)muki;
+        if (enemy.x < 200.0) muki = 1;
+        if (enemy.x > 280.0) muki = -1;
+        if (count % 240 == 0) muki *= -1;
+
+        // --- 反撃システム : HPが減ったら反撃 ---
+        if (retaliationCool > 0) retaliationCool--;
+
+        if (enemy.hp < prevHp && retaliationCool == 0) {
+            int dmg = prevHp - enemy.hp; // 1フレームで複数ヒットするとdmg>1
+            if (dmg > 0) {
+                sEnemyShotSet* pSet = new sEnemyShotSet;
+                pSet->count = 0;
+                pSet->patternFunc = ShotRetaliation;
+                pSet->x = enemy.x;
+                pSet->y = enemy.y + 10.0;
+                pSet->muki = atan2(player.y - pSet->y, player.x - pSet->x);
+                pSet->param_d[0] = 3.2 + GetRand(100) / 100.0; // 3.2~4.2
+                pSet->param_i[0] = dmg * 3 + 2; // ダメージに比例して弾数増加
+
+                pSet->pEnemyShotHead = new sEnemyShot;
+                pSet->pEnemyShotHead->prev = pSet->pEnemyShotHead;
+                pSet->pEnemyShotHead->next = pSet->pEnemyShotHead;
+
+                pSet->prev = enemyShotSetHead.prev;
+                pSet->next = &enemyShotSetHead;
+                enemyShotSetHead.prev->next = pSet;
+                enemyShotSetHead.prev = pSet;
+
+                retaliationCool = 4; // 連射しすぎ防止
+            }
+            prevHp = enemy.hp;
+        }
+        else if (enemy.hp == prevHp) {
+            // HPが変わらなかったフレームはそのまま
+        }
+        else {
+            // HPが増えることはないが念のため同期
+            if (enemy.hp < prevHp) prevHp = enemy.hp;
+        }
     }
 }
