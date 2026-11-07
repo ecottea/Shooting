@@ -66,7 +66,7 @@ static void ShotScatter(sEnemyShotSet* pEnemyShotSet)
 }
 
 // 敵本体のパターン
-void EnemyPat_SampleForAI() // 新しく作成する場合、名前は void EnemyPat_Tmp() にすること。
+void EnemyPat_SampleForAI() // AI が作成する場合、名前は void EnemyPat_Tmp() にすること。
 {
     static int muki;
     static int shot_count;
@@ -75,7 +75,7 @@ void EnemyPat_SampleForAI() // 新しく作成する場合、名前は void Enem
         // ゲーム画面は 480x480
         enemy.x = 240.0;
         enemy.y = 40.0;
-        enemy.maxHp = enemy.hp = 200; // 200で固定
+        enemy.maxHp = enemy.hp = 200; // 200から変更しないこと
         muki = 1;
         shot_count = 0;
     }
