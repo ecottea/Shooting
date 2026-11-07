@@ -69,6 +69,30 @@
     <ClCompile Include="enemyPat_tmp.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
+    <ClCompile Include="enemyPat_DeepSeek176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_ChatGPT176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_Gemini176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_Grok176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_Claude176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_Qwen176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_MetaAI176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
+    <ClCompile Include="enemyPat_Zai176.cpp">
+      <Filter>ソース ファイル\enemyPat</Filter>
+    </ClCompile>
     <ClCompile Include="enemyPat_DeepSeek175.cpp">
       <Filter>ソース ファイル\enemyPat</Filter>
     </ClCompile>
